@@ -23,7 +23,7 @@ The architecture has two planes:
   [A2A protocol](https://github.com/a2aproject/A2A).
 
 Recursant is a **runtime governance layer for any AI agent** — LangChain,
-LangGraph, CrewAI, Salesforce AgentForce, custom HTTP — not a framework for
+LangGraph, CrewAI, ServiceNow (in-flight), custom HTTP — not a framework for
 writing agents. Bring your own agent code; Recursant gives it identity,
 policy enforcement, observability, and compliance guarantees.
 
