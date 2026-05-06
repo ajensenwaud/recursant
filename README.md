@@ -1,6 +1,8 @@
 # Recursant
 
-> An open-source agentic mesh — governance, security, compliance, and observability for AI agents communicating across the enterprise.
+Scaling AI agents creates a control problem most enterprises are not equipped for. Agents make decisions, talk to systems, and move data across stacks and clouds, yet most of today’s observability and compliance tools stop at the boundary of a single stack or a single cloud. This creates potential control gaps. 
+
+I created an open source platform to help close that gap.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
