@@ -1,0 +1,15 @@
+{{- if .Values.registry.ha.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "recursant.fullname" . }}-registry
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-registry
+spec:
+  minAvailable: {{ .Values.registry.ha.minAvailable }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-registry
+{{- end }}

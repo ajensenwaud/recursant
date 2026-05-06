@@ -1,0 +1,56 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "recursant.fullname" . }}-webhook
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "recursant.fullname" . }}-webhook
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+rules:
+  # kopf needs events and patching
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  # kopf framework requirements
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # restart-agents job needs to rollout restart deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "recursant.fullname" . }}-webhook
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "recursant.fullname" . }}-webhook
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "recursant.fullname" . }}-webhook
+    namespace: {{ include "recursant.namespace" . }}
+{{- end }}

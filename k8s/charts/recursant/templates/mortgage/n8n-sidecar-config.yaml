@@ -1,0 +1,55 @@
+{{- if .Values.mortgage.enabled }}
+{{- $fullname := include "recursant.fullname" . }}
+{{- $registryUrl := printf "http://%s-registry:%v" $fullname .Values.registry.port }}
+## n8n KYC Agent sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-n8n-kyc
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9912
+        a2a_port: 8452
+        agent_port: 5022
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-kyc.pem"
+          key_path: "/certs/sidecar-kyc-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "KYC Agent"
+    description: "Verifies customer identity using AI-powered passport extraction and image validation, orchestrated by n8n"
+    version: "2.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "kyc-verify"
+        name: "KYC Verification"
+        description: "Extracts passport details, validates person image, and verifies against KYC system"
+        tags: ["kyc", "identity", "passport", "n8n"]
+        examples:
+          - "Verify identity for Jane Smith with passport AB123456"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+{{- end }}

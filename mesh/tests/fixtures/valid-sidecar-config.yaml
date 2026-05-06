@@ -1,0 +1,39 @@
+recursant:
+  sidecar:
+    port: 9901
+    a2a_port: 8443
+    agent_port: 5010
+    registry_url: "http://localhost:5000"
+    registry_api_key: "test-mesh-api-key"
+    agent_card_path: "./agent_card.yaml"
+    agent_id: "550e8400-e29b-41d4-a716-446655440000"
+    log_level: "info"
+
+    interceptors:
+      authentication:
+        enabled: true
+        schemes: ["mtls", "api_key"]
+        api_key: "dev-sidecar-key"
+      authorisation:
+        enabled: true
+        default_action: deny
+        fallback_rules:
+          - source: "research-assistant"
+            destination: "fact-checker"
+            action: allow
+          - source: "*"
+            destination: "*"
+            action: deny
+      audit:
+        enabled: true
+        log_file: "/tmp/audit.log"
+        flush_interval_seconds: 5
+
+    tls:
+      cert_path: "/certs/sidecar-a.pem"
+      key_path: "/certs/sidecar-a-key.pem"
+      ca_path: "/certs/ca.pem"
+
+    heartbeat_interval_seconds: 30
+    policy_sync_interval_seconds: 30
+    discovery_cache_ttl_seconds: 60

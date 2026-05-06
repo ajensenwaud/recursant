@@ -1,0 +1,31 @@
+name: ML Pipeline Agent
+description: End-to-end machine learning pipeline agent for training, evaluation, and model serving.
+version: 2.0.0
+skills:
+  - id: train-model
+    name: Train Model
+    description: Train machine learning models with configurable hyperparameters and cross-validation.
+    tags:
+      - training
+      - ml
+  - id: evaluate-model
+    name: Evaluate Model
+    description: Evaluate trained models using accuracy, precision, recall, F1, and custom metrics.
+    tags:
+      - evaluation
+      - metrics
+  - id: serve-model
+    name: Serve Model
+    description: Deploy a trained model as a REST endpoint for real-time inference.
+    tags:
+      - serving
+      - inference
+  - id: monitor-drift
+    name: Monitor Drift
+    description: Monitor data and concept drift in production models and trigger retraining alerts.
+    tags:
+      - monitoring
+      - drift-detection
+capabilities:
+  streaming: true
+  pushNotifications: true

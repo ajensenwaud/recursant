@@ -1,0 +1,24 @@
+name: "Credit Agent"
+description: "Assesses credit capacity and makes lending decisions based on salary and LTV ratios"
+version: "1.0.0"
+provider:
+  name: "Agentic Bank"
+  url: "https://agenticbank.example.com"
+skills:
+  - id: "assess-credit-capacity"
+    name: "Assess Credit Capacity"
+    description: "Calculates the maximum mortgage loan amount based on the customer's annual salary"
+    tags: ["credit", "assessment", "lending"]
+    examples:
+      - "Assess credit capacity for annual salary of 75000"
+  - id: "make-credit-decision"
+    name: "Make Credit Decision"
+    description: "Makes a lending decision based on loan amount and property value (LTV ratio check)"
+    tags: ["credit", "decision", "lending"]
+    examples:
+      - "Decide on loan of 300000 for property worth 400000"
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: false
+  push_notifications: false

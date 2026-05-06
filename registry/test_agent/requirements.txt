@@ -1,0 +1,15 @@
+# Web framework
+flask==3.0.0
+gunicorn==21.2.0
+
+# LangGraph and LangChain
+langgraph>=0.2.50
+langchain-core>=0.3.0
+
+# LLM Providers
+openai>=2.15.0
+anthropic>=0.76.0
+google-genai>=1.60.0
+
+# Utilities
+python-dotenv==1.0.0

@@ -1,0 +1,13 @@
+name: Invoice Bot
+description: Processes invoices and payment requests
+version: 1.3.0
+skills:
+- id: process-invoice
+  name: Process Invoice
+  description: Process and validate invoices
+  tags:
+  - finance
+  - invoices
+capabilities:
+  streaming: false
+  pushNotifications: false

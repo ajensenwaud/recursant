@@ -1,0 +1,13 @@
+name: Model Registry
+description: Manages ML model versions and deployments
+version: 1.0.0
+skills:
+- id: register
+  name: Register
+  description: Register ML models
+  tags:
+  - ml
+  - registry
+capabilities:
+  streaming: false
+  pushNotifications: false

@@ -1,0 +1,13 @@
+name: Translator Agent
+description: Translates text between languages
+version: 1.4.0
+skills:
+- id: translate
+  name: Translate
+  description: Translate text between languages
+  tags:
+  - nlp
+  - translation
+capabilities:
+  streaming: false
+  pushNotifications: false

@@ -1,0 +1,13 @@
+name: Notebook Runner
+description: Executes Jupyter notebooks programmatically
+version: 0.8.0
+skills:
+- id: run-notebook
+  name: Run Notebook
+  description: Execute Jupyter notebooks
+  tags:
+  - jupyter
+  - notebooks
+capabilities:
+  streaming: false
+  pushNotifications: false

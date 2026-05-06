@@ -1,0 +1,623 @@
+## Recursant Helm Chart Values
+
+namespace: recursant
+
+## Container images
+## Build locally with: make build
+images:
+  registry:
+    repository: recursant-registry
+    tag: latest
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: recursant-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  testAgent:
+    repository: recursant-test-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+  sidecar:
+    repository: recursant-sidecar
+    tag: latest
+    pullPolicy: IfNotPresent
+  agentA:
+    repository: recursant-agent-a
+    tag: latest
+    pullPolicy: IfNotPresent
+  agentB:
+    repository: recursant-agent-b
+    tag: latest
+    pullPolicy: IfNotPresent
+  gateway:
+    repository: recursant-gateway
+    tag: latest
+    pullPolicy: IfNotPresent
+  webhook:
+    repository: recursant-webhook
+    tag: latest
+    pullPolicy: IfNotPresent
+  mcp:
+    repository: recursant-mcp
+    tag: latest
+    pullPolicy: IfNotPresent
+
+## Registry API
+registry:
+  replicas: 1
+  port: 5000
+  nodePort: 30500
+  ha:
+    enabled: false
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  gunicorn:
+    workers: 1
+    timeout: 300
+    workerClass: geventwebsocket.gunicorn.workers.GeventWebSocketWorker
+
+## Registry Frontend
+frontend:
+  replicas: 1
+  port: 80
+  servicePort: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+## PostgreSQL Database
+db:
+  replicas: 1
+  port: 5432
+  storage: 5Gi
+  storageClass: ""
+  image:
+    repository: postgres
+    tag: "15-alpine"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  ha:
+    enabled: false
+    replicas: 3
+    operator: zalando
+  replication:
+    enabled: false
+    clusterName: ""
+    remoteHost: ""
+    remotePort: 30432
+
+## Redis Cache
+redis:
+  replicas: 1
+  port: 6379
+  image:
+    repository: redis
+    tag: "7-alpine"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  ha:
+    enabled: false
+    sentinel:
+      replicas: 3
+
+## Test Agent
+testAgent:
+  replicas: 1
+  port: 5001
+  provider: anthropic
+  model: claude-sonnet-4-5-20250929
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+## Mesh Agents (base demo)
+agents:
+  enabled: true
+  agentA:
+    name: "Research Assistant"
+    port: 5010
+    sidecarPort: 9901
+    a2aPort: 8443
+  agentB:
+    name: "Fact Checker Agent"
+    port: 5011
+    sidecarPort: 9902
+    a2aPort: 8444
+
+## Ingress Gateway
+gateway:
+  enabled: false
+  replicas: 1
+  port: 8080
+  serviceType: ClusterIP
+  rateLimitRpm: 600
+  logLevel: info
+  authApiKey: ""
+  jwtSecret: false
+  tls:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+## Sidecar Injection Webhook
+webhook:
+  enabled: true
+  replicas: 1
+  port: 443
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+## Secrets — override at install time with --set or -f secrets.yaml
+## These are defaults for local dev only.
+secrets:
+  dbPassword: registry
+  dbUser: registry
+  dbName: registry
+  secretKey: dev-secret-key-change-in-production
+  jwtSecretKey: dev-jwt-secret
+  adminUsername: admin
+  adminPassword: changeme
+  meshApiKey: mesh-dev-key
+  anthropicApiKey: ""
+  openaiApiKey: ""
+  googleApiKey: ""
+  moonshotApiKey: ""
+  openrouterApiKey: ""
+  evalJudgeProvider: openrouter
+  # Pin the judge to a specific model — openrouter/auto can pick models
+  # with stricter content filters that refuse to score "harmful" prompts
+  # (e.g. quoting an election-conspiracy or weapons prompt for evaluation),
+  # returning empty content and breaking the JSON parser.
+  evalJudgeModel: anthropic/claude-sonnet-4-5
+  evalJudgeTemperature: "0.0"
+  evalJudgeMaxTokens: "1024"
+
+## Tool Governance — sidecar-enforced tool authorization and egress control
+toolGovernance:
+  enabled: true
+  toolSyncIntervalSeconds: 30
+
+## Kafka — event streaming for observability pipeline
+kafka:
+  enabled: true
+  image:
+    repository: apache/kafka
+    tag: "3.9.0"
+  port: 9092
+  storage: 5Gi
+  storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1536Mi
+  topics:
+    - name: mesh.audit
+      partitions: 3
+    - name: mesh.guardrails
+      partitions: 3
+    - name: mesh.registrations
+      partitions: 1
+    - name: mesh.alerts
+      partitions: 1
+    - name: mesh.cost
+      partitions: 1
+
+## Mortgage demo — disabled by default, enable with values-mortgage.yaml
+mortgage:
+  enabled: false
+
+## Multi-cluster active-active HA — disabled by default
+multiCluster:
+  enabled: false
+  clusterId: "default"
+  remoteRegistryUrl: ""
+  remoteDbHost: ""
+  remoteDbPort: 30432
+
+## Weaviate — vector database for guardrail reference text similarity
+weaviate:
+  enabled: true
+  image: "cr.weaviate.io/semitechnologies/weaviate:1.28.4"
+  t2vImage: "cr.weaviate.io/semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2"
+  storage: "5Gi"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  t2vResources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+## Network Policy — blocks direct agent-to-agent traffic, forcing
+## all inter-agent communication through sidecar A2A ports.
+## Requires a CNI that supports NetworkPolicy (Calico, Cilium).
+## Kind's default kindnet does NOT support NetworkPolicy.
+networkPolicy:
+  enabled: true
+  a2aPortRange:
+    start: 8443
+    end: 8500
+
+## Ingress (optional)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: recursant.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+## Network Discovery — 50 simulated agents for discovery feature testing
+## Enable with: --set discovery.enabled=true
+discovery:
+  enabled: false
+  agents:
+    # ── Engineering (15) ─────────────────────────────────────────────
+    - name: eng-ci-pipeline
+      group: engineering
+      mode: a2a
+      port: 5100
+      cardFile: eng-ci-pipeline.yaml
+      governed: true
+    - name: eng-code-review
+      group: engineering
+      mode: a2a
+      port: 5101
+      cardFile: eng-code-review.yaml
+      governed: false
+    - name: eng-debug-assistant
+      group: engineering
+      mode: a2a
+      port: 5102
+      cardFile: eng-debug-assistant.yaml
+      governed: false
+    - name: eng-deploy
+      group: engineering
+      mode: a2a
+      port: 5103
+      cardFile: eng-deploy.yaml
+      governed: true
+    - name: eng-deployment-bot
+      group: engineering
+      mode: a2a
+      port: 5104
+      cardFile: eng-deployment-bot.yaml
+      governed: false
+    - name: eng-doc-generator
+      group: engineering
+      mode: a2a
+      port: 5105
+      cardFile: eng-doc-generator.yaml
+      governed: false
+    - name: eng-log-analyzer
+      group: engineering
+      mode: a2a
+      port: 5106
+      cardFile: eng-log-analyzer.yaml
+      governed: false
+    - name: eng-perf-monitor
+      group: engineering
+      mode: a2a
+      port: 5107
+      cardFile: eng-perf-monitor.yaml
+      governed: false
+    - name: eng-research
+      group: engineering
+      mode: a2a
+      port: 5108
+      cardFile: eng-research.yaml
+      governed: false
+    - name: eng-security-scanner
+      group: engineering
+      mode: a2a
+      port: 5109
+      cardFile: eng-security-scanner.yaml
+      governed: true
+    - name: eng-translator
+      group: engineering
+      mode: langserve
+      port: 5110
+      cardFile: eng-translator.yaml
+      governed: false
+    - name: eng-summarizer
+      group: engineering
+      mode: langserve
+      port: 5111
+      cardFile: eng-summarizer.yaml
+      governed: false
+    - name: eng-crew-planner
+      group: engineering
+      mode: crewai
+      port: 5112
+      cardFile: eng-crew-planner.yaml
+      governed: false
+    - name: eng-legacy-api
+      group: engineering
+      mode: custom
+      port: 5113
+      cardFile: eng-legacy-api.yaml
+      governed: false
+    - name: eng-test-runner
+      group: engineering
+      mode: nginx
+      port: 5114
+      cardFile: eng-test-runner.yaml
+      governed: false
+
+    # ── Data Science (12) ────────────────────────────────────────────
+    - name: ds-analysis
+      group: datascience
+      mode: a2a
+      port: 5200
+      cardFile: ds-analysis.yaml
+      governed: false
+    - name: ds-data-cleaner
+      group: datascience
+      mode: a2a
+      port: 5201
+      cardFile: ds-data-cleaner.yaml
+      governed: false
+    - name: ds-feature-eng
+      group: datascience
+      mode: a2a
+      port: 5202
+      cardFile: ds-feature-eng.yaml
+      governed: false
+    - name: ds-model-registry
+      group: datascience
+      mode: a2a
+      port: 5203
+      cardFile: ds-model-registry.yaml
+      governed: true
+    - name: ds-experiment-tracker
+      group: datascience
+      mode: a2a
+      port: 5204
+      cardFile: ds-experiment-tracker.yaml
+      governed: false
+    - name: ds-ml-pipeline
+      group: datascience
+      mode: langserve
+      port: 5205
+      cardFile: ds-ml-pipeline.yaml
+      governed: true
+    - name: ds-rag-pipeline
+      group: datascience
+      mode: langserve
+      port: 5206
+      cardFile: ds-rag-pipeline.yaml
+      governed: false
+    - name: ds-prompt-optimizer
+      group: datascience
+      mode: langserve
+      port: 5207
+      cardFile: ds-prompt-optimizer.yaml
+      governed: false
+    - name: ds-analysis-crew
+      group: datascience
+      mode: crewai
+      port: 5208
+      cardFile: ds-analysis-crew.yaml
+      governed: false
+    - name: ds-etl-crew
+      group: datascience
+      mode: crewai
+      port: 5209
+      cardFile: ds-etl-crew.yaml
+      governed: false
+    - name: ds-embedding-svc
+      group: datascience
+      mode: custom
+      port: 5210
+      cardFile: ds-embedding-svc.yaml
+      governed: false
+    - name: ds-grafana-proxy
+      group: datascience
+      mode: nginx
+      port: 5211
+      cardFile: ds-grafana-proxy.yaml
+      governed: false
+
+    # ── MCP Servers (8) ──────────────────────────────────────────────
+    - name: mcp-analytics
+      group: mcp
+      mode: mcp
+      port: 5300
+      cardFile: mcp-analytics.yaml
+      governed: false
+      mcpTools: "generate_report,query_metrics,create_dashboard"
+    - name: mcp-auth
+      group: mcp
+      mode: mcp
+      port: 5301
+      cardFile: mcp-auth.yaml
+      governed: false
+      mcpTools: "verify_token,create_session,revoke_access"
+    - name: mcp-calculator
+      group: mcp
+      mode: mcp
+      port: 5302
+      cardFile: mcp-calculator.yaml
+      governed: false
+      mcpTools: "add,subtract,multiply,divide,sqrt"
+    - name: mcp-database
+      group: mcp
+      mode: mcp
+      port: 5303
+      cardFile: mcp-database.yaml
+      governed: false
+      mcpTools: "query,insert,update,delete"
+    - name: mcp-email
+      group: mcp
+      mode: mcp
+      port: 5304
+      cardFile: mcp-email.yaml
+      governed: false
+      mcpTools: "send_email,list_inbox,search_messages"
+    - name: mcp-notifications
+      group: mcp
+      mode: mcp
+      port: 5305
+      cardFile: mcp-notifications.yaml
+      governed: false
+      mcpTools: "send_notification,list_alerts,acknowledge_alert"
+    - name: mcp-search
+      group: mcp
+      mode: mcp
+      port: 5306
+      cardFile: mcp-search.yaml
+      governed: false
+      mcpTools: "web_search,index_document,semantic_search"
+    - name: mcp-storage
+      group: mcp
+      mode: mcp
+      port: 5307
+      cardFile: mcp-storage.yaml
+      governed: false
+      mcpTools: "upload_file,download_file,list_files,delete_file"
+
+    # ── Partner (13) ─────────────────────────────────────────────────
+    - name: partner-billing
+      group: partner
+      mode: a2a
+      port: 5400
+      cardFile: partner-billing.yaml
+      governed: true
+    - name: partner-compliance-checker
+      group: partner
+      mode: a2a
+      port: 5401
+      cardFile: partner-compliance-checker.yaml
+      governed: true
+    - name: partner-crm-connector
+      group: partner
+      mode: a2a
+      port: 5402
+      cardFile: partner-crm-connector.yaml
+      governed: false
+    - name: partner-invoice-bot
+      group: partner
+      mode: a2a
+      port: 5403
+      cardFile: partner-invoice-bot.yaml
+      governed: false
+    - name: partner-order-tracker
+      group: partner
+      mode: a2a
+      port: 5404
+      cardFile: partner-order-tracker.yaml
+      governed: true
+    - name: partner-payment-gateway
+      group: partner
+      mode: a2a
+      port: 5405
+      cardFile: partner-payment-gateway.yaml
+      governed: true
+    - name: partner-shipping-agent
+      group: partner
+      mode: a2a
+      port: 5406
+      cardFile: partner-shipping-agent.yaml
+      governed: true
+    - name: partner-audit-logger
+      group: partner
+      mode: mcp
+      port: 5407
+      cardFile: partner-audit-logger.yaml
+      governed: false
+      mcpTools: "log_event,query_logs,export_audit_trail"
+    - name: partner-erp-bridge
+      group: partner
+      mode: mcp
+      port: 5408
+      cardFile: partner-erp-bridge.yaml
+      governed: false
+      mcpTools: "sync_order,get_inventory,update_pricing"
+    - name: partner-inventory-sync
+      group: partner
+      mode: mcp
+      port: 5409
+      cardFile: partner-inventory-sync.yaml
+      governed: false
+      mcpTools: "check_stock,reserve_items,release_reservation"
+    - name: partner-legacy-soap
+      group: partner
+      mode: custom
+      port: 5410
+      cardFile: partner-legacy-soap.yaml
+      governed: false
+    - name: partner-flaky-service
+      group: partner
+      mode: a2a
+      port: 5411
+      cardFile: partner-flaky-service.yaml
+      governed: false
+      flaky: true
+    - name: partner-secure-vault
+      group: partner
+      mode: a2a
+      port: 5412
+      cardFile: partner-secure-vault.yaml
+      governed: false
+      authRequired: true
+
+    # ── Isolated (2) ─────────────────────────────────────────────────
+    - name: isolated-honeypot
+      group: isolated
+      mode: a2a
+      port: 9999
+      cardFile: isolated-honeypot.yaml
+      governed: false
+    - name: isolated-sandbox
+      group: isolated
+      mode: a2a
+      port: 12345
+      cardFile: isolated-sandbox.yaml
+      governed: false

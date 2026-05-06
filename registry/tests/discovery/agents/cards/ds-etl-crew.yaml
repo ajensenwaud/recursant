@@ -1,0 +1,13 @@
+name: ETL Crew
+description: Multi-agent ETL pipeline crew
+version: 1.2.0
+skills:
+- id: etl
+  name: ETL
+  description: Extract, transform, and load data
+  tags:
+  - etl
+  - data
+capabilities:
+  streaming: false
+  pushNotifications: false

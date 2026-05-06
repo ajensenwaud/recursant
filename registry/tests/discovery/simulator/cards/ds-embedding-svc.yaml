@@ -1,0 +1,13 @@
+name: Embedding Service
+description: Generates vector embeddings for text
+version: 1.0.0
+skills:
+- id: embed
+  name: Embed
+  description: Generate text embeddings
+  tags:
+  - embeddings
+  - vectors
+capabilities:
+  streaming: false
+  pushNotifications: false

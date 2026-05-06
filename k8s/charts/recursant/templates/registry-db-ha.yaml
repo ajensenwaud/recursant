@@ -1,0 +1,40 @@
+{{- if .Values.db.ha.enabled }}
+##
+## Zalando PostgreSQL Operator CRD — creates a HA PostgreSQL cluster
+## with streaming replication.  Requires the Zalando postgres-operator
+## to be installed in the cluster.
+##
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  name: {{ include "recursant.fullname" . }}-db
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-db
+spec:
+  teamId: recursant
+  volume:
+    size: {{ .Values.db.storage }}
+    {{- if .Values.db.storageClass }}
+    storageClass: {{ .Values.db.storageClass | quote }}
+    {{- end }}
+  numberOfInstances: {{ .Values.db.ha.replicas }}
+  postgresql:
+    version: "15"
+  users:
+    {{ .Values.secrets.dbUser }}:
+      - superuser
+      - createdb
+  databases:
+    {{ .Values.secrets.dbName }}: {{ .Values.secrets.dbUser }}
+  resources:
+    {{- toYaml .Values.db.resources | nindent 4 }}
+  patroni:
+    synchronous_mode: true
+    synchronous_mode_strict: false
+    pg_hba:
+      - local   all all trust
+      - host    all all 0.0.0.0/0 md5
+      - hostssl all all 0.0.0.0/0 md5
+{{- end }}

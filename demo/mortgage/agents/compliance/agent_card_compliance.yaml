@@ -1,0 +1,16 @@
+name: "Compliance Crew"
+description: "Reviews mortgage applications for regulatory compliance using CrewAI"
+version: "1.0.0"
+provider:
+  name: "Agentic Bank"
+  url: "https://agenticbank.example.com"
+skills:
+  - id: "compliance-review"
+    name: "Compliance Review"
+    description: "Reviews a mortgage application for regulatory compliance"
+    tags: ["compliance", "regulatory", "mortgage", "crewai"]
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: false
+  push_notifications: false

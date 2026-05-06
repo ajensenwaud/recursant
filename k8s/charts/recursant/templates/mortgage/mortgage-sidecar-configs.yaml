@@ -1,0 +1,320 @@
+{{- if .Values.mortgage.enabled }}
+{{- $fullname := include "recursant.fullname" . }}
+{{- $registryUrl := printf "http://%s-registry:%v" $fullname .Values.registry.port }}
+## Customer Agent sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-customer
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9910
+        a2a_port: 8450
+        agent_port: 5020
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-customer.pem"
+          key_path: "/certs/sidecar-customer-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Customer Agent"
+    description: "Guides customers through the mortgage origination process, coordinating authentication, KYC, credit assessment, and loan disbursement"
+    version: "1.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "mortgage-origination"
+        name: "Mortgage Origination"
+        description: "Guides customers through a complete mortgage application including authentication, identity verification, credit assessment, and loan disbursement"
+        tags: ["mortgage", "origination", "banking"]
+        examples:
+          - "I'd like to apply for a mortgage"
+          - "Help me get a home loan"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: true
+      push_notifications: false
+---
+## Authentication Agent sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-auth
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9911
+        a2a_port: 8451
+        agent_port: 5021
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-auth.pem"
+          key_path: "/certs/sidecar-auth-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Authentication Agent"
+    description: "Verifies customer identity using BAN and PIN against the Customer Master system"
+    version: "1.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "authenticate-customer"
+        name: "Authenticate Customer"
+        description: "Verifies a customer's Bank Account Number (BAN) and PIN against the Customer Master system"
+        tags: ["authentication", "security", "banking"]
+        examples:
+          - "Verify customer with BAN 12345678 and PIN 1234"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+---
+## KYC Agent sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-kyc
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9912
+        a2a_port: 8452
+        agent_port: 5022
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-kyc.pem"
+          key_path: "/certs/sidecar-kyc-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "KYC Agent"
+    description: "Performs Know Your Customer identity verification using document checks"
+    version: "1.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "kyc-verify"
+        name: "KYC Verification"
+        description: "Verifies a customer's identity documents (passport, driving licence) against the KYC system"
+        tags: ["kyc", "identity", "compliance"]
+        examples:
+          - "Verify identity for Jane Smith with passport AB123456"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+---
+## Credit Agent sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-credit
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9913
+        a2a_port: 8453
+        agent_port: 5023
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-credit.pem"
+          key_path: "/certs/sidecar-credit-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Credit Agent"
+    description: "Assesses credit capacity and makes lending decisions based on salary and LTV ratios"
+    version: "1.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "assess-credit-capacity"
+        name: "Assess Credit Capacity"
+        description: "Calculates the maximum mortgage loan amount based on the customer's annual salary"
+        tags: ["credit", "assessment", "lending"]
+        examples:
+          - "Assess credit capacity for annual salary of 75000"
+      - id: "make-credit-decision"
+        name: "Make Credit Decision"
+        description: "Makes a lending decision based on loan amount and property value (LTV ratio check)"
+        tags: ["credit", "decision", "lending"]
+        examples:
+          - "Decide on loan of 300000 for property worth 400000"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+---
+## Core Banking Agent sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-core-banking
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9914
+        a2a_port: 8454
+        agent_port: 5024
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-core-banking.pem"
+          key_path: "/certs/sidecar-core-banking-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Core Banking Agent"
+    description: "Handles mortgage loan disbursement through the Core Banking system"
+    version: "1.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "disburse-loan"
+        name: "Disburse Loan"
+        description: "Disburses an approved mortgage loan, creating the mortgage account and scheduling payments"
+        tags: ["banking", "disbursement", "mortgage"]
+        examples:
+          - "Disburse loan of 300000 to Jane Smith for 123 High Street"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+---
+## Compliance Crew sidecar config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-sidecar-compliance
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: 9915
+        a2a_port: 8455
+        agent_port: 5025
+        registry_url: {{ $registryUrl | quote }}
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-compliance.pem"
+          key_path: "/certs/sidecar-compliance-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Compliance Crew"
+    description: "Reviews mortgage applications for regulatory compliance using CrewAI"
+    version: "1.0.0"
+    provider:
+      name: "Agentic Bank"
+      url: "https://agenticbank.example.com"
+    skills:
+      - id: "compliance-review"
+        name: "Compliance Review"
+        description: "Reviews a mortgage application for regulatory compliance"
+        tags: ["compliance", "regulatory", "mortgage", "crewai"]
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+{{- end }}

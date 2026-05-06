@@ -1,0 +1,20 @@
+name: Customer Support Agent
+description: Handles customer support tickets with automated triage and response generation.
+version: 1.1.0
+skills:
+  - id: triage-ticket
+    name: Triage Ticket
+    description: Classify and prioritize incoming support tickets based on content and urgency.
+    tags:
+      - triage
+      - classification
+  - id: generate-response
+    name: Generate Response
+    description: Draft a customer-facing response based on ticket context and knowledge base articles.
+    tags:
+      - response-generation
+      - customer-service
+security_schemes:
+  mtls:
+    type: mutualTLS
+    description: Mutual TLS authentication required for all requests.

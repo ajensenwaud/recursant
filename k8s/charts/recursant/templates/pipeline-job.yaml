@@ -1,0 +1,88 @@
+{{- if .Values.agents.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-pipeline-scripts
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "4"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+  submit_demo_agents.py: |
+{{ .Files.Get "scripts/submit_demo_agents.py" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "recursant.fullname" . }}-pipeline
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-pipeline
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-agents
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for agents to be healthy..."
+              for url in \
+                "http://{{ include "recursant.fullname" . }}-agent-a:{{ .Values.agents.agentA.port }}/health" \
+                "http://{{ include "recursant.fullname" . }}-agent-b:{{ .Values.agents.agentB.port }}/health"; do
+                until python -c "import urllib.request; urllib.request.urlopen('${url}')" 2>/dev/null; do
+                  echo "  Waiting for ${url}..."
+                  sleep 5
+                done
+                echo "  ${url} is ready"
+              done
+              echo "All agents ready!"
+      containers:
+        - name: pipeline
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          command:
+            - python
+            - /scripts/submit_demo_agents.py
+          env:
+            - name: REGISTRY_URL
+              value: "http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}"
+            - name: REGISTRY_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ADMIN_USERNAME
+            - name: REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ADMIN_PASSWORD
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "recursant.fullname" . }}-pipeline-scripts
+{{- end }}

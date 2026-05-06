@@ -1,0 +1,6 @@
+name: "Minimal Agent"
+skills:
+  - id: "echo"
+    name: "Echo"
+    description: "Echoes back the input"
+    tags: ["test"]

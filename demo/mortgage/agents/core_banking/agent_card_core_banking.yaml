@@ -1,0 +1,18 @@
+name: "Core Banking Agent"
+description: "Handles mortgage loan disbursement through the Core Banking system"
+version: "1.0.0"
+provider:
+  name: "Agentic Bank"
+  url: "https://agenticbank.example.com"
+skills:
+  - id: "disburse-loan"
+    name: "Disburse Loan"
+    description: "Disburses an approved mortgage loan, creating the mortgage account and scheduling payments"
+    tags: ["banking", "disbursement", "mortgage"]
+    examples:
+      - "Disburse loan of 300000 to Jane Smith for 123 High Street"
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: false
+  push_notifications: false

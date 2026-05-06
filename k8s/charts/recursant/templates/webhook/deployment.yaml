@@ -1,0 +1,65 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-webhook
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-webhook
+spec:
+  replicas: {{ .Values.webhook.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-webhook
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-webhook
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "recursant.fullname" . }}-webhook
+      containers:
+        - name: webhook
+          image: "{{ .Values.images.webhook.repository }}:{{ .Values.images.webhook.tag }}"
+          imagePullPolicy: {{ .Values.images.webhook.pullPolicy }}
+          ports:
+            - containerPort: 8443
+              name: https
+              protocol: TCP
+          env:
+            - name: SIDECAR_IMAGE
+              value: "{{ .Values.images.sidecar.repository }}:{{ .Values.images.sidecar.tag }}"
+            - name: SIDECAR_REGISTRY_URL
+              value: "http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}"
+            - name: WEBHOOK_PORT
+              value: "8443"
+            - name: TLS_CERT_PATH
+              value: "/certs/tls.crt"
+            - name: TLS_KEY_PATH
+              value: "/certs/tls.key"
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.webhook.resources | nindent 12 }}
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: {{ include "recursant.fullname" . }}-webhook-tls
+{{- end }}

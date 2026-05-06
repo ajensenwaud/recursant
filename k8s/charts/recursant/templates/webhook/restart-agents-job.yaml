@@ -1,0 +1,101 @@
+{{- if and .Values.webhook.enabled .Values.agents.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "recursant.fullname" . }}-restart-agents
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-restart-agents
+    spec:
+      serviceAccountName: {{ include "recursant.fullname" . }}-webhook
+      restartPolicy: OnFailure
+      containers:
+        - name: restart
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          command:
+            - python
+            - -c
+            - |
+              import ssl, time, urllib.request, json, os
+
+              ns = "{{ include "recursant.namespace" . }}"
+              agents = ["{{ include "recursant.fullname" . }}-agent-a", "{{ include "recursant.fullname" . }}-agent-b"]
+              {{- if .Values.mortgage.enabled }}
+              agents += [
+                  "{{ include "recursant.fullname" . }}-agents-customer",
+                  "{{ include "recursant.fullname" . }}-agents-kyc-credit",
+                  "{{ include "recursant.fullname" . }}-agents-core-banking",
+              ]
+              {{- end }}
+              webhook_url = "https://{{ include "recursant.fullname" . }}-webhook:443/health"
+
+              # Wait for webhook
+              print("Waiting for webhook to be ready...")
+              ctx = ssl.create_default_context()
+              ctx.check_hostname = False
+              ctx.verify_mode = ssl.CERT_NONE
+              for i in range(30):
+                  try:
+                      urllib.request.urlopen(webhook_url, context=ctx, timeout=5)
+                      print("Webhook is ready!")
+                      break
+                  except Exception:
+                      print(f"  Webhook not ready, retrying in 3s... ({i+1}/30)")
+                      time.sleep(3)
+              else:
+                  print("ERROR: Webhook not ready after 90s")
+                  exit(1)
+
+              # Use K8s API to patch deployments (trigger rollout restart)
+              token_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+              ca_path = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+              with open(token_path) as f:
+                  token = f.read().strip()
+
+              api_ctx = ssl.create_default_context(cafile=ca_path)
+              now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+              for name in agents:
+                  url = f"https://kubernetes.default.svc/apis/apps/v1/namespaces/{ns}/deployments/{name}"
+                  patch = {
+                      "spec": {
+                          "template": {
+                              "metadata": {
+                                  "annotations": {
+                                      "kubectl.kubernetes.io/restartedAt": now
+                                  }
+                              }
+                          }
+                      }
+                  }
+                  data = json.dumps(patch).encode()
+                  req = urllib.request.Request(
+                      url,
+                      data=data,
+                      method="PATCH",
+                      headers={
+                          "Authorization": f"Bearer {token}",
+                          "Content-Type": "application/strategic-merge-patch+json",
+                      },
+                  )
+                  try:
+                      resp = urllib.request.urlopen(req, context=api_ctx, timeout=10)
+                      print(f"Restarted {name}: {resp.status}")
+                  except Exception as e:
+                      print(f"Failed to restart {name}: {e}")
+                      exit(1)
+
+              print("All agent deployments restarted for sidecar injection.")
+{{- end }}

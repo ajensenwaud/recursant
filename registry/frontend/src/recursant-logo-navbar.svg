@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 100 680 115">
+  <defs>
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F9690;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#14B8A6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06D6A0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="waveGrad2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#06D6A0;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#0F9690;stop-opacity:0.6" />
+    </linearGradient>
+    <linearGradient id="waveGrad3" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#14B8A6;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#06D6A0;stop-opacity:0.3" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Wave 1 -->
+  <path d="M 50 170 C 70 110, 90 110, 110 150 C 130 190, 150 190, 170 130"
+        fill="none" stroke="url(#waveGrad)" stroke-width="5" stroke-linecap="round"
+        filter="url(#glow)"/>
+  <!-- Wave 2 -->
+  <path d="M 58 175 C 78 118, 98 118, 118 155 C 138 192, 158 192, 178 138"
+        fill="none" stroke="url(#waveGrad2)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Wave 3 -->
+  <path d="M 66 180 C 86 126, 106 126, 126 160 C 146 194, 166 194, 186 146"
+        fill="none" stroke="url(#waveGrad3)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Mesh nodes -->
+  <circle cx="110" cy="150" r="3.5" fill="#14B8A6" opacity="0.9" filter="url(#glow)"/>
+  <circle cx="118" cy="155" r="2.5" fill="#06D6A0" opacity="0.6"/>
+  <circle cx="126" cy="160" r="1.8" fill="#06D6A0" opacity="0.35"/>
+
+  <!-- Recursion spiral -->
+  <path d="M 170 130 C 175 125, 180 128, 178 134 C 176 138, 172 136, 173 132"
+        fill="none" stroke="url(#waveGrad)" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Wordmark -->
+  <text x="230" y="168"
+        font-family="'SF Pro Display', 'Helvetica Neue', 'Segoe UI', sans-serif"
+        font-size="56"
+        font-weight="300"
+        letter-spacing="6"
+        fill="#E8F4F2">RECURSANT</text>
+
+  <!-- Tagline -->
+  <text x="234" y="200"
+        font-family="'SF Pro Display', 'Helvetica Neue', 'Segoe UI', sans-serif"
+        font-size="18"
+        font-weight="400"
+        letter-spacing="4"
+        fill="#14B8A6"
+        opacity="0.7">AGENTIC AI MESH PLATFORM</text>
+</svg>

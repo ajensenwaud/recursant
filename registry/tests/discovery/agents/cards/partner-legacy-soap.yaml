@@ -1,0 +1,13 @@
+name: Legacy SOAP Wrapper
+description: Wraps legacy SOAP services
+version: 0.3.0
+skills:
+- id: soap-call
+  name: SOAP Call
+  description: Execute SOAP service calls
+  tags:
+  - soap
+  - legacy
+capabilities:
+  streaming: false
+  pushNotifications: false

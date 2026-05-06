@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Recursant base — dark navy + teal mesh aesthetic. */
+html, body, #root {
+  background-color: #0D1424; /* brand-bg */
+  color: #E8F4F2;            /* brand-text */
+}
+
+body {
+  font-family: 'Inter', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin h-5 w-5;
+  color: #14B8A6; /* brand teal */
+}
+
+/* Custom scrollbar — match dark aesthetic */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0D1424;
+}
+::-webkit-scrollbar-thumb {
+  background: #243155;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2F4170;
+}
+
+/* Form fields — explicit colors so browser dark-mode defaults don't bleed
+   through (e.g. light-grey "auto" text on dark backgrounds is hard to read).
+   Cover ALL text-like inputs, including bare <input> tags with no `type`
+   attribute (which default to type="text" behaviorally but don't match
+   input[type="text"] selectors). Special non-text types are excluded so
+   we don't restyle checkboxes, radio buttons, file pickers, etc. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="color"]):not([type="range"]),
+textarea,
+select {
+  background-color: #162038;   /* brand-surface-hi */
+  color: #E8F4F2;              /* brand-text */
+  color-scheme: dark;          /* tells browser to use dark UA styles for native widgets (date pickers, etc.) */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6B7A93;              /* brand-dim — readable but clearly placeholder */
+  opacity: 1;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #14B8A6 !important;   /* brand-teal */
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.3);
+}
+
+/* Smooth all colour transitions site-wide */
+* {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}

@@ -1,0 +1,13 @@
+name: Summarizer Agent
+description: Summarizes text documents and conversations
+version: 1.0.0
+skills:
+- id: summarize
+  name: Summarize
+  description: Create concise summaries
+  tags:
+  - nlp
+  - summarization
+capabilities:
+  streaming: false
+  pushNotifications: false

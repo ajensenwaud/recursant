@@ -1,0 +1,23 @@
+# Root .dockerignore — keeps context small for images built with `.` as context
+# (Dockerfile.agents, Dockerfile.agents-compliance, Dockerfile.n8n-bridge, Dockerfile.mcp)
+# These images only need mesh/ and demo/ subdirectories.
+
+registry/
+.git/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+*.swp
+*.swo
+postgres_data/
+redis_data/
+ARCHITECTURE.md
+INSTALL.md
+k8s/

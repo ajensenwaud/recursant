@@ -1,0 +1,12 @@
+# Invalid: bad action in fallback rule
+port: 9901
+registry_url: "http://registry:5000"
+agent_card_path: "./agent_card.yaml"
+interceptors:
+  authorisation:
+    enabled: true
+    default_action: "maybe"
+    fallback_rules:
+      - source: "a"
+        destination: "b"
+        action: "sometimes"

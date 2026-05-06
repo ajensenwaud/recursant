@@ -1,0 +1,12 @@
+name: Test Runner
+description: Executes test suites and reports results
+version: 2.0.1
+skills:
+- id: run-tests
+  name: Run Tests
+  description: Execute unit and integration tests
+  tags:
+  - testing
+capabilities:
+  streaming: false
+  pushNotifications: false

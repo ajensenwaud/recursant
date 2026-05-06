@@ -1,0 +1,550 @@
+version: '3.8'
+
+networks:
+  discovery-subnet-a:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24
+  discovery-subnet-b:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.2.0/24
+  discovery-subnet-c:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.3.0/24
+  discovery-subnet-d:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.4.0/24
+  discovery-subnet-e:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.5.0/24
+
+services:
+  # ===========================================================================
+  # Subnet A: Engineering Department (172.30.1.0/24) — 15 containers
+  # ===========================================================================
+
+  # --- Governed A2A agents (3) ---
+
+  eng-governed-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-research.yaml
+      SIMULATOR_GOVERNED: "true"
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.10
+
+  eng-governed-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-code-review.yaml
+      SIMULATOR_GOVERNED: "true"
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.11
+
+  eng-governed-03:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-ci-pipeline.yaml
+      SIMULATOR_GOVERNED: "true"
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.12
+
+  # --- Ungoverned A2A agents (7) ---
+
+  eng-ungoverned-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-debug-assistant.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.13
+
+  eng-ungoverned-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-doc-generator.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.14
+
+  eng-ungoverned-03:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-test-runner.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.15
+
+  eng-ungoverned-04:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-deployment-bot.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.16
+
+  eng-ungoverned-05:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-log-analyzer.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.17
+
+  eng-ungoverned-06:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-perf-monitor.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.18
+
+  eng-ungoverned-07:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/eng-security-scanner.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.19
+
+  # --- LangServe agents (2) ---
+
+  eng-langserve-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: langserve
+      SIMULATOR_AGENT_CARD: /app/cards/eng-summarizer.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.20
+
+  eng-langserve-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: langserve
+      SIMULATOR_AGENT_CARD: /app/cards/eng-translator.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.21
+
+  # --- nginx (1) ---
+
+  eng-nginx:
+    image: nginx:alpine
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.22
+
+  # --- Custom HTTP (1) ---
+
+  eng-custom-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: custom
+      SIMULATOR_AGENT_CARD: /app/cards/eng-legacy-api.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.23
+
+  # --- CrewAI agent (1) ---
+
+  eng-crewai-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: crewai
+      SIMULATOR_AGENT_CARD: /app/cards/eng-crew-planner.yaml
+    networks:
+      discovery-subnet-a:
+        ipv4_address: 172.30.1.24
+
+  # ===========================================================================
+  # Subnet B: Data Science Department (172.30.2.0/24) — 12 containers
+  # ===========================================================================
+
+  # --- Ungoverned A2A agents (5) ---
+
+  ds-ungoverned-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/ds-feature-eng.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.10
+
+  ds-ungoverned-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/ds-model-trainer.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.11
+
+  ds-ungoverned-03:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/ds-data-cleaner.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.12
+
+  ds-ungoverned-04:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/ds-experiment-tracker.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.13
+
+  ds-ungoverned-05:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/ds-notebook-runner.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.14
+
+  # --- LangServe agents (3) ---
+
+  ds-langserve-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: langserve
+      SIMULATOR_AGENT_CARD: /app/cards/ds-rag-pipeline.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.15
+
+  ds-langserve-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: langserve
+      SIMULATOR_AGENT_CARD: /app/cards/ds-embedding-svc.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.16
+
+  ds-langserve-03:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: langserve
+      SIMULATOR_AGENT_CARD: /app/cards/ds-prompt-optimizer.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.17
+
+  # --- CrewAI agents (2) ---
+
+  ds-crewai-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: crewai
+      SIMULATOR_AGENT_CARD: /app/cards/ds-analysis-crew.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.18
+
+  ds-crewai-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: crewai
+      SIMULATOR_AGENT_CARD: /app/cards/ds-etl-crew.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.19
+
+  # --- Custom HTTP (1) ---
+
+  ds-custom-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: custom
+      SIMULATOR_AGENT_CARD: /app/cards/ds-model-registry.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.20
+
+  # --- nginx-like monitoring (1) ---
+
+  ds-monitoring:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: nginx
+      SIMULATOR_AGENT_CARD: /app/cards/ds-grafana-proxy.yaml
+    networks:
+      discovery-subnet-b:
+        ipv4_address: 172.30.2.21
+
+  # ===========================================================================
+  # Subnet C: MCP Servers (172.30.3.0/24) — 8 containers
+  # ===========================================================================
+
+  mcp-calculator:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-calculator.yaml
+      SIMULATOR_MCP_TOOLS: "add,subtract,multiply,divide"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.10
+
+  mcp-search:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-search.yaml
+      SIMULATOR_MCP_TOOLS: "web_search,image_search"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.11
+
+  mcp-database:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-database.yaml
+      SIMULATOR_MCP_TOOLS: "query,insert,update,delete"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.12
+
+  mcp-email:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-email.yaml
+      SIMULATOR_MCP_TOOLS: "send,read,search"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.13
+
+  mcp-storage:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-storage.yaml
+      SIMULATOR_MCP_TOOLS: "upload,download,list"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.14
+
+  mcp-auth:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-auth.yaml
+      SIMULATOR_MCP_TOOLS: "login,logout,verify"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.15
+
+  mcp-analytics:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-analytics.yaml
+      SIMULATOR_MCP_TOOLS: "track,report,segment"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.16
+
+  mcp-notifications:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/mcp-notifications.yaml
+      SIMULATOR_MCP_TOOLS: "push,sms,email"
+    networks:
+      discovery-subnet-c:
+        ipv4_address: 172.30.3.17
+
+  # ===========================================================================
+  # Subnet D: Partner Network (172.30.4.0/24) — 13 containers
+  # ===========================================================================
+
+  # --- Ungoverned A2A agents (5) ---
+
+  partner-ungoverned-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-invoice-bot.yaml
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.10
+
+  partner-ungoverned-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-order-tracker.yaml
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.11
+
+  partner-ungoverned-03:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-shipping-agent.yaml
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.12
+
+  partner-ungoverned-04:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-inventory-sync.yaml
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.13
+
+  partner-ungoverned-05:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-price-feed.yaml
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.14
+
+  # --- Governed A2A agents (2) ---
+
+  partner-governed-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-compliance-checker.yaml
+      SIMULATOR_GOVERNED: "true"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.15
+
+  partner-governed-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-audit-logger.yaml
+      SIMULATOR_GOVERNED: "true"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.16
+
+  # --- MCP servers (3) ---
+
+  partner-mcp-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/partner-payment-gateway.yaml
+      SIMULATOR_MCP_TOOLS: "charge,refund,status"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.17
+
+  partner-mcp-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/partner-crm-connector.yaml
+      SIMULATOR_MCP_TOOLS: "get_contact,update_contact,create_lead"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.18
+
+  partner-mcp-03:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: mcp
+      SIMULATOR_AGENT_CARD: /app/cards/partner-erp-bridge.yaml
+      SIMULATOR_MCP_TOOLS: "get_order,create_po,check_inventory"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.19
+
+  # --- Custom HTTP (1) ---
+
+  partner-custom-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: custom
+      SIMULATOR_AGENT_CARD: /app/cards/partner-legacy-soap.yaml
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.20
+
+  # --- Flaky agent (1) ---
+
+  partner-flaky-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-flaky-service.yaml
+      SIMULATOR_FLAKY: "true"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.21
+
+  # --- Auth-required agent (1) ---
+
+  partner-auth-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/partner-secure-vault.yaml
+      SIMULATOR_AUTH_REQUIRED: "true"
+    networks:
+      discovery-subnet-d:
+        ipv4_address: 172.30.4.22
+
+  # ===========================================================================
+  # Subnet E: Isolated Network (172.30.5.0/24) — 2 containers
+  # ===========================================================================
+
+  isolated-agent-01:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/isolated-sandbox.yaml
+      SIMULATOR_PORT: "9999"
+    networks:
+      discovery-subnet-e:
+        ipv4_address: 172.30.5.10
+
+  isolated-agent-02:
+    image: discovery-test-agent
+    environment:
+      SIMULATOR_MODE: a2a
+      SIMULATOR_AGENT_CARD: /app/cards/isolated-honeypot.yaml
+      SIMULATOR_PORT: "12345"
+    networks:
+      discovery-subnet-e:
+        ipv4_address: 172.30.5.11

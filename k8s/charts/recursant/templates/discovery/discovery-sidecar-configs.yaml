@@ -1,0 +1,33 @@
+{{- if .Values.discovery.enabled }}
+{{- range .Values.discovery.agents }}
+{{- if .governed }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: disc-{{ .name }}-sidecar
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app.kubernetes.io/name: disc-{{ .name }}-sidecar
+    app.kubernetes.io/component: discovery-sidecar-config
+    app.kubernetes.io/part-of: recursant
+    recursant.io/discovery-group: {{ .group }}
+data:
+  sidecar.yaml: |
+    registry_url: http://registry:5000
+    agent_name: {{ .name }}
+    agent_port: {{ .port }}
+    proxy_port: {{ add .port 4000 }}
+    a2a_port: {{ add .port 5000 }}
+    mesh_api_key_env: MESH_API_KEY
+    log_level: info
+    tls:
+      enabled: true
+      cert_path: /certs/tls.crt
+      key_path: /certs/tls.key
+      ca_path: /certs/ca.crt
+    governance:
+      tool_sync_interval: {{ $.Values.toolGovernance.toolSyncIntervalSeconds | default 30 }}
+{{- end }}
+{{- end }}
+{{- end }}

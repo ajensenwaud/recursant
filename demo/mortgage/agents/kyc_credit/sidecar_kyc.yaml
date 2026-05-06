@@ -1,0 +1,21 @@
+recursant:
+  sidecar:
+    port: 9912
+    a2a_port: 8452
+    agent_port: 5022
+    registry_url: "http://registry:5000"
+    agent_card_path: "./agent_card.yaml"
+    log_level: "info"
+    interceptors:
+      authentication:
+        enabled: true
+        schemes: ["mtls", "api_key"]
+      authorisation:
+        enabled: true
+        default_action: deny
+      audit:
+        enabled: true
+    tls:
+      cert_path: "/certs/sidecar-kyc.pem"
+      key_path: "/certs/sidecar-kyc-key.pem"
+      ca_path: "/certs/ca.pem"

@@ -1,0 +1,28 @@
+name: Billing Agent
+description: Manages invoicing, payment processing, and billing dispute resolution.
+version: 1.0.0
+skills:
+  - id: generate-invoice
+    name: Generate Invoice
+    description: Create itemized invoices from usage records and contract terms.
+    tags:
+      - invoicing
+      - billing
+  - id: process-payment
+    name: Process Payment
+    description: Process payments through configured payment gateways with retry logic.
+    tags:
+      - payments
+      - transactions
+  - id: resolve-dispute
+    name: Resolve Dispute
+    description: Investigate and resolve billing disputes by comparing records and contract terms.
+    tags:
+      - disputes
+      - customer-service
+security_schemes:
+  api_key:
+    type: apiKey
+    description: API key must be provided in the X-API-Key header.
+    in: header
+    name: X-API-Key

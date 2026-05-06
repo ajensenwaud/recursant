@@ -1,0 +1,70 @@
+{{- if .Values.kafka.enabled }}
+{{- $consumers := list "pg-writer" "ws-broadcaster" "anomaly-detector" "cost-aggregator" "golden-signals" }}
+{{- range $consumer := $consumers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" $ }}-{{ $consumer }}
+  namespace: {{ include "recursant.namespace" $ }}
+  labels:
+    {{- include "recursant.labels" $ | nindent 4 }}
+    app: {{ include "recursant.fullname" $ }}-{{ $consumer }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" $ }}-{{ $consumer }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" $ }}-{{ $consumer }}
+        {{- include "recursant.labels" $ | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ $consumer }}
+          image: "{{ $.Values.images.registry.repository }}:{{ $.Values.images.registry.tag }}"
+          imagePullPolicy: {{ $.Values.images.registry.pullPolicy }}
+          command:
+            - python
+            - -m
+            - app.consumers.runner
+            - --consumer
+            - {{ $consumer }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ include "recursant.kafkaBootstrapServers" $ | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" $ }}
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" $ }}
+                  key: REDIS_URL
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" $ }}
+                  key: DB_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" $ }}
+                  key: SECRET_KEY
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" $ }}
+                  key: JWT_SECRET_KEY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+{{- end }}
+{{- end }}

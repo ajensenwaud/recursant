@@ -1,0 +1,13 @@
+name: Legacy API Wrapper
+description: Wraps legacy REST API with modern interface
+version: 0.5.0
+skills:
+- id: proxy
+  name: Proxy
+  description: Proxy requests to legacy API
+  tags:
+  - api
+  - legacy
+capabilities:
+  streaming: false
+  pushNotifications: false

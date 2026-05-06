@@ -1,0 +1,13 @@
+name: Analysis Crew
+description: Multi-agent analysis crew for data exploration
+version: 1.0.0
+skills:
+- id: analyze
+  name: Analyze
+  description: Perform data analysis
+  tags:
+  - analysis
+  - data
+capabilities:
+  streaming: false
+  pushNotifications: false

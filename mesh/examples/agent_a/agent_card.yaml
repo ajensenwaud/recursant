@@ -1,0 +1,25 @@
+name: "Research Assistant"
+description: "Produces research claims and coordinates fact-checking with other agents"
+version: "1.0.0"
+provider:
+  name: "Recursant"
+  url: "https://recursant.ai"
+skills:
+  - id: "research"
+    name: "Research"
+    description: "Generates research claims about a given topic"
+    tags: ["research", "claims"]
+    examples:
+      - "Research the height of the Eiffel Tower"
+      - "What is the population of Tokyo?"
+  - id: "research-and-verify"
+    name: "Research and Verify"
+    description: "Generates a claim and coordinates fact-checking via a remote agent"
+    tags: ["research", "verification", "multi-agent"]
+    examples:
+      - "Research and verify: Is the Great Wall of China visible from space?"
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: false
+  push_notifications: false

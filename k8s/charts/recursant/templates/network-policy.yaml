@@ -1,0 +1,35 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "recursant.fullname" . }}-agent-ingress
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      recursant.io/sidecar-inject: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    ## Rule 1 — Sidecar-to-sidecar A2A traffic only (mTLS ports).
+    ## Agent pods with sidecars can reach each other, but ONLY on the
+    ## A2A port range (default 8443–8500). Application ports are blocked.
+    - from:
+        - podSelector:
+            matchLabels:
+              recursant.io/sidecar-inject: "true"
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.a2aPortRange.start }}
+          endPort: {{ .Values.networkPolicy.a2aPortRange.end }}
+    ## Rule 2 — Infrastructure pods (registry, test-agent, gateway, webhook,
+    ## DB, Redis, frontend) get full access to agent pods on any port.
+    ## These pods do NOT have the sidecar-inject label.
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: recursant.io/sidecar-inject
+                operator: DoesNotExist
+{{- end }}

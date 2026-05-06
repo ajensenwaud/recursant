@@ -1,0 +1,20 @@
+{{- if .Values.discovery.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: disc-sidecar-certs
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: discovery-sidecar-certs
+    app.kubernetes.io/part-of: recursant
+type: kubernetes.io/tls
+data:
+  # Shared self-signed certs for discovery agent sidecars (dev/test only).
+  # In production, use cert-manager or a proper CA.
+  # These are base64-encoded placeholder values — generate real certs at deploy time
+  # with: openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes
+  tls.crt: ""
+  tls.key: ""
+  ca.crt: ""
+{{- end }}

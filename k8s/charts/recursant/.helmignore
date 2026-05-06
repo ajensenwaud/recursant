@@ -1,0 +1,9 @@
+.git
+.gitignore
+.DS_Store
+*.swp
+*.bak
+*.tmp
+__pycache__
+.pytest_cache
+*.pyc

@@ -1,0 +1,161 @@
+{
+  "id": "kycverification0001",
+  "name": "KYC Verification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kyc-verification",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "kyc-verification"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate that the upstream agent sent us usable passport data\n// n8n webhook v2 nests POST body under $json.body\nconst body = $json.body || $json;\nconst name = body.name || body.customer_name || '';\nconst docNumber = body.document_number || '';\nconst dob = body.date_of_birth || '';\n\nconst missing = [];\nif (!name) missing.push('name');\nif (!docNumber) missing.push('document_number');\n\nreturn {\n  json: {\n    name,\n    document_number: docNumber,\n    date_of_birth: dob,\n    nationality: body.nationality || '',\n    customer_name: body.customer_name || '',\n    fields_valid: missing.length === 0,\n    missing_fields: missing\n  }\n};"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-valid",
+              "leftValue": "={{ $json.fields_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "fields-valid",
+      "name": "Fields Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:9912/tools/call",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool_name: 'verify_identity', arguments: { name: $json.name, document_type: 'passport', document_number: $json.document_number, date_of_birth: $json.date_of_birth } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "kyc-api-call",
+      "name": "KYC API via Sidecar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final verified response from KYC API result\nlet kyc_result = {};\ntry {\n  const raw = $json;\n  if (raw.result) {\n    kyc_result = typeof raw.result === 'string' ? JSON.parse(raw.result) : raw.result;\n  } else {\n    kyc_result = raw;\n  }\n} catch(e) {\n  kyc_result = { error: 'Failed to parse KYC API response' };\n}\n\nconst input = $('Validate Input').item.json;\n\nreturn {\n  json: {\n    status: 'verified',\n    extraction: {\n      full_name: input.name,\n      document_number: input.document_number,\n      date_of_birth: input.date_of_birth,\n      nationality: input.nationality\n    },\n    kyc_result: kyc_result\n  }\n};"
+      },
+      "id": "build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'failed', error: 'Missing required fields: ' + $json.missing_fields.join(', ') }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-failure",
+      "name": "Respond Failure",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 440]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Validate Input", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          { "node": "Fields Valid?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fields Valid?": {
+      "main": [
+        [
+          { "node": "KYC API via Sidecar", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Respond Failure", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "KYC API via Sidecar": {
+      "main": [
+        [
+          { "node": "Build Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          { "node": "Respond Success", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "kyc" },
+    { "name": "mortgage" }
+  ],
+  "active": true
+}

@@ -1,0 +1,115 @@
+# =============================================================================
+# Secrets — NEVER commit
+# =============================================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+# Exception: committed dev/demo mTLS certs the docker-compose mortgage demo
+# expects. These are public-by-design (toy CA for local demo, never use in
+# production). Production deployments should generate their own via the
+# registry's certificate authority.
+!demo/mortgage/docker/certs/**
+!k8s/charts/recursant/certs/**
+!**/recursant-*.svg
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+build/
+develop-eggs/
+.installed.cfg
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# =============================================================================
+# Node / frontend
+# =============================================================================
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# =============================================================================
+# IDEs / editors
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# =============================================================================
+# OS
+# =============================================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# =============================================================================
+# Tooling state
+# =============================================================================
+# Claude Code worktrees and local state
+.claude/
+# Cursor / Copilot local state
+.cursor/
+
+# Local Helm overrides
+values-local.yaml
+charts/*/charts/
+
+# Local kubeconfig snapshots
+kubeconfig
+kubeconfig.local
+
+# =============================================================================
+# Project-specific
+# =============================================================================
+# Local certificate material (mTLS dev certs)
+mesh/certs/local/
+demo/mortgage/certs/local/
+
+# Local seed databases / test fixtures
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Logs
+*.log
+logs/

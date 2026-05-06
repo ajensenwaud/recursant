@@ -1,0 +1,15 @@
+apiVersion: v2
+name: recursant
+description: Recursant Agent Registry and Mesh Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ai
+  - agents
+  - mesh
+  - registry
+  - governance
+maintainers:
+  - name: Recursant
+    url: https://recursant.ai

@@ -1,0 +1,163 @@
+{{- if .Values.kafka.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-kafka
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-kafka
+spec:
+  clusterIP: None
+  ports:
+    - name: broker
+      port: {{ .Values.kafka.port }}
+      targetPort: {{ .Values.kafka.port }}
+    - name: controller
+      port: 9093
+      targetPort: 9093
+  selector:
+    app: {{ include "recursant.fullname" . }}-kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "recursant.fullname" . }}-kafka
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-kafka
+spec:
+  serviceName: {{ include "recursant.fullname" . }}-kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-kafka
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-kafka
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: kafka
+          image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
+          ports:
+            - name: broker
+              containerPort: {{ .Values.kafka.port }}
+            - name: controller
+              containerPort: 9093
+          env:
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: "broker,controller"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://:{{ .Values.kafka.port }},CONTROLLER://:9093"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://{{ include "recursant.fullname" . }}-kafka:{{ .Values.kafka.port }}"
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "1@localhost:9093"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_LOG_DIRS
+              value: "/var/lib/kafka/data"
+            - name: KAFKA_LOG_RETENTION_HOURS
+              value: "168"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              # Safety net: if the kafka-topics post-install hook fails to
+              # run (e.g. helm install times out before hooks fire), sidecars
+              # producing to mesh.audit would silently get rejected and live
+              # observability would be empty. Auto-create lets traffic flow
+              # with default config (1 partition, default retention) until
+              # the proper topics are created by the hook.
+              value: "true"
+            - name: CLUSTER_ID
+              value: "recursant-kafka-cluster-01"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.kafka.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.kafka.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.kafka.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.kafka.storageClass }}
+        storageClassName: {{ .Values.kafka.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.kafka.storage }}
+---
+## Job to create Kafka topics after broker is ready
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "recursant.fullname" . }}-kafka-topics
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-kafka-topics
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-kafka
+          image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Kafka broker to be ready..."
+              until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server {{ include "recursant.fullname" . }}-kafka:{{ .Values.kafka.port }} > /dev/null 2>&1; do
+                echo "  Kafka not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "Kafka is ready!"
+      containers:
+        - name: create-topics
+          image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              BOOTSTRAP="{{ include "recursant.fullname" . }}-kafka:{{ .Values.kafka.port }}"
+              {{- range .Values.kafka.topics }}
+              echo "Creating topic {{ .name }} ({{ .partitions }} partitions)..."
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP" \
+                --create --if-not-exists \
+                --topic "{{ .name }}" \
+                --partitions {{ .partitions }} \
+                --replication-factor 1
+              {{- end }}
+              echo "All topics created."
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP" --list
+{{- end }}

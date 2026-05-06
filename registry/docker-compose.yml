@@ -1,0 +1,124 @@
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: registry
+      POSTGRES_PASSWORD: registry
+      POSTGRES_DB: registry
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registry"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Flask application
+  api:
+    build: .
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://registry:registry@db:5432/registry
+      TEST_DATABASE_URL: postgresql://registry:registry@db:5432/registry_test
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      # LLM Provider API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      # Evaluation Judge Configuration
+      EVAL_JUDGE_PROVIDER: ${EVAL_JUDGE_PROVIDER:-openai}
+      EVAL_JUDGE_MODEL: ${EVAL_JUDGE_MODEL:-gpt-5.2}
+      EVAL_JUDGE_TEMPERATURE: ${EVAL_JUDGE_TEMPERATURE:-0.0}
+      EVAL_JUDGE_MAX_TOKENS: ${EVAL_JUDGE_MAX_TOKENS:-1024}
+      # Test Agent URL (for internal network)
+      TEST_AGENT_URL: http://test-agent:5001
+      # Weaviate URL (for guardrail vector lookups)
+      WEAVIATE_URL: http://weaviate:8080
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: >
+      sh -c "flask db upgrade &&
+             python scripts/seed_admin_user.py &&
+             gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 300 --reload run:app"
+
+  # React Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+  # Weaviate vector database (for guardrail reference text similarity)
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.28.4
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: "25"
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      DEFAULT_VECTORIZER_MODULE: "text2vec-transformers"
+      ENABLE_MODULES: "text2vec-transformers"
+      TRANSFORMERS_INFERENCE_API: "http://t2v-transformers:8080"
+      CLUSTER_HOSTNAME: "weaviate"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Text-to-vec transformer model (embedding generation for Weaviate)
+  t2v-transformers:
+    image: cr.weaviate.io/semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+    environment:
+      ENABLE_CUDA: "0"
+
+  # Test Agent (Evaluatee)
+  test-agent:
+    build: ./test_agent
+    environment:
+      LLM_PROVIDER: ${TEST_AGENT_PROVIDER:-google}
+      LLM_MODEL: ${TEST_AGENT_MODEL:-gemini-3-flash-preview}
+      LLM_API_KEY: ${ANTHROPIC_API_KEY} # Should match provider; agent code uses provider-specific keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+    ports:
+      - "5001:5001"
+
+volumes:
+  postgres_data:
+  redis_data:
+  weaviate_data:

@@ -1,0 +1,84 @@
+{{- if .Values.agents.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-seed-scripts
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+  seed_demo_agents.py: |
+{{ .Files.Get "scripts/seed_demo_agents.py" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "recursant.fullname" . }}-seed
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-seed
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-registry
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for registry to be ready..."
+              until python -c "import urllib.request; urllib.request.urlopen('http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}/health')" 2>/dev/null; do
+                echo "  Registry not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "Registry is ready!"
+      containers:
+        - name: seed
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          command:
+            - python
+            - /scripts/seed_demo_agents.py
+            - --mesh-api-key
+            - $(MESH_API_KEY)
+          env:
+            - name: REGISTRY_URL
+              value: "http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}"
+            - name: REGISTRY_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ADMIN_USERNAME
+            - name: REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ADMIN_PASSWORD
+            - name: MESH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: MESH_API_KEY
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "recursant.fullname" . }}-seed-scripts
+{{- end }}

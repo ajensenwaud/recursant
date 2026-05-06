@@ -1,0 +1,14 @@
+name: Secure Agent
+description: A security-hardened agent that requires mutual TLS for all communications.
+version: 1.0.0
+skills:
+  - id: secure-process
+    name: Secure Process
+    description: Process sensitive data with end-to-end encryption and audit logging.
+    tags:
+      - security
+      - encryption
+security_schemes:
+  mtls:
+    type: mutualTLS
+    description: Mutual TLS with client certificate verification required.

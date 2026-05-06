@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/mesh
+
+# Install dependencies
+RUN pip install --no-cache-dir \
+    flask \
+    flask-sock \
+    simple-websocket \
+    httpx \
+    pyyaml \
+    anthropic \
+    openai \
+    mcp \
+    redis
+
+# Copy the mesh runtime (needed for RecursantA2AClient import)
+COPY mesh/pyproject.toml /mesh/pyproject.toml
+COPY mesh/runtime/ /mesh/runtime/
+RUN pip install --no-cache-dir -e /mesh
+
+# Copy shared modules
+COPY demo/mortgage/agents/mcp_client.py /app/mcp_client.py
+COPY demo/mortgage/agents/llm_provider.py /app/llm_provider.py
+COPY demo/mortgage/agents/llm_tool_agent.py /app/llm_tool_agent.py
+
+# Copy MCP servers
+COPY demo/mortgage/mcp_servers/ /app/mcp_servers/
+
+# Copy agent code — set by AGENT_DIR build arg
+ARG AGENT_DIR
+COPY ${AGENT_DIR}/ /app/
+
+RUN chmod +x /app/start.sh
+
+CMD ["/bin/bash", "/app/start.sh"]

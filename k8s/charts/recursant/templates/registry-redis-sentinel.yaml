@@ -1,0 +1,190 @@
+{{- if .Values.redis.ha.enabled }}
+##
+## Redis Sentinel — provides automatic failover for Redis HA.
+## Deploys a StatefulSet of Sentinel instances that monitor the primary
+## Redis and promote a replica on failure.
+##
+
+## Sentinel Service — clients connect here for discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-redis-sentinel
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-redis-sentinel
+spec:
+  ports:
+    - port: 26379
+      targetPort: 26379
+      protocol: TCP
+      name: sentinel
+  selector:
+    app: {{ include "recursant.fullname" . }}-redis-sentinel
+  clusterIP: None
+---
+## Redis replica Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-redis-ha
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-redis-ha
+spec:
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: {{ .Values.redis.port }}
+      protocol: TCP
+      name: redis
+  selector:
+    app: {{ include "recursant.fullname" . }}-redis-ha
+  clusterIP: None
+---
+## Redis HA StatefulSet (primary + replicas)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "recursant.fullname" . }}-redis-ha
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-redis-ha
+spec:
+  serviceName: {{ include "recursant.fullname" . }}-redis-ha
+  replicas: {{ .Values.redis.ha.sentinel.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-redis-ha
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-redis-ha
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.redis.port }}
+              name: redis
+          command:
+            - sh
+            - -c
+            - |
+              # First pod (ordinal 0) starts as primary, others replicate
+              ORDINAL=$(echo $HOSTNAME | rev | cut -d'-' -f1 | rev)
+              if [ "$ORDINAL" = "0" ]; then
+                redis-server --port {{ .Values.redis.port }}
+              else
+                redis-server --port {{ .Values.redis.port }} \
+                  --replicaof {{ include "recursant.fullname" . }}-redis-ha-0.{{ include "recursant.fullname" . }}-redis-ha {{ .Values.redis.port }}
+              fi
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+        - name: sentinel
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          ports:
+            - containerPort: 26379
+              name: sentinel
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /tmp/sentinel
+              cat > /tmp/sentinel/sentinel.conf <<EOF
+              port 26379
+              sentinel monitor recursant-redis {{ include "recursant.fullname" . }}-redis-ha-0.{{ include "recursant.fullname" . }}-redis-ha {{ .Values.redis.port }} 2
+              sentinel down-after-milliseconds recursant-redis 5000
+              sentinel failover-timeout recursant-redis 10000
+              sentinel parallel-syncs recursant-redis 1
+              EOF
+              redis-sentinel /tmp/sentinel/sentinel.conf
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "-p", "26379", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-p", "26379", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+## Sentinel StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "recursant.fullname" . }}-redis-sentinel
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-redis-sentinel
+spec:
+  serviceName: {{ include "recursant.fullname" . }}-redis-sentinel
+  replicas: {{ .Values.redis.ha.sentinel.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-redis-sentinel
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-redis-sentinel
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: sentinel
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          ports:
+            - containerPort: 26379
+              name: sentinel
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /tmp/sentinel
+              cat > /tmp/sentinel/sentinel.conf <<EOF
+              port 26379
+              sentinel monitor recursant-redis {{ include "recursant.fullname" . }}-redis-ha-0.{{ include "recursant.fullname" . }}-redis-ha {{ .Values.redis.port }} 2
+              sentinel down-after-milliseconds recursant-redis 5000
+              sentinel failover-timeout recursant-redis 10000
+              sentinel parallel-syncs recursant-redis 1
+              EOF
+              redis-sentinel /tmp/sentinel/sentinel.conf
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "-p", "26379", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-p", "26379", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+{{- end }}

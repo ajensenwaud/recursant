@@ -1,0 +1,13 @@
+name: Doc Generator
+description: Auto-generates API docs from code
+version: 1.0.0
+skills:
+- id: generate-docs
+  name: Generate Docs
+  description: Generate documentation from source code
+  tags:
+  - docs
+  - automation
+capabilities:
+  streaming: false
+  pushNotifications: false

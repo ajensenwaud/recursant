@@ -1,0 +1,13 @@
+name: Sandbox Agent
+description: Isolated sandbox environment for testing
+version: 0.1.0
+skills:
+- id: sandbox-exec
+  name: Sandbox Execute
+  description: Execute code in sandbox
+  tags:
+  - sandbox
+  - testing
+capabilities:
+  streaming: false
+  pushNotifications: false

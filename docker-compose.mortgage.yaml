@@ -1,0 +1,288 @@
+# Mortgage Origination Demo
+# Usage: docker compose -f docker-compose.yaml -f docker-compose.mortgage.yaml up --build
+#
+# Adds to the base registry stack:
+#   - 5 mortgage agents (across 3 containers)
+#   - 5 mesh sidecars
+#   - 1 stub API server
+#   - 1 chat frontend
+#   - seed + pipeline scripts
+
+services:
+
+  # ---------------------------------------------------------------
+  # Stub bank systems (Customer Master, KYC, Credit, Core Banking)
+  # ---------------------------------------------------------------
+
+  stub-apis:
+    build:
+      context: ./demo/mortgage/stubs
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:6000/health\")' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------
+  # Seed — creates 5 agents + hub-and-spoke policies
+  # ---------------------------------------------------------------
+
+  mortgage-seed:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      REGISTRY_URL: http://registry:5000
+      REGISTRY_USERNAME: ${ADMIN_USERNAME:-admin}
+      REGISTRY_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      MESH_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+    depends_on:
+      registry:
+        condition: service_healthy
+    entrypoint: ["python", "/scripts/seed.py", "--mesh-api-key", "${MESH_API_KEY:-mesh-dev-key}"]
+    volumes:
+      - ./demo/mortgage/scripts:/scripts:ro
+
+  # ---------------------------------------------------------------
+  # Agent containers (3 containers, 5 agents)
+  # ---------------------------------------------------------------
+
+  agents-customer:
+    build:
+      context: .
+      dockerfile: demo/mortgage/docker/Dockerfile.agents
+      args:
+        AGENT_DIR: demo/mortgage/agents/customer
+    environment:
+      CUSTOMER_AGENT_PORT: "5020"
+      AUTH_AGENT_PORT: "5021"
+      STUB_API_URL: http://stub-apis:6000
+      SIDECAR_URL_CUSTOMER: http://sidecar-customer:9910
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      REDIS_URL: redis://registry-redis:6379/1
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-4-5-20250929}
+      # Direct agent URLs (fallback if sidecar unavailable)
+      AUTH_AGENT_URL: http://localhost:5021/a2a
+      KYC_AGENT_URL: http://agents-kyc-credit:5022/a2a
+      CREDIT_AGENT_URL: http://agents-kyc-credit:5023/a2a
+      CORE_BANKING_AGENT_URL: http://agents-core-banking:5024/a2a
+    depends_on:
+      mortgage-seed:
+        condition: service_completed_successfully
+      stub-apis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5020/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  agents-kyc-credit:
+    build:
+      context: .
+      dockerfile: demo/mortgage/docker/Dockerfile.agents
+      args:
+        AGENT_DIR: demo/mortgage/agents/kyc_credit
+    environment:
+      KYC_AGENT_PORT: "5022"
+      CREDIT_AGENT_PORT: "5023"
+      STUB_API_URL: http://stub-apis:6000
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-4-5-20250929}
+    depends_on:
+      mortgage-seed:
+        condition: service_completed_successfully
+      stub-apis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5022/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  agents-core-banking:
+    build:
+      context: .
+      dockerfile: demo/mortgage/docker/Dockerfile.agents
+      args:
+        AGENT_DIR: demo/mortgage/agents/core_banking
+    environment:
+      CORE_BANKING_AGENT_PORT: "5024"
+      STUB_API_URL: http://stub-apis:6000
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-4-5-20250929}
+    depends_on:
+      mortgage-seed:
+        condition: service_completed_successfully
+      stub-apis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5024/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # ---------------------------------------------------------------
+  # Pipeline — submits agents through governance, force-activates
+  # ---------------------------------------------------------------
+
+  mortgage-pipeline:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      REGISTRY_URL: http://registry:5000
+      REGISTRY_USERNAME: ${ADMIN_USERNAME:-admin}
+      REGISTRY_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      DATABASE_URL: postgresql://registry:registry@registry-db:5432/registry
+      SKIP_GOVERNANCE: ${SKIP_GOVERNANCE:-}
+    depends_on:
+      agents-customer:
+        condition: service_healthy
+      agents-kyc-credit:
+        condition: service_healthy
+      agents-core-banking:
+        condition: service_healthy
+    entrypoint: ["python", "/scripts/pipeline.py"]
+    volumes:
+      - ./demo/mortgage/scripts:/scripts:ro
+
+  # ---------------------------------------------------------------
+  # Sidecars (5 sidecars, one per agent)
+  # ---------------------------------------------------------------
+
+  sidecar-customer:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9910"
+      SIDECAR_A2A_PORT: "8450"
+      SIDECAR_AGENT_PORT: "5020"
+      SIDECAR_AGENT_HOST: agents-customer
+      SIDECAR_ADVERTISE_HOST: sidecar-customer
+      SIDECAR_ADVERTISE_PORT: "8450"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: Customer Agent
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./demo/mortgage/docker/certs:/certs:ro
+      - ./demo/mortgage/agents/customer/agent_card_customer.yaml:/app/agent_card.yaml:ro
+      - ./demo/mortgage/agents/customer/sidecar_customer.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      mortgage-pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+  sidecar-auth:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9911"
+      SIDECAR_A2A_PORT: "8451"
+      SIDECAR_AGENT_PORT: "5021"
+      SIDECAR_AGENT_HOST: agents-customer
+      SIDECAR_ADVERTISE_HOST: sidecar-auth
+      SIDECAR_ADVERTISE_PORT: "8451"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: Authentication Agent
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./demo/mortgage/docker/certs:/certs:ro
+      - ./demo/mortgage/agents/customer/agent_card_auth.yaml:/app/agent_card.yaml:ro
+      - ./demo/mortgage/agents/customer/sidecar_auth.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      mortgage-pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+  sidecar-kyc:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9912"
+      SIDECAR_A2A_PORT: "8452"
+      SIDECAR_AGENT_PORT: "5022"
+      SIDECAR_AGENT_HOST: agents-kyc-credit
+      SIDECAR_ADVERTISE_HOST: sidecar-kyc
+      SIDECAR_ADVERTISE_PORT: "8452"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: KYC Agent
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./demo/mortgage/docker/certs:/certs:ro
+      - ./demo/mortgage/agents/kyc_credit/agent_card_kyc.yaml:/app/agent_card.yaml:ro
+      - ./demo/mortgage/agents/kyc_credit/sidecar_kyc.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      mortgage-pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+  sidecar-credit:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9913"
+      SIDECAR_A2A_PORT: "8453"
+      SIDECAR_AGENT_PORT: "5023"
+      SIDECAR_AGENT_HOST: agents-kyc-credit
+      SIDECAR_ADVERTISE_HOST: sidecar-credit
+      SIDECAR_ADVERTISE_PORT: "8453"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: Credit Agent
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./demo/mortgage/docker/certs:/certs:ro
+      - ./demo/mortgage/agents/kyc_credit/agent_card_credit.yaml:/app/agent_card.yaml:ro
+      - ./demo/mortgage/agents/kyc_credit/sidecar_credit.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      mortgage-pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+  sidecar-core-banking:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9914"
+      SIDECAR_A2A_PORT: "8454"
+      SIDECAR_AGENT_PORT: "5024"
+      SIDECAR_AGENT_HOST: agents-core-banking
+      SIDECAR_ADVERTISE_HOST: sidecar-core-banking
+      SIDECAR_ADVERTISE_PORT: "8454"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: Core Banking Agent
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./demo/mortgage/docker/certs:/certs:ro
+      - ./demo/mortgage/agents/core_banking/agent_card_core_banking.yaml:/app/agent_card.yaml:ro
+      - ./demo/mortgage/agents/core_banking/sidecar_core_banking.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      mortgage-pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+  # ---------------------------------------------------------------
+  # Mortgage Demo Frontend — Agentic Bank Chat UI
+  # ---------------------------------------------------------------
+
+  mortgage-frontend:
+    build:
+      context: ./demo/mortgage/frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      agents-customer:
+        condition: service_healthy

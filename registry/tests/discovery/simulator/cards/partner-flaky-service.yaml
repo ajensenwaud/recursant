@@ -1,0 +1,12 @@
+name: Flaky Partner Service
+description: A partner service with intermittent availability
+version: 1.0.0
+skills:
+- id: process
+  name: Process
+  description: Process partner requests
+  tags:
+  - partner
+capabilities:
+  streaming: false
+  pushNotifications: false

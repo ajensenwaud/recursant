@@ -1,0 +1,112 @@
+{{- if .Values.discovery.enabled }}
+{{- range .Values.discovery.agents }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: disc-{{ .name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app.kubernetes.io/name: disc-{{ .name }}
+    app.kubernetes.io/component: discovery-agent
+    app.kubernetes.io/part-of: recursant
+    recursant.io/discovery-group: {{ .group }}
+    {{- if .governed }}
+    recursant.io/governed: "true"
+    {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: disc-{{ .name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: disc-{{ .name }}
+        app.kubernetes.io/component: discovery-agent
+        recursant.io/discovery-group: {{ .group }}
+        {{- if .governed }}
+        recursant.io/governed: "true"
+        {{- end }}
+    spec:
+      containers:
+        - name: agent
+          image: recursant-discovery-agent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .port }}
+              protocol: TCP
+          env:
+            - name: AGENT_MODE
+              value: {{ .mode | quote }}
+            - name: AGENT_PORT
+              value: {{ .port | quote }}
+            - name: AGENT_NAME
+              value: {{ .name | quote }}
+            {{- if .cardFile }}
+            - name: AGENT_CARD_PATH
+              value: /app/cards/{{ .cardFile }}
+            {{- end }}
+            {{- if .mcpTools }}
+            - name: MCP_TOOLS
+              value: {{ .mcpTools | quote }}
+            {{- end }}
+            {{- if .flaky }}
+            - name: AGENT_FLAKY
+              value: "true"
+            {{- end }}
+            {{- if .authRequired }}
+            - name: AGENT_AUTH_REQUIRED
+              value: "true"
+            {{- end }}
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            {{- if eq .mode "mcp" }}
+            tcpSocket:
+              port: {{ .port }}
+            {{- else }}
+            httpGet:
+              path: /health
+              port: {{ .port }}
+            {{- end }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            {{- if eq .mode "mcp" }}
+            tcpSocket:
+              port: {{ .port }}
+            {{- else }}
+            httpGet:
+              path: /health
+              port: {{ .port }}
+            {{- end }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: disc-{{ .name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app.kubernetes.io/name: disc-{{ .name }}
+    app.kubernetes.io/component: discovery-agent
+    app.kubernetes.io/part-of: recursant
+    recursant.io/discovery-group: {{ .group }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: disc-{{ .name }}
+  ports:
+    - port: {{ .port }}
+      targetPort: {{ .port }}
+      protocol: TCP
+      name: http
+{{- end }}
+{{- end }}

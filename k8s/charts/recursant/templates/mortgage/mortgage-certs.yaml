@@ -1,0 +1,24 @@
+{{- if .Values.mortgage.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "recursant.fullname" . }}-mortgage-certs
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+type: Opaque
+data:
+  ca.pem: {{ .Files.Get "certs/mortgage/ca.pem" | b64enc | quote }}
+  sidecar-customer.pem: {{ .Files.Get "certs/mortgage/sidecar-customer.pem" | b64enc | quote }}
+  sidecar-customer-key.pem: {{ .Files.Get "certs/mortgage/sidecar-customer-key.pem" | b64enc | quote }}
+  sidecar-auth.pem: {{ .Files.Get "certs/mortgage/sidecar-auth.pem" | b64enc | quote }}
+  sidecar-auth-key.pem: {{ .Files.Get "certs/mortgage/sidecar-auth-key.pem" | b64enc | quote }}
+  sidecar-kyc.pem: {{ .Files.Get "certs/mortgage/sidecar-kyc.pem" | b64enc | quote }}
+  sidecar-kyc-key.pem: {{ .Files.Get "certs/mortgage/sidecar-kyc-key.pem" | b64enc | quote }}
+  sidecar-credit.pem: {{ .Files.Get "certs/mortgage/sidecar-credit.pem" | b64enc | quote }}
+  sidecar-credit-key.pem: {{ .Files.Get "certs/mortgage/sidecar-credit-key.pem" | b64enc | quote }}
+  sidecar-core-banking.pem: {{ .Files.Get "certs/mortgage/sidecar-core-banking.pem" | b64enc | quote }}
+  sidecar-core-banking-key.pem: {{ .Files.Get "certs/mortgage/sidecar-core-banking-key.pem" | b64enc | quote }}
+  sidecar-compliance.pem: {{ .Files.Get "certs/mortgage/sidecar-compliance.pem" | b64enc | quote }}
+  sidecar-compliance-key.pem: {{ .Files.Get "certs/mortgage/sidecar-compliance-key.pem" | b64enc | quote }}
+{{- end }}

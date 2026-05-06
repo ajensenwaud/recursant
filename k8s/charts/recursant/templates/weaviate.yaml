@@ -1,0 +1,140 @@
+{{- if .Values.weaviate.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-weaviate-config
+  namespace: {{ .Release.Namespace }}
+data:
+  QUERY_DEFAULTS_LIMIT: "25"
+  AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+  DEFAULT_VECTORIZER_MODULE: "text2vec-transformers"
+  ENABLE_MODULES: "text2vec-transformers"
+  TRANSFORMERS_INFERENCE_API: "http://{{ .Release.Name }}-t2v-transformers:8080"
+  CLUSTER_HOSTNAME: "{{ .Release.Name }}-weaviate"
+  PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-weaviate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: weaviate
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: weaviate
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-t2v-transformers
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: t2v-transformers
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: t2v-transformers
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-weaviate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: weaviate
+spec:
+  serviceName: {{ .Release.Name }}-weaviate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: weaviate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: weaviate
+    spec:
+      containers:
+        - name: weaviate
+          image: {{ .Values.weaviate.image | default "cr.weaviate.io/semitechnologies/weaviate:1.28.4" }}
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50051
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-weaviate-config
+          resources:
+            requests:
+              memory: {{ .Values.weaviate.resources.requests.memory | default "256Mi" }}
+              cpu: {{ .Values.weaviate.resources.requests.cpu | default "100m" }}
+            limits:
+              memory: {{ .Values.weaviate.resources.limits.memory | default "1Gi" }}
+              cpu: {{ .Values.weaviate.resources.limits.cpu | default "500m" }}
+          volumeMounts:
+            - name: weaviate-data
+              mountPath: /var/lib/weaviate
+          readinessProbe:
+            httpGet:
+              path: /v1/.well-known/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/.well-known/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+  volumeClaimTemplates:
+    - metadata:
+        name: weaviate-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.weaviate.storage | default "5Gi" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-t2v-transformers
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: t2v-transformers
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: t2v-transformers
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: t2v-transformers
+    spec:
+      containers:
+        - name: t2v-transformers
+          image: {{ .Values.weaviate.t2vImage | default "cr.weaviate.io/semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2" }}
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: {{ .Values.weaviate.t2vResources.requests.memory | default "512Mi" }}
+              cpu: {{ .Values.weaviate.t2vResources.requests.cpu | default "200m" }}
+            limits:
+              memory: {{ .Values.weaviate.t2vResources.limits.memory | default "2Gi" }}
+              cpu: {{ .Values.weaviate.t2vResources.limits.cpu | default "1000m" }}
+{{- end }}

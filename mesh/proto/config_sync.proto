@@ -1,0 +1,34 @@
+syntax = "proto3";
+package recursant.mesh;
+
+service ConfigSync {
+  // Sidecar subscribes to config updates; server pushes changes
+  rpc Subscribe(SubscribeRequest) returns (stream ConfigUpdate);
+  // Sidecar reports status
+  rpc ReportStatus(StatusReport) returns (StatusResponse);
+}
+
+message SubscribeRequest {
+  string agent_id = 1;
+  string sidecar_id = 2;
+  string tenant_id = 3;
+  int64 last_config_version = 4;
+}
+
+message ConfigUpdate {
+  int64 version = 1;
+  string update_type = 2;  // "policies", "compliance_rules", "full_sync"
+  bytes payload = 3;       // JSON-encoded config payload
+  int64 timestamp = 4;
+}
+
+message StatusReport {
+  string agent_id = 1;
+  string sidecar_id = 2;
+  string status = 3;       // "healthy", "degraded"
+  map<string, string> metrics = 4;
+}
+
+message StatusResponse {
+  bool acknowledged = 1;
+}

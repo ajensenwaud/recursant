@@ -1,0 +1,127 @@
+name: Multi-Skill Agent
+description: A comprehensive agent with a large number of skills for testing agent card parsing at scale.
+version: 1.0.0
+skills:
+  - id: skill-01
+    name: Text Classification
+    description: Classify text into predefined categories.
+    tags:
+      - nlp
+      - classification
+  - id: skill-02
+    name: Sentiment Analysis
+    description: Determine sentiment polarity of text input.
+    tags:
+      - nlp
+      - sentiment
+  - id: skill-03
+    name: Named Entity Recognition
+    description: Extract named entities such as people, organizations, and locations.
+    tags:
+      - nlp
+      - ner
+  - id: skill-04
+    name: Text Summarization
+    description: Generate concise summaries of long documents.
+    tags:
+      - nlp
+      - summarization
+  - id: skill-05
+    name: Translation
+    description: Translate text between supported language pairs.
+    tags:
+      - nlp
+      - translation
+  - id: skill-06
+    name: Image Classification
+    description: Classify images into categories using a vision model.
+    tags:
+      - vision
+      - classification
+  - id: skill-07
+    name: Object Detection
+    description: Detect and localize objects within images.
+    tags:
+      - vision
+      - detection
+  - id: skill-08
+    name: OCR
+    description: Extract text from images and scanned documents.
+    tags:
+      - vision
+      - ocr
+  - id: skill-09
+    name: Speech to Text
+    description: Transcribe audio recordings into text.
+    tags:
+      - audio
+      - transcription
+  - id: skill-10
+    name: Text to Speech
+    description: Convert text input into natural-sounding audio.
+    tags:
+      - audio
+      - synthesis
+  - id: skill-11
+    name: Data Validation
+    description: Validate data against a provided JSON schema.
+    tags:
+      - data
+      - validation
+  - id: skill-12
+    name: CSV Parser
+    description: Parse and transform CSV files into structured records.
+    tags:
+      - data
+      - parsing
+  - id: skill-13
+    name: SQL Query
+    description: Execute read-only SQL queries against connected databases.
+    tags:
+      - data
+      - sql
+  - id: skill-14
+    name: API Caller
+    description: Make authenticated HTTP requests to external APIs.
+    tags:
+      - integration
+      - http
+  - id: skill-15
+    name: Email Sender
+    description: Send formatted emails via configured SMTP provider.
+    tags:
+      - integration
+      - email
+  - id: skill-16
+    name: Scheduler
+    description: Schedule tasks for future execution with cron expressions.
+    tags:
+      - orchestration
+      - scheduling
+  - id: skill-17
+    name: Workflow Runner
+    description: Execute multi-step workflows defined in YAML.
+    tags:
+      - orchestration
+      - workflow
+  - id: skill-18
+    name: Cache Manager
+    description: Store and retrieve key-value pairs from an in-memory cache.
+    tags:
+      - infrastructure
+      - caching
+  - id: skill-19
+    name: Log Analyzer
+    description: Parse and analyze application log files for anomalies.
+    tags:
+      - observability
+      - logging
+  - id: skill-20
+    name: Health Check
+    description: Perform health checks on dependent services and report status.
+    tags:
+      - observability
+      - monitoring
+capabilities:
+  streaming: true
+  pushNotifications: true

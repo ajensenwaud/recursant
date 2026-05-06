@@ -1,0 +1,268 @@
+services:
+  # ---------------------------------------------------------------
+  # Registry stack (Control Plane)
+  # ---------------------------------------------------------------
+
+  registry-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: registry
+      POSTGRES_PASSWORD: registry
+      POSTGRES_DB: registry
+    volumes:
+      - registry_pg_data:/var/lib/postgresql/data
+      - ./registry/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registry"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  registry-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  registry:
+    build: ./registry
+    networks:
+      default:
+        aliases:
+          - api
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://registry:registry@registry-db:5432/registry
+      TEST_DATABASE_URL: postgresql://registry:registry@registry-db:5432/registry_test
+      REDIS_URL: redis://registry-redis:6379/0
+      SECRET_KEY: dev-secret-key
+      JWT_SECRET_KEY: dev-jwt-secret
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      MESH_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      # LLM API keys (needed for security scanning + evaluation judge)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      # Evaluation judge config
+      EVAL_JUDGE_PROVIDER: ${EVAL_JUDGE_PROVIDER}
+      EVAL_JUDGE_MODEL: ${EVAL_JUDGE_MODEL}
+      EVAL_JUDGE_TEMPERATURE: ${EVAL_JUDGE_TEMPERATURE}
+      EVAL_JUDGE_MAX_TOKENS: ${EVAL_JUDGE_MAX_TOKENS}
+      # Test agent URL (internal docker network)
+      TEST_AGENT_URL: http://test-agent:5001
+    ports:
+      - "5000:5000"
+    depends_on:
+      registry-db:
+        condition: service_healthy
+      registry-redis:
+        condition: service_healthy
+    volumes:
+      - ./registry:/app
+    command: >
+      sh -c "python -c 'from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()' &&
+             flask db stamp head &&
+             python scripts/seed_admin_user.py &&
+             python scripts/seed_evaluation_suites.py &&
+             python scripts/seed_security_tests.py &&
+             gunicorn --bind 0.0.0.0:5000 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --timeout 300 --reload run:app"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    build: ./registry/frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      registry:
+        condition: service_healthy
+
+  test-agent:
+    build: ./registry/test_agent
+    environment:
+      LLM_PROVIDER: ${TEST_AGENT_PROVIDER:-anthropic}
+      LLM_MODEL: ${TEST_AGENT_MODEL:-claude-sonnet-4-5-20250929}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+    depends_on:
+      registry:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------
+  # Ingress Gateway — edge proxy for external traffic into the mesh
+  # ---------------------------------------------------------------
+
+  gateway:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.gateway
+    environment:
+      GATEWAY_PORT: "8080"
+      GATEWAY_REGISTRY_URL: http://registry:5000
+      GATEWAY_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      GATEWAY_RATE_LIMIT_RPM: "600"
+      GATEWAY_LOG_LEVEL: info
+    ports:
+      - "8080:8080"
+    depends_on:
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/healthz\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------
+  # Seed — creates demo agents + mesh policies in the registry
+  # ---------------------------------------------------------------
+
+  seed:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      REGISTRY_URL: http://registry:5000
+      REGISTRY_USERNAME: ${ADMIN_USERNAME:-admin}
+      REGISTRY_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      MESH_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+    depends_on:
+      registry:
+        condition: service_healthy
+    entrypoint: ["python", "examples/seed_demo_agents.py", "--mesh-api-key", "${MESH_API_KEY:-mesh-dev-key}"]
+    volumes:
+      - ./mesh/examples:/app/examples
+
+  # ---------------------------------------------------------------
+  # Pipeline — submits agents through governance (after agents are healthy)
+  # ---------------------------------------------------------------
+
+  pipeline:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      REGISTRY_URL: http://registry:5000
+      REGISTRY_USERNAME: ${ADMIN_USERNAME:-admin}
+      REGISTRY_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      DATABASE_URL: postgresql://registry:registry@registry-db:5432/registry
+    depends_on:
+      agent-a:
+        condition: service_healthy
+      agent-b:
+        condition: service_healthy
+    entrypoint: ["python", "examples/submit_demo_agents.py"]
+    volumes:
+      - ./mesh/examples:/app/examples
+
+  # ---------------------------------------------------------------
+  # Agent A: Research Assistant
+  # ---------------------------------------------------------------
+
+  agent-a:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_DIR: examples/agent_a
+    environment:
+      AGENT_PORT: "5010"
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_MODEL: ${LLM_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      SIDECAR_URL: http://sidecar-a:9901
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5010/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sidecar-a:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9901"
+      SIDECAR_A2A_PORT: "8443"
+      SIDECAR_AGENT_PORT: "5010"
+      SIDECAR_AGENT_HOST: agent-a
+      SIDECAR_ADVERTISE_HOST: sidecar-a
+      SIDECAR_ADVERTISE_PORT: "8443"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: Research Assistant
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./mesh/docker/certs:/certs:ro
+      - ./mesh/examples/agent_a/agent_card.yaml:/app/agent_card.yaml:ro
+      - ./mesh/examples/agent_a/recursant-sidecar.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+  # ---------------------------------------------------------------
+  # Agent B: Fact Checker
+  # ---------------------------------------------------------------
+
+  agent-b:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_DIR: examples/agent_b
+    environment:
+      AGENT_PORT: "5011"
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_MODEL: ${LLM_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5011/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sidecar-b:
+    build:
+      context: ./mesh
+      dockerfile: docker/Dockerfile.sidecar
+    environment:
+      SIDECAR_PORT: "9902"
+      SIDECAR_A2A_PORT: "8444"
+      SIDECAR_AGENT_PORT: "5011"
+      SIDECAR_AGENT_HOST: agent-b
+      SIDECAR_ADVERTISE_HOST: sidecar-b
+      SIDECAR_ADVERTISE_PORT: "8444"
+      SIDECAR_REGISTRY_URL: http://registry:5000
+      SIDECAR_REGISTRY_API_KEY: ${MESH_API_KEY:-mesh-dev-key}
+      SIDECAR_AGENT_NAME: Fact Checker Agent
+      SIDECAR_LOG_LEVEL: info
+    volumes:
+      - ./mesh/docker/certs:/certs:ro
+      - ./mesh/examples/agent_b/agent_card.yaml:/app/agent_card.yaml:ro
+      - ./mesh/examples/agent_b/recursant-sidecar.yaml:/app/recursant-sidecar.yaml:ro
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    command: ["python", "-m", "runtime.sidecar", "--config", "/app/recursant-sidecar.yaml"]
+
+volumes:
+  registry_pg_data:

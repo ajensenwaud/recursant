@@ -1,0 +1,164 @@
+{{- if .Values.mortgage.enabled }}
+{{- $fullname := include "recursant.fullname" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-n8n-kyc
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ $fullname }}-n8n-kyc
+spec:
+  ports:
+    - port: 5022
+      targetPort: 5022
+      protocol: TCP
+      name: bridge
+    - port: 9912
+      targetPort: 9912
+      protocol: TCP
+      name: sidecar
+    - port: 8452
+      targetPort: 8452
+      protocol: TCP
+      name: a2a
+  selector:
+    app: {{ $fullname }}-n8n-kyc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-n8n-kyc
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ $fullname }}-n8n-kyc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $fullname }}-n8n-kyc
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}-n8n-kyc
+        recursant.io/sidecar-inject: "true"
+        {{- include "recursant.labels" . | nindent 8 }}
+      annotations:
+        recursant.io/inject-sidecars: |
+          [
+            {"name":"kyc","agentName":"KYC Agent","agentPort":5022,"sidecarPort":9912,"a2aPort":8452,"config":"{{ $fullname }}-sidecar-n8n-kyc","certs":"{{ $fullname }}-mortgage-certs","advertiseHost":"{{ $fullname }}-n8n-kyc"}
+          ]
+        recursant.io/secret-name: {{ include "recursant.secretName" . }}
+    spec:
+      ## Init container: imports + activates workflow into SQLite DB before n8n starts
+      initContainers:
+        - name: n8n-workflow-init
+          image: "{{ .Values.images.n8n.repository }}:{{ .Values.images.n8n.tag }}"
+          imagePullPolicy: {{ .Values.images.n8n.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Importing Anthropic API credential..."
+              cat > /tmp/anthropic-cred.json <<CREDEOF
+              [{"id":"1","name":"Anthropic API","type":"anthropicApi","data":{"apiKey":"${ANTHROPIC_API_KEY}"}}]
+              CREDEOF
+              n8n import:credentials --input=/tmp/anthropic-cred.json
+              rm -f /tmp/anthropic-cred.json
+              echo "Importing workflow into n8n SQLite DB..."
+              n8n import:workflow --input=/home/node/workflows/kyc-verification.json
+              echo "Listing workflows to get ID..."
+              WF_ID=$(n8n list:workflow | head -1 | cut -d'|' -f1)
+              echo "Activating workflow $WF_ID..."
+              n8n publish:workflow --id="$WF_ID"
+              echo "Workflow import and activation complete."
+          env:
+            - name: DB_TYPE
+              value: "sqlite"
+            - name: N8N_DIAGNOSTICS_ENABLED
+              value: "false"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+          volumeMounts:
+            - name: n8n-data
+              mountPath: /home/node/.n8n
+            - name: n8n-workflows
+              mountPath: /home/node/workflows
+              readOnly: true
+      containers:
+        ## n8n server — runs AI Agent workflows with Claude
+        - name: n8n
+          image: "{{ .Values.images.n8n.repository }}:{{ .Values.images.n8n.tag }}"
+          imagePullPolicy: {{ .Values.images.n8n.pullPolicy }}
+          ports:
+            - containerPort: 5678
+              name: n8n
+          env:
+            - name: N8N_BASIC_AUTH_ACTIVE
+              value: "false"
+            - name: WEBHOOK_URL
+              value: "http://localhost:5678"
+            - name: N8N_DIAGNOSTICS_ENABLED
+              value: "false"
+            - name: N8N_HIRING_BANNER_ENABLED
+              value: "false"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+          volumeMounts:
+            - name: n8n-data
+              mountPath: /home/node/.n8n
+            - name: n8n-workflows
+              mountPath: /home/node/workflows
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+        ## A2A bridge — translates A2A JSON-RPC to n8n webhooks
+        - name: n8n-bridge
+          image: "{{ .Values.images.n8nBridge.repository }}:{{ .Values.images.n8nBridge.tag }}"
+          imagePullPolicy: {{ .Values.images.n8nBridge.pullPolicy }}
+          ports:
+            - containerPort: 5022
+              name: bridge
+          env:
+            - name: N8N_WEBHOOK_BASE
+              value: "http://localhost:5678"
+            - name: BRIDGE_PORT
+              value: "5022"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5022
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5022
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+      volumes:
+        - name: n8n-data
+          emptyDir: {}
+        - name: n8n-workflows
+          configMap:
+            name: {{ $fullname }}-n8n-workflows
+{{- end }}

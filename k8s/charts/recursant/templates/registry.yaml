@@ -1,0 +1,232 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-registry
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-registry
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.registry.port }}
+      targetPort: {{ .Values.registry.port }}
+      nodePort: {{ .Values.registry.nodePort | default 30500 }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "recursant.fullname" . }}-registry
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-registry
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-registry
+spec:
+  replicas: {{ .Values.registry.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-registry
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-registry
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.registry.ha.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: {{ include "recursant.fullname" . }}-registry
+                topologyKey: kubernetes.io/hostname
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: {{ include "recursant.fullname" . }}-registry
+                topologyKey: topology.kubernetes.io/zone
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ include "recursant.fullname" . }}-registry
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ include "recursant.fullname" . }}-registry
+      {{- end }}
+      {{- if not .Values.registry.ha.enabled }}
+      initContainers:
+        - name: migrate-and-seed
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              python -c 'from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()' &&
+              # Fresh DB: create_all already built every table from current models, so
+              # mark migrations as applied (stamp head) instead of replaying them — replay
+              # would crash on CREATE TYPE / CREATE TABLE statements that already exist.
+              # Existing DB: alembic_version already has rows, so just upgrade to head.
+              if flask db current 2>/dev/null | grep -qE '[a-f0-9]{12}'; then
+                flask db upgrade head
+              else
+                flask db stamp head
+              fi &&
+              python scripts/seed_admin_user.py &&
+              python scripts/seed_evaluation_suites.py &&
+              python scripts/seed_security_tests.py
+          env:
+            {{- include "recursant.registryEnv" . | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: registry
+          image: "{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}"
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.registry.port }}
+              name: http
+          command:
+            - gunicorn
+            - --bind
+            - "0.0.0.0:{{ .Values.registry.port }}"
+            - --worker-class
+            - {{ .Values.registry.gunicorn.workerClass }}
+            - --workers
+            - {{ .Values.registry.gunicorn.workers | quote }}
+            - --timeout
+            - {{ .Values.registry.gunicorn.timeout | quote }}
+            - "run:app"
+          env:
+            {{- include "recursant.registryEnv" . | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.registry.resources | nindent 12 }}
+
+{{/*
+Registry environment variables — shared between init container and main container
+*/}}
+{{- define "recursant.registryEnv" -}}
+- name: FLASK_APP
+  value: "run.py"
+- name: FLASK_ENV
+  value: "production"
+- name: DB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: DB_PASSWORD
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: DATABASE_URL
+- name: REDIS_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: REDIS_URL
+- name: SECRET_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: SECRET_KEY
+- name: JWT_SECRET_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: JWT_SECRET_KEY
+- name: ADMIN_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: ADMIN_USERNAME
+- name: ADMIN_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: ADMIN_PASSWORD
+- name: MESH_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: MESH_API_KEY
+- name: ANTHROPIC_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: ANTHROPIC_API_KEY
+- name: OPENAI_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: OPENAI_API_KEY
+- name: GOOGLE_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: GOOGLE_API_KEY
+- name: MOONSHOT_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: MOONSHOT_API_KEY
+- name: OPENROUTER_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "recursant.secretName" . }}
+      key: OPENROUTER_API_KEY
+- name: TEST_AGENT_URL
+  value: "http://{{ include "recursant.fullname" . }}-test-agent:{{ .Values.testAgent.port }}"
+- name: TEST_AGENT_PROVIDER
+  value: {{ .Values.testAgent.provider | quote }}
+- name: TEST_AGENT_MODEL
+  value: {{ .Values.testAgent.model | quote }}
+- name: EVAL_JUDGE_PROVIDER
+  value: {{ .Values.secrets.evalJudgeProvider | quote }}
+- name: EVAL_JUDGE_MODEL
+  value: {{ .Values.secrets.evalJudgeModel | quote }}
+- name: EVAL_JUDGE_TEMPERATURE
+  value: {{ .Values.secrets.evalJudgeTemperature | quote }}
+- name: EVAL_JUDGE_MAX_TOKENS
+  value: {{ .Values.secrets.evalJudgeMaxTokens | quote }}
+{{- if .Values.weaviate.enabled }}
+- name: WEAVIATE_URL
+  value: "http://{{ include "recursant.fullname" . }}-weaviate:8080"
+{{- end }}
+{{- if .Values.multiCluster.enabled }}
+- name: CLUSTER_ID
+  value: {{ .Values.multiCluster.clusterId | quote }}
+- name: REMOTE_REGISTRY_URL
+  value: {{ .Values.multiCluster.remoteRegistryUrl | quote }}
+{{- end }}
+{{- if .Values.kafka.enabled }}
+- name: KAFKA_BOOTSTRAP_SERVERS
+  value: {{ include "recursant.kafkaBootstrapServers" . | quote }}
+{{- end }}
+{{- end }}

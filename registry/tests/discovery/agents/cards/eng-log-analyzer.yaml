@@ -1,0 +1,13 @@
+name: Log Analyzer
+description: Analyzes application logs for patterns and anomalies
+version: 1.1.0
+skills:
+- id: analyze-logs
+  name: Analyze Logs
+  description: Parse and analyze log data
+  tags:
+  - logging
+  - analysis
+capabilities:
+  streaming: false
+  pushNotifications: false

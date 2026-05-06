@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install the mesh package
+COPY pyproject.toml .
+COPY runtime/ runtime/
+
+RUN pip install --no-cache-dir -e .
+
+# Optional: install Presidio NER PII detection
+# Set INSTALL_PRESIDIO=1 at build time to include it (~300MB)
+ARG INSTALL_PRESIDIO=0
+RUN if [ "$INSTALL_PRESIDIO" = "1" ]; then \
+        pip install --no-cache-dir -e ".[presidio]" && \
+        python -m spacy download en_core_web_lg; \
+    fi
+
+# Certs are mounted as a volume at runtime
+# Config YAML is mounted or env vars are used
+
+EXPOSE 9901 8443
+
+CMD ["python", "-m", "runtime.sidecar"]

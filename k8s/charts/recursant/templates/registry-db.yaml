@@ -1,0 +1,153 @@
+{{- if not .Values.db.ha.enabled }}
+{{- if not .Values.db.ha.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-db
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-db
+spec:
+  {{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+  type: NodePort
+  {{- end }}
+  ports:
+    - port: {{ .Values.db.port }}
+      targetPort: {{ .Values.db.port }}
+      protocol: TCP
+      name: postgres
+      {{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+      nodePort: {{ .Values.multiCluster.remoteDbPort }}
+      {{- end }}
+  selector:
+    app: {{ include "recursant.fullname" . }}-db
+  {{- if not (and .Values.multiCluster.enabled .Values.db.replication.enabled) }}
+  clusterIP: None
+  {{- end }}
+---
+{{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-db-replication-conf
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  custom-postgresql.conf: |
+    wal_level = logical
+    max_replication_slots = 4
+    max_wal_senders = 4
+    max_worker_processes = 8
+  custom-pg-hba.conf: |
+    # Allow replication connections from any host (cross-cluster)
+    host    all             all             0.0.0.0/0               md5
+    host    replication     all             0.0.0.0/0               md5
+    # Default rules
+    local   all             all                                     trust
+    host    all             all             127.0.0.1/32            trust
+    host    all             all             ::1/128                 trust
+---
+{{- end }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "recursant.fullname" . }}-db
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-db
+spec:
+  serviceName: {{ include "recursant.fullname" . }}-db
+  replicas: {{ .Values.db.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-db
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-db
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.db.image.repository }}:{{ .Values.db.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.db.port }}
+              name: postgres
+          {{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+          args:
+            - -c
+            - config_file=/etc/postgresql/custom-postgresql.conf
+            - -c
+            - hba_file=/etc/postgresql/custom-pg-hba.conf
+          {{- end }}
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+            - name: init-db
+              mountPath: /docker-entrypoint-initdb.d
+            {{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+            - name: replication-conf
+              mountPath: /etc/postgresql
+            {{- end }}
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.secrets.dbUser }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.secrets.dbUser }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.db.resources | nindent 12 }}
+      volumes:
+        - name: init-db
+          configMap:
+            name: {{ include "recursant.fullname" . }}-init-db
+        {{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+        - name: replication-conf
+          configMap:
+            name: {{ include "recursant.fullname" . }}-db-replication-conf
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.db.storageClass }}
+        storageClassName: {{ .Values.db.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.db.storage }}
+{{- end }}
+{{- end }}

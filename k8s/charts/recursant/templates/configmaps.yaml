@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-init-db
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  init-db.sql: |
+    -- Initialize database with required extensions
+    CREATE DATABASE registry_test;
+    GRANT ALL PRIVILEGES ON DATABASE registry_test TO registry;
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-frontend-nginx
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    server {
+        listen 80;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /v1/ {
+            proxy_pass http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}/v1/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /socket.io/ {
+            proxy_pass http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}/socket.io/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 86400;
+        }
+
+        location /health {
+            proxy_pass http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}/health;
+            proxy_set_header Host $host;
+        }
+
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+        gzip_min_length 1000;
+    }

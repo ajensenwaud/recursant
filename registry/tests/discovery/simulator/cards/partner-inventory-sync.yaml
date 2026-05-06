@@ -1,0 +1,13 @@
+name: Inventory Sync
+description: Synchronizes inventory across warehouses
+version: 1.5.0
+skills:
+- id: sync
+  name: Sync
+  description: Synchronize inventory data
+  tags:
+  - inventory
+  - sync
+capabilities:
+  streaming: false
+  pushNotifications: false

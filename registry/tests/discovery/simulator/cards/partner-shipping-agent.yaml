@@ -1,0 +1,13 @@
+name: Shipping Agent
+description: Manages shipping logistics and routing
+version: 1.0.0
+skills:
+- id: route
+  name: Route
+  description: Calculate shipping routes
+  tags:
+  - shipping
+  - logistics
+capabilities:
+  streaming: false
+  pushNotifications: false

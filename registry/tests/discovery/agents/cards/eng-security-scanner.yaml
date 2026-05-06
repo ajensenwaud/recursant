@@ -1,0 +1,13 @@
+name: Security Scanner
+description: Scans code for security vulnerabilities
+version: 2.3.0
+skills:
+- id: scan-code
+  name: Scan Code
+  description: Scan source code for vulnerabilities
+  tags:
+  - security
+  - scanning
+capabilities:
+  streaming: false
+  pushNotifications: false

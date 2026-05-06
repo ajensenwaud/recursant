@@ -1,0 +1,74 @@
+{{- if .Values.mortgage.enabled }}
+{{- $fullName := include "recursant.fullname" . }}
+{{- $mcpImage := printf "%s:%s" .Values.images.mcp.repository .Values.images.mcp.tag }}
+{{- $stubApiUrl := printf "http://%s-stub-apis:6000" $fullName }}
+
+{{- $servers := list
+  (dict "name" "mcp-customer-master" "script" "customer_master.py" "port" 8080)
+  (dict "name" "mcp-kyc-system"      "script" "kyc_system.py"      "port" 8081)
+  (dict "name" "mcp-credit-engine"   "script" "credit_engine.py"   "port" 8082)
+  (dict "name" "mcp-core-banking"    "script" "core_banking.py"    "port" 8083)
+  (dict "name" "mcp-compliance-engine" "script" "compliance_engine.py" "port" 8084)
+}}
+
+{{- range $servers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-{{ .name }}
+  labels:
+    app.kubernetes.io/name: {{ .name }}
+    app.kubernetes.io/instance: {{ $fullName }}
+    app.kubernetes.io/component: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .name }}
+      app.kubernetes.io/instance: {{ $fullName }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .name }}
+        app.kubernetes.io/instance: {{ $fullName }}
+        app.kubernetes.io/component: mcp-server
+    spec:
+      containers:
+        - name: {{ .name }}
+          image: {{ $mcpImage }}
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "mcp_servers.{{ .script | trimSuffix ".py" }}"]
+          env:
+            - name: STUB_API_URL
+              value: {{ $stubApiUrl }}
+            - name: MCP_PORT
+              value: {{ .port | quote }}
+          ports:
+            - containerPort: {{ .port }}
+              name: sse
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-{{ .name }}
+  labels:
+    app.kubernetes.io/name: {{ .name }}
+    app.kubernetes.io/instance: {{ $fullName }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .name }}
+    app.kubernetes.io/instance: {{ $fullName }}
+  ports:
+    - port: {{ .port }}
+      targetPort: {{ .port }}
+      name: sse
+{{- end }}
+{{- end }}

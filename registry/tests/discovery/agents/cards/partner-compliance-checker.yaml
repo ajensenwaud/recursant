@@ -1,0 +1,13 @@
+name: Compliance Checker
+description: Checks transactions for regulatory compliance
+version: 2.0.0
+skills:
+- id: check-compliance
+  name: Check Compliance
+  description: Validate regulatory compliance
+  tags:
+  - compliance
+  - regulatory
+capabilities:
+  streaming: false
+  pushNotifications: false

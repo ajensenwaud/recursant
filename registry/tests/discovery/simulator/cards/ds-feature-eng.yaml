@@ -1,0 +1,13 @@
+name: Feature Engineer
+description: Automates feature engineering for ML pipelines
+version: 1.1.0
+skills:
+- id: engineer-features
+  name: Engineer Features
+  description: Create and transform features
+  tags:
+  - ml
+  - features
+capabilities:
+  streaming: false
+  pushNotifications: false

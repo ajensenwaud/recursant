@@ -1,0 +1,13 @@
+name: RAG Pipeline
+description: Retrieval-augmented generation pipeline
+version: 1.5.0
+skills:
+- id: retrieve
+  name: Retrieve
+  description: Retrieve relevant documents
+  tags:
+  - rag
+  - retrieval
+capabilities:
+  streaming: false
+  pushNotifications: false

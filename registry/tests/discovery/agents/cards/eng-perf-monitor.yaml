@@ -1,0 +1,13 @@
+name: Performance Monitor
+description: Monitors application performance metrics
+version: 1.2.0
+skills:
+- id: monitor
+  name: Monitor
+  description: Track performance metrics
+  tags:
+  - monitoring
+  - performance
+capabilities:
+  streaming: false
+  pushNotifications: false

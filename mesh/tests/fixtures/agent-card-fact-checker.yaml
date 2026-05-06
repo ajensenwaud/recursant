@@ -1,0 +1,26 @@
+name: "Fact Checker Agent"
+description: "Verifies factual claims using multiple sources"
+version: "1.0.0"
+provider:
+  name: "Recursant"
+  url: "https://recursant.ai"
+skills:
+  - id: "fact-check"
+    name: "Fact Check"
+    description: "Verifies a factual claim and returns evidence"
+    tags: ["verification", "fact-checking"]
+    examples: ["Is the Eiffel Tower 330m tall?"]
+  - id: "summarise"
+    name: "Summarise Evidence"
+    description: "Summarises collected evidence into a brief verdict"
+    tags: ["summarisation"]
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: false
+  push_notifications: false
+security_schemes:
+  mtls:
+    type: "mutualTLS"
+security:
+  - mtls: []

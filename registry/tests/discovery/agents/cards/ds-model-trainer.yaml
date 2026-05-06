@@ -1,0 +1,13 @@
+name: Model Trainer
+description: Trains and evaluates ML models
+version: 2.0.0
+skills:
+- id: train
+  name: Train
+  description: Train machine learning models
+  tags:
+  - ml
+  - training
+capabilities:
+  streaming: false
+  pushNotifications: false

@@ -1,0 +1,18 @@
+name: "KYC Agent"
+description: "Performs Know Your Customer identity verification using document checks"
+version: "1.0.0"
+provider:
+  name: "Agentic Bank"
+  url: "https://agenticbank.example.com"
+skills:
+  - id: "kyc-verify"
+    name: "KYC Verification"
+    description: "Verifies a customer's identity documents (passport, driving licence) against the KYC system"
+    tags: ["kyc", "identity", "compliance"]
+    examples:
+      - "Verify identity for Jane Smith with passport AB123456"
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: false
+  push_notifications: false

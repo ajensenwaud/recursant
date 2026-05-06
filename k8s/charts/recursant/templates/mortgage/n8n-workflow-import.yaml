@@ -1,0 +1,13 @@
+{{- if .Values.mortgage.enabled }}
+## n8n workflow ConfigMap — mounted into the init container for import
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-n8n-workflows
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  kyc-verification.json: |
+    {{- .Files.Get "files/n8n-kyc-verification.json" | nindent 4 }}
+{{- end }}

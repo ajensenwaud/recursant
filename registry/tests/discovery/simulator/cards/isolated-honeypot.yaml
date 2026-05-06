@@ -1,0 +1,13 @@
+name: Honeypot Agent
+description: Decoy agent for security monitoring
+version: 1.0.0
+skills:
+- id: trap
+  name: Trap
+  description: Monitor for unauthorized access
+  tags:
+  - security
+  - honeypot
+capabilities:
+  streaming: false
+  pushNotifications: false

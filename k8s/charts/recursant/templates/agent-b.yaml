@@ -1,0 +1,102 @@
+{{- if .Values.agents.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-agent-b
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agent-b
+spec:
+  ports:
+    - port: {{ .Values.agents.agentB.port }}
+      targetPort: {{ .Values.agents.agentB.port }}
+      protocol: TCP
+      name: agent
+    - port: {{ .Values.agents.agentB.sidecarPort }}
+      targetPort: {{ .Values.agents.agentB.sidecarPort }}
+      protocol: TCP
+      name: sidecar-http
+    - port: {{ .Values.agents.agentB.a2aPort }}
+      targetPort: {{ .Values.agents.agentB.a2aPort }}
+      protocol: TCP
+      name: sidecar-a2a
+  selector:
+    app: {{ include "recursant.fullname" . }}-agent-b
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-agent-b
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agent-b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-agent-b
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-agent-b
+        recursant.io/sidecar-inject: "true"
+        {{- include "recursant.labels" . | nindent 8 }}
+      annotations:
+        recursant.io/inject-sidecar: "true"
+        recursant.io/agent-name: {{ .Values.agents.agentB.name | quote }}
+        recursant.io/agent-port: {{ .Values.agents.agentB.port | quote }}
+        recursant.io/sidecar-port: {{ .Values.agents.agentB.sidecarPort | quote }}
+        recursant.io/a2a-port: {{ .Values.agents.agentB.a2aPort | quote }}
+        recursant.io/sidecar-config: {{ include "recursant.fullname" . }}-agent-b-sidecar
+        recursant.io/cert-secret: {{ include "recursant.fullname" . }}-certs
+        recursant.io/secret-name: {{ include "recursant.secretName" . }}
+        recursant.io/advertise-host: {{ include "recursant.fullname" . }}-agent-b
+    spec:
+      containers:
+        - name: agent-b
+          image: "{{ .Values.images.agentB.repository }}:{{ .Values.images.agentB.tag }}"
+          imagePullPolicy: {{ .Values.images.agentB.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.agents.agentB.port }}
+              name: agent
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENAI_API_KEY
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: GOOGLE_API_KEY
+            - name: MOONSHOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: MOONSHOT_API_KEY
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENROUTER_API_KEY
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: agent
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: agent
+            initialDelaySeconds: 5
+            periodSeconds: 5
+{{- end }}

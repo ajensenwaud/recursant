@@ -1,0 +1,4 @@
+# Minimal config — all defaults should kick in
+port: 9901
+registry_url: "http://registry:5000"
+agent_card_path: "./agent_card.yaml"

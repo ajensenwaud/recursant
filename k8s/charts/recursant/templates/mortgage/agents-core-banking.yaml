@@ -1,0 +1,104 @@
+{{- if .Values.mortgage.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-agents-core-banking
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agents-core-banking
+spec:
+  ports:
+    - port: 5024
+      targetPort: 5024
+      protocol: TCP
+      name: agent
+    - port: 9914
+      targetPort: 9914
+      protocol: TCP
+      name: sidecar
+    - port: 8454
+      targetPort: 8454
+      protocol: TCP
+      name: a2a
+  selector:
+    app: {{ include "recursant.fullname" . }}-agents-core-banking
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-agents-core-banking
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agents-core-banking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-agents-core-banking
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-agents-core-banking
+        recursant.io/sidecar-inject: "true"
+        {{- include "recursant.labels" . | nindent 8 }}
+      annotations:
+        recursant.io/inject-sidecar: "true"
+        recursant.io/agent-name: "Core Banking Agent"
+        recursant.io/agent-port: "5024"
+        recursant.io/sidecar-port: "9914"
+        recursant.io/a2a-port: "8454"
+        recursant.io/sidecar-config: {{ include "recursant.fullname" . }}-sidecar-core-banking
+        recursant.io/cert-secret: {{ include "recursant.fullname" . }}-mortgage-certs
+        recursant.io/secret-name: {{ include "recursant.secretName" . }}
+        recursant.io/advertise-host: {{ include "recursant.fullname" . }}-agents-core-banking
+    spec:
+      containers:
+        - name: agents-core-banking
+          image: "{{ .Values.images.agentsCoreBanking.repository }}:{{ .Values.images.agentsCoreBanking.tag }}"
+          imagePullPolicy: {{ .Values.images.agentsCoreBanking.pullPolicy }}
+          ports:
+            - containerPort: 5024
+              name: agent
+          env:
+            - name: STUB_API_URL
+              value: "http://{{ include "recursant.fullname" . }}-stub-apis:6000"
+            - name: LLM_PROVIDER
+              value: {{ .Values.mortgage.llmProvider | default "anthropic" | quote }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+            - name: MOONSHOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: MOONSHOT_API_KEY
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENROUTER_API_KEY
+            - name: LLM_MODEL
+              value: {{ .Values.mortgage.llmModel | quote }}
+            - name: REDIS_URL
+              value: "redis://{{ include "recursant.fullname" . }}-redis:6379/1"
+            - name: SIDECAR_URL_CORE_BANKING
+              value: "http://localhost:9914"
+            - name: USE_SIDECAR_TOOLS
+              value: "1"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: agent
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: agent
+            initialDelaySeconds: 10
+            periodSeconds: 5
+{{- end }}

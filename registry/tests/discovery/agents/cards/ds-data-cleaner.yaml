@@ -1,0 +1,13 @@
+name: Data Cleaner
+description: Cleans and validates datasets
+version: 1.3.0
+skills:
+- id: clean-data
+  name: Clean Data
+  description: Clean and validate data
+  tags:
+  - data
+  - cleaning
+capabilities:
+  streaming: false
+  pushNotifications: false

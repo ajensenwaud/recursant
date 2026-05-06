@@ -1,0 +1,13 @@
+name: CI Pipeline Manager
+description: Manages CI/CD pipeline execution and monitoring
+version: 1.3.0
+skills:
+- id: pipeline-run
+  name: Pipeline Run
+  description: Execute CI/CD pipelines
+  tags:
+  - ci
+  - automation
+capabilities:
+  streaming: false
+  pushNotifications: false

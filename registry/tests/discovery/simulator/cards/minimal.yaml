@@ -1,0 +1,5 @@
+name: Minimal Agent
+skills:
+  - id: ping
+    name: Ping
+    description: Simple health check ping.

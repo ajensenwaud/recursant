@@ -1,0 +1,118 @@
+{{- if .Values.agents.enabled }}
+## Agent A sidecar configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-agent-a-sidecar
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: {{ .Values.agents.agentA.sidecarPort }}
+        a2a_port: {{ .Values.agents.agentA.a2aPort }}
+        agent_port: {{ .Values.agents.agentA.port }}
+        registry_url: "http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}"
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-a.pem"
+          key_path: "/certs/sidecar-a-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Research Assistant"
+    description: "Produces research claims and coordinates fact-checking with other agents"
+    version: "1.0.0"
+    provider:
+      name: "Recursant"
+      url: "https://recursant.ai"
+    skills:
+      - id: "research"
+        name: "Research"
+        description: "Generates research claims about a given topic"
+        tags: ["research", "claims"]
+        examples:
+          - "Research the height of the Eiffel Tower"
+          - "What is the population of Tokyo?"
+      - id: "research-and-verify"
+        name: "Research and Verify"
+        description: "Generates a claim and coordinates fact-checking via a remote agent"
+        tags: ["research", "verification", "multi-agent"]
+        examples:
+          - "Research and verify: Is the Great Wall of China visible from space?"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+---
+## Agent B sidecar configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-agent-b-sidecar
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  recursant-sidecar.yaml: |
+    recursant:
+      sidecar:
+        port: {{ .Values.agents.agentB.sidecarPort }}
+        a2a_port: {{ .Values.agents.agentB.a2aPort }}
+        agent_port: {{ .Values.agents.agentB.port }}
+        registry_url: "http://{{ include "recursant.fullname" . }}-registry:{{ .Values.registry.port }}"
+        agent_card_path: "./agent_card.yaml"
+        log_level: "info"
+        tool_sync_interval_seconds: 30
+        interceptors:
+          authentication:
+            enabled: true
+            schemes: ["mtls", "api_key"]
+          authorisation:
+            enabled: true
+            default_action: deny
+          audit:
+            enabled: true
+        tls:
+          cert_path: "/certs/sidecar-b.pem"
+          key_path: "/certs/sidecar-b-key.pem"
+          ca_path: "/certs/ca.pem"
+  agent_card.yaml: |
+    name: "Fact Checker Agent"
+    description: "Verifies factual claims using multiple sources and returns evidence"
+    version: "1.0.0"
+    provider:
+      name: "Recursant"
+      url: "https://recursant.ai"
+    skills:
+      - id: "fact-check"
+        name: "Fact Check"
+        description: "Verifies a factual claim and returns a verdict with evidence"
+        tags: ["verification", "fact-checking", "evidence"]
+        examples:
+          - "Is the Eiffel Tower 330m tall?"
+          - "Did humans land on the Moon in 1969?"
+    default_input_modes: ["text"]
+    default_output_modes: ["text"]
+    capabilities:
+      streaming: false
+      push_notifications: false
+    security_schemes:
+      mtls:
+        type: "mutualTLS"
+    security:
+      - mtls: []
+{{- end }}

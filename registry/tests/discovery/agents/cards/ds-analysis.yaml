@@ -1,0 +1,34 @@
+name: Data Analysis Agent
+description: Comprehensive data analysis agent for exploratory analysis, visualization, and statistical testing.
+version: 1.2.0
+skills:
+  - id: eda
+    name: Exploratory Data Analysis
+    description: Perform exploratory data analysis including distributions, correlations, and outlier detection.
+    tags:
+      - eda
+      - statistics
+  - id: visualize
+    name: Visualize
+    description: Generate charts and plots from tabular data.
+    tags:
+      - visualization
+      - charts
+  - id: hypothesis-test
+    name: Hypothesis Testing
+    description: Run statistical hypothesis tests such as t-test, chi-squared, and ANOVA.
+    tags:
+      - statistics
+      - hypothesis-testing
+  - id: clean-data
+    name: Clean Data
+    description: Detect and handle missing values, duplicates, and type inconsistencies in datasets.
+    tags:
+      - data-cleaning
+      - etl
+  - id: feature-engineering
+    name: Feature Engineering
+    description: Create derived features from raw data to improve model performance.
+    tags:
+      - feature-engineering
+      - ml-prep

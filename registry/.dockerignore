@@ -1,0 +1,9 @@
+node_modules
+frontend
+.git
+__pycache__
+*.pyc
+.env
+postgres_data
+redis_data
+.pytest_cache

@@ -1,0 +1,13 @@
+name: Order Tracker
+description: Tracks order status across supply chain
+version: 2.1.0
+skills:
+- id: track-order
+  name: Track Order
+  description: Track order status
+  tags:
+  - orders
+  - tracking
+capabilities:
+  streaming: false
+  pushNotifications: false

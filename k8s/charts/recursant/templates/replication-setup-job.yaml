@@ -1,0 +1,181 @@
+{{- if and .Values.multiCluster.enabled .Values.db.replication.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recursant.fullname" . }}-replication-conflict
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+data:
+  conflict-handler.sql: |
+    -- LWW conflict resolution for mesh_registrations
+    CREATE OR REPLACE FUNCTION handle_registration_conflict()
+    RETURNS trigger AS $$
+    BEGIN
+      IF TG_OP = 'UPDATE' AND NEW.updated_at IS NOT NULL AND OLD.updated_at IS NOT NULL THEN
+        IF NEW.updated_at <= OLD.updated_at THEN
+          RETURN NULL;  -- discard incoming update (older)
+        END IF;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_registration_lww ON mesh_registrations;
+    CREATE TRIGGER trg_registration_lww
+      BEFORE UPDATE ON mesh_registrations
+      FOR EACH ROW EXECUTE FUNCTION handle_registration_conflict();
+
+    -- LWW conflict resolution for mesh_policies
+    CREATE OR REPLACE FUNCTION handle_policy_conflict()
+    RETURNS trigger AS $$
+    BEGIN
+      IF TG_OP = 'UPDATE' AND NEW.updated_at IS NOT NULL AND OLD.updated_at IS NOT NULL THEN
+        IF NEW.updated_at <= OLD.updated_at THEN
+          RETURN NULL;
+        END IF;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_policy_lww ON mesh_policies;
+    CREATE TRIGGER trg_policy_lww
+      BEFORE UPDATE ON mesh_policies
+      FOR EACH ROW EXECUTE FUNCTION handle_policy_conflict();
+
+    -- LWW conflict resolution for mesh_compliance_rules
+    CREATE OR REPLACE FUNCTION handle_compliance_rule_conflict()
+    RETURNS trigger AS $$
+    BEGIN
+      IF TG_OP = 'UPDATE' AND NEW.updated_at IS NOT NULL AND OLD.updated_at IS NOT NULL THEN
+        IF NEW.updated_at <= OLD.updated_at THEN
+          RETURN NULL;
+        END IF;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_compliance_rule_lww ON mesh_compliance_rules;
+    CREATE TRIGGER trg_compliance_rule_lww
+      BEFORE UPDATE ON mesh_compliance_rules
+      FOR EACH ROW EXECUTE FUNCTION handle_compliance_rule_conflict();
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "recursant.fullname" . }}-replication-setup
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-replication-setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: "{{ .Values.db.image.repository }}:{{ .Values.db.image.tag }}"
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: POSTGRES_DB
+            - name: LOCAL_DB_HOST
+              value: {{ include "recursant.fullname" . }}-db
+            - name: LOCAL_DB_PORT
+              value: {{ .Values.db.port | quote }}
+            - name: REMOTE_DB_HOST
+              value: {{ .Values.db.replication.remoteHost | quote }}
+            - name: REMOTE_DB_PORT
+              value: {{ .Values.db.replication.remotePort | quote }}
+            - name: CLUSTER_NAME
+              value: {{ .Values.db.replication.clusterName | quote }}
+          volumeMounts:
+            - name: conflict-sql
+              mountPath: /sql
+          command:
+            - bash
+            - -c
+            - |
+              set -euo pipefail
+
+              echo "Waiting for local DB ..."
+              until pg_isready -h "$LOCAL_DB_HOST" -p "$LOCAL_DB_PORT" -U "$PGUSER"; do
+                sleep 2
+              done
+
+              echo "Waiting for remote DB at ${REMOTE_DB_HOST}:${REMOTE_DB_PORT} ..."
+              retries=0
+              until pg_isready -h "$REMOTE_DB_HOST" -p "$REMOTE_DB_PORT" -U "$PGUSER" 2>/dev/null; do
+                retries=$((retries + 1))
+                if [ "$retries" -ge 60 ]; then
+                  echo "Remote DB not reachable after 120s — proceeding with local-only setup"
+                  REMOTE_AVAILABLE=false
+                  break
+                fi
+                sleep 2
+              done
+              REMOTE_AVAILABLE=${REMOTE_AVAILABLE:-true}
+
+              echo "Applying conflict resolution triggers ..."
+              psql -h "$LOCAL_DB_HOST" -p "$LOCAL_DB_PORT" -f /sql/conflict-handler.sql
+
+              echo "Creating PUBLICATION on local DB ..."
+              psql -h "$LOCAL_DB_HOST" -p "$LOCAL_DB_PORT" -c \
+                "DO \$\$
+                BEGIN
+                  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'recursant_pub') THEN
+                    CREATE PUBLICATION recursant_pub FOR TABLE
+                      mesh_registrations, mesh_policies, mesh_audit_logs,
+                      mesh_compliance_rules, agents;
+                  END IF;
+                END
+                \$\$;"
+
+              if [ "$REMOTE_AVAILABLE" = "true" ]; then
+                echo "Creating SUBSCRIPTION to remote DB ..."
+                SUB_NAME="recursant_sub_${CLUSTER_NAME}"
+                CONNINFO="host=${REMOTE_DB_HOST} port=${REMOTE_DB_PORT} dbname=${PGDATABASE} user=${PGUSER} password=${PGPASSWORD}"
+
+                psql -h "$LOCAL_DB_HOST" -p "$LOCAL_DB_PORT" -c \
+                  "DO \$\$
+                  BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_subscription WHERE subname = '${SUB_NAME}') THEN
+                      CREATE SUBSCRIPTION ${SUB_NAME}
+                        CONNECTION '${CONNINFO}'
+                        PUBLICATION recursant_pub
+                        WITH (copy_data = true);
+                    END IF;
+                  END
+                  \$\$;"
+                echo "Subscription '${SUB_NAME}' created."
+              else
+                echo "Skipping subscription — remote DB not available."
+              fi
+
+              echo "Replication setup complete for cluster '${CLUSTER_NAME}'."
+      volumes:
+        - name: conflict-sql
+          configMap:
+            name: {{ include "recursant.fullname" . }}-replication-conflict
+{{- end }}

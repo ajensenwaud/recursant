@@ -1,0 +1,7 @@
+name: Grafana Proxy
+description: Monitoring dashboard proxy
+version: 1.0.0
+skills: []
+capabilities:
+  streaming: false
+  pushNotifications: false

@@ -1,0 +1,13 @@
+name: Audit Logger
+description: Maintains audit trail for partner transactions
+version: 1.0.0
+skills:
+- id: log-audit
+  name: Log Audit
+  description: Log audit events
+  tags:
+  - audit
+  - logging
+capabilities:
+  streaming: false
+  pushNotifications: false

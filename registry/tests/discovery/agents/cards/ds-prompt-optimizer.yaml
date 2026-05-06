@@ -1,0 +1,13 @@
+name: Prompt Optimizer
+description: Optimizes prompts for LLM performance
+version: 0.9.0
+skills:
+- id: optimize
+  name: Optimize
+  description: Optimize prompt templates
+  tags:
+  - prompts
+  - optimization
+capabilities:
+  streaming: false
+  pushNotifications: false

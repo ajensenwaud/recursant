@@ -1,0 +1,4 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install --no-cache-dir "mcp[cli]>=1.0" httpx
+COPY demo/mortgage/mcp_servers/ /app/mcp_servers/

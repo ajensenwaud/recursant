@@ -1,0 +1,13 @@
+name: Crew Planner
+description: Plans and coordinates multi-agent workflows
+version: 1.0.0
+skills:
+- id: plan
+  name: Plan
+  description: Create execution plans for crew tasks
+  tags:
+  - planning
+  - orchestration
+capabilities:
+  streaming: false
+  pushNotifications: false

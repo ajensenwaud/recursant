@@ -1,0 +1,25 @@
+name: Research Assistant
+description: An agent that performs research, summarizes findings, and provides citations from academic and web sources.
+version: 2.1.0
+skills:
+  - id: research
+    name: Research
+    description: Conduct deep research on a given topic using academic databases and web sources.
+    tags:
+      - research
+      - information-retrieval
+  - id: summarize
+    name: Summarize
+    description: Produce concise summaries of documents, articles, or research findings.
+    tags:
+      - summarization
+      - nlp
+  - id: cite
+    name: Cite
+    description: Generate properly formatted citations in APA, MLA, or Chicago style.
+    tags:
+      - citations
+      - formatting
+capabilities:
+  streaming: true
+  pushNotifications: false

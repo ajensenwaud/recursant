@@ -1,0 +1,13 @@
+name: Price Feed
+description: Provides real-time pricing data
+version: 1.0.0
+skills:
+- id: get-prices
+  name: Get Prices
+  description: Fetch current pricing
+  tags:
+  - pricing
+  - data
+capabilities:
+  streaming: false
+  pushNotifications: false

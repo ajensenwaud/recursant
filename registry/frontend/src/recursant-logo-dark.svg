@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" width="1360" height="400">
+  <rect width="340" height="100" fill="#0C1117" rx="0"/>
+  <g transform="translate(5, 0)">
+    <line x1="50" y1="48" x2="30" y2="28" stroke="#1DB4B0" stroke-width="2" opacity="0.55" stroke-linecap="round"/>
+    <line x1="50" y1="48" x2="70" y2="25" stroke="#1DB4B0" stroke-width="2" opacity="0.55" stroke-linecap="round"/>
+    <line x1="50" y1="48" x2="78" y2="58" stroke="#1DB4B0" stroke-width="2" opacity="0.55" stroke-linecap="round"/>
+    <line x1="50" y1="48" x2="60" y2="80" stroke="#1DB4B0" stroke-width="2" opacity="0.55" stroke-linecap="round"/>
+    <line x1="50" y1="48" x2="25" y2="68" stroke="#1DB4B0" stroke-width="2" opacity="0.55" stroke-linecap="round"/>
+    <line x1="30" y1="28" x2="70" y2="25" stroke="#1DB4B0" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <line x1="78" y1="58" x2="60" y2="80" stroke="#1DB4B0" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <line x1="60" y1="80" x2="25" y2="68" stroke="#1DB4B0" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <line x1="25" y1="68" x2="30" y2="28" stroke="#1DB4B0" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <circle cx="50" cy="48" r="5" fill="#0C706A"/>
+    <circle cx="30" cy="28" r="2.8" fill="#1DB4B0" opacity="0.6"/>
+    <circle cx="70" cy="25" r="2.8" fill="#1DB4B0" opacity="0.6"/>
+    <circle cx="78" cy="58" r="2.8" fill="#1DB4B0" opacity="0.6"/>
+    <circle cx="60" cy="80" r="2.8" fill="#1DB4B0" opacity="0.6"/>
+    <circle cx="25" cy="68" r="2.8" fill="#1DB4B0" opacity="0.6"/>
+  </g>
+  <text x="108" y="57" font-family="DM Sans, Helvetica Neue, sans-serif" font-size="28" font-weight="400" fill="#E0E8F0" letter-spacing="2.5">recursant</text>
+</svg>

@@ -1,0 +1,20 @@
+name: Code Review Agent
+description: Automated code review agent that analyzes pull requests and suggests improvements.
+version: 1.0.0
+skills:
+  - id: review-code
+    name: Review Code
+    description: Analyze source code for bugs, style issues, and potential security vulnerabilities.
+    tags:
+      - code-review
+      - static-analysis
+      - security
+  - id: suggest-fix
+    name: Suggest Fix
+    description: Generate code fix suggestions for identified issues with explanations.
+    tags:
+      - code-generation
+      - refactoring
+capabilities:
+  streaming: false
+  pushNotifications: false

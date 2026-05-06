@@ -1,0 +1,37 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/mesh
+
+# Install dependencies — includes crewai (pulls in litellm)
+RUN pip install --no-cache-dir \
+    flask \
+    httpx \
+    pyyaml \
+    anthropic \
+    mcp \
+    redis \
+    crewai \
+    crewai-tools \
+    litellm
+
+# Copy the mesh runtime (needed for RecursantA2AClient import)
+COPY mesh/pyproject.toml /mesh/pyproject.toml
+COPY mesh/runtime/ /mesh/runtime/
+RUN pip install --no-cache-dir -e /mesh
+
+# Copy shared MCP client module
+COPY demo/mortgage/agents/mcp_client.py /app/mcp_client.py
+
+# Copy MCP servers
+COPY demo/mortgage/mcp_servers/ /app/mcp_servers/
+
+# Copy compliance agent code
+COPY demo/mortgage/agents/compliance/ /app/
+
+RUN chmod +x /app/start.sh
+
+CMD ["/bin/bash", "/app/start.sh"]

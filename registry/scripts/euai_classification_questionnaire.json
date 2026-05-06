@@ -1,0 +1,174 @@
+{
+  "version": "1.0.0",
+  "title": "EU AI Act Risk Classification Questionnaire",
+  "description": "Guided questionnaire to determine the EU AI Act risk category for an AI system, based on Annex III high-risk categories.",
+  "steps": [
+    {
+      "id": "step_1",
+      "title": "AI System Type",
+      "question": "What type of AI system is this?",
+      "type": "single_choice",
+      "options": [
+        {
+          "id": "prohibited",
+          "label": "Prohibited AI practices",
+          "description": "Social scoring, real-time biometric identification in public spaces (with exceptions), emotion recognition in workplace/education, manipulation techniques",
+          "leads_to": "unacceptable"
+        },
+        {
+          "id": "general_purpose",
+          "label": "General-purpose AI system",
+          "description": "Foundation model or general-purpose AI model",
+          "leads_to": "step_gpai"
+        },
+        {
+          "id": "specific_purpose",
+          "label": "Specific-purpose AI system",
+          "description": "AI system designed for a specific use case",
+          "leads_to": "step_2"
+        }
+      ]
+    },
+    {
+      "id": "step_gpai",
+      "title": "General-Purpose AI Classification",
+      "question": "Does this GPAI model pose systemic risk (>10^25 FLOPs training compute)?",
+      "type": "single_choice",
+      "options": [
+        {
+          "id": "systemic",
+          "label": "Yes, systemic risk GPAI",
+          "leads_to": "high"
+        },
+        {
+          "id": "non_systemic",
+          "label": "No, standard GPAI",
+          "leads_to": "step_2"
+        }
+      ]
+    },
+    {
+      "id": "step_2",
+      "title": "Use Domain (Annex III)",
+      "question": "In which domain is this AI system used?",
+      "type": "single_choice",
+      "options": [
+        {
+          "id": "biometrics",
+          "label": "Biometrics",
+          "description": "Remote biometric identification, emotion recognition, biometric categorisation",
+          "domain": "biometrics",
+          "leads_to": "high"
+        },
+        {
+          "id": "critical_infrastructure",
+          "label": "Critical infrastructure",
+          "description": "Safety components of critical infrastructure (water, gas, heating, electricity, road traffic, supply of digital infrastructure)",
+          "domain": "critical_infrastructure",
+          "leads_to": "high"
+        },
+        {
+          "id": "education",
+          "label": "Education and vocational training",
+          "description": "Access to education, evaluation of learning outcomes, assessment of appropriate level of education, monitoring of prohibited behaviour during tests",
+          "domain": "education",
+          "leads_to": "high"
+        },
+        {
+          "id": "employment",
+          "label": "Employment and workers management",
+          "description": "Recruitment, selection, HR decisions, task allocation, performance monitoring",
+          "domain": "employment",
+          "leads_to": "high"
+        },
+        {
+          "id": "essential_services",
+          "label": "Essential private and public services",
+          "description": "Creditworthiness assessment, insurance risk, emergency services dispatch, social benefits eligibility",
+          "domain": "essential_services",
+          "leads_to": "high"
+        },
+        {
+          "id": "law_enforcement",
+          "label": "Law enforcement",
+          "description": "Individual risk assessment, polygraphs, evidence reliability, profiling, crime analytics",
+          "domain": "law_enforcement",
+          "leads_to": "high"
+        },
+        {
+          "id": "migration_border",
+          "label": "Migration, asylum and border control",
+          "description": "Polygraphs, risk assessment, document authenticity verification, asylum application examination",
+          "domain": "migration_border",
+          "leads_to": "high"
+        },
+        {
+          "id": "justice_democracy",
+          "label": "Administration of justice and democratic processes",
+          "description": "AI assisting judicial authorities in researching, interpreting facts and law, applying the law",
+          "domain": "justice_democracy",
+          "leads_to": "high"
+        },
+        {
+          "id": "general",
+          "label": "General / Other",
+          "description": "None of the above high-risk domains",
+          "domain": "general",
+          "leads_to": "step_3"
+        }
+      ]
+    },
+    {
+      "id": "step_3",
+      "title": "Transparency Obligations",
+      "question": "Does this AI system have transparency obligations?",
+      "type": "single_choice",
+      "options": [
+        {
+          "id": "interacts_users",
+          "label": "Yes - interacts directly with natural persons",
+          "description": "Chatbots, virtual assistants, customer service AI",
+          "leads_to": "limited"
+        },
+        {
+          "id": "generates_content",
+          "label": "Yes - generates synthetic content (text, images, audio, video)",
+          "description": "Content generation, deepfakes, synthetic media",
+          "leads_to": "limited"
+        },
+        {
+          "id": "emotion_recognition",
+          "label": "Yes - emotion recognition or biometric categorisation (non-prohibited)",
+          "leads_to": "limited"
+        },
+        {
+          "id": "no_transparency",
+          "label": "No specific transparency obligations",
+          "leads_to": "minimal"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "unacceptable": {
+      "risk_category": "unacceptable",
+      "description": "This AI system falls under prohibited AI practices (Article 5). It cannot be placed on the EU market.",
+      "next_steps": "Consult legal counsel. The system must be redesigned or withdrawn."
+    },
+    "high": {
+      "risk_category": "high",
+      "description": "This AI system is classified as high-risk under the EU AI Act (Annex III or Article 6). Full compliance requirements apply.",
+      "next_steps": "Complete all Annex IV technical documentation, establish risk management system, ensure human oversight, conduct conformity assessment."
+    },
+    "limited": {
+      "risk_category": "limited",
+      "description": "This AI system has limited risk with transparency obligations (Article 50). Users must be informed about AI interaction.",
+      "next_steps": "Implement transparency measures: disclosure of AI nature, content marking as applicable."
+    },
+    "minimal": {
+      "risk_category": "minimal",
+      "description": "This AI system is classified as minimal risk. No mandatory requirements, but voluntary codes of conduct are encouraged.",
+      "next_steps": "Consider adopting voluntary codes of conduct and best practices."
+    }
+  }
+}

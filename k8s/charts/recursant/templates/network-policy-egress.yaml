@@ -1,0 +1,38 @@
+{{- if and .Values.networkPolicy (and .Values.networkPolicy.egress .Values.networkPolicy.egress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "recursant.fullname" . }}-agent-egress
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      recursant.io/sidecar-inject: "true"
+  policyTypes:
+    - Egress
+  egress:
+    ## DNS resolution (kube-dns / CoreDNS)
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    ## Within-namespace traffic (sidecar ↔ agent, agent ↔ registry, etc.)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ include "recursant.namespace" . }}
+    ## LLM API access (agents call Anthropic/OpenAI directly for chat + extraction)
+    - ports:
+        - protocol: TCP
+          port: 443
+      to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+{{- end }}

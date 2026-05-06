@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install dependencies
+RUN pip install --no-cache-dir flask httpx pyyaml \
+    langchain-anthropic langchain-openai langchain-google-genai
+
+# Copy the mesh runtime (needed for RecursantA2AClient import)
+COPY pyproject.toml /mesh/pyproject.toml
+COPY runtime/ /mesh/runtime/
+RUN pip install --no-cache-dir -e /mesh
+
+# Copy agent code — set by build context + AGENT_DIR arg
+ARG AGENT_DIR=examples/agent_a
+COPY ${AGENT_DIR}/agent.py .
+COPY ${AGENT_DIR}/agent_card.yaml .
+COPY ${AGENT_DIR}/recursant-sidecar.yaml .
+
+EXPOSE 5010
+
+CMD ["python", "agent.py"]

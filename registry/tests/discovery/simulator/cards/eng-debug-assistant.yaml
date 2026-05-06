@@ -1,0 +1,13 @@
+name: Debug Assistant
+description: Helps debug application issues using log analysis
+version: 0.9.0
+skills:
+- id: debug
+  name: Debug
+  description: Analyze logs and traces to find root cause
+  tags:
+  - debugging
+  - logs
+capabilities:
+  streaming: false
+  pushNotifications: false

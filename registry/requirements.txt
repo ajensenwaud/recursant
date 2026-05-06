@@ -1,0 +1,55 @@
+# Flask and extensions
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+Flask-RESTful==0.3.10
+Flask-CORS==4.0.0
+
+# Database
+SQLAlchemy==2.0.46
+psycopg2-binary==2.9.10
+redis==5.0.1
+
+# Validation and serialization
+marshmallow==3.20.1
+marshmallow-sqlalchemy==0.29.0
+
+# Authentication
+Authlib==1.2.1
+PyJWT==2.8.0
+bcrypt==4.2.0
+
+# Utilities
+python-dotenv==1.0.0
+gunicorn==21.2.0
+requests==2.31.0
+
+# WebSocket (mesh visualiser)
+flask-socketio>=5.3.0
+gevent>=24.0
+gevent-websocket>=0.10
+
+# Vector search (for future semantic search)
+pgvector==0.2.4
+weaviate-client>=4.9.0
+
+# LLM Providers
+openai>=2.15.0
+anthropic>=0.76.0
+google-genai>=1.60.0
+
+# Kafka (observability event streaming)
+confluent-kafka>=2.6.0
+
+# Charts (cost dashboard)
+# recharts is frontend-only — no Python dependency needed
+
+# PDF generation (EU AI Act Annex IV)
+weasyprint>=60.0
+
+# Network discovery (async HTTP probing)
+aiohttp>=3.9.0
+
+# Testing
+pytest==8.0.0
+pytest-cov==4.1.0

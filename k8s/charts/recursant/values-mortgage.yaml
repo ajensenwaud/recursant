@@ -1,0 +1,47 @@
+## Mortgage demo overlay values
+## Usage: helm upgrade --install recursant charts/recursant/ -f charts/recursant/values-mortgage.yaml
+
+## Additional images for mortgage demo
+images:
+  agentsCustomer:
+    repository: recursant-agents-customer
+    tag: latest
+    pullPolicy: IfNotPresent
+  agentsKycCredit:
+    repository: recursant-agents-kyc-credit
+    tag: latest
+    pullPolicy: IfNotPresent
+  agentsCoreBanking:
+    repository: recursant-agents-core-banking
+    tag: latest
+    pullPolicy: IfNotPresent
+  agentsCompliance:
+    repository: recursant-agents-compliance
+    tag: latest
+    pullPolicy: IfNotPresent
+  mortgageFrontend:
+    repository: recursant-mortgage-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  stubApis:
+    repository: recursant-stub-apis
+    tag: latest
+    pullPolicy: IfNotPresent
+  n8n:
+    repository: n8nio/n8n
+    tag: latest
+    pullPolicy: IfNotPresent
+  n8nBridge:
+    repository: recursant-n8n-bridge
+    tag: latest
+    pullPolicy: IfNotPresent
+
+## Enable mortgage demo. Defaults route through OpenRouter using a Claude
+## Sonnet variant — the customer agent uses vision (passport / payslip /
+## contract OCR) so the model MUST be vision-capable. Override at install
+## time with `--set mortgage.llmProvider=...` and `--set mortgage.llmModel=...`,
+## or by exporting `MORTGAGE_LLM_PROVIDER` / `MORTGAGE_LLM_MODEL` in `.env`.
+mortgage:
+  enabled: true
+  llmProvider: anthropic   # anthropic | moonshot | openai | openrouter
+  llmModel: claude-sonnet-4-5-20250929

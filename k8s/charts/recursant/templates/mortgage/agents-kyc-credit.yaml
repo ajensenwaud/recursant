@@ -1,0 +1,100 @@
+{{- if .Values.mortgage.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-agents-kyc-credit
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agents-kyc-credit
+spec:
+  ports:
+    - port: 5023
+      targetPort: 5023
+      protocol: TCP
+      name: credit
+    - port: 9913
+      targetPort: 9913
+      protocol: TCP
+      name: sidecar-credit
+    - port: 8453
+      targetPort: 8453
+      protocol: TCP
+      name: a2a-credit
+  selector:
+    app: {{ include "recursant.fullname" . }}-agents-kyc-credit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-agents-kyc-credit
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agents-kyc-credit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-agents-kyc-credit
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-agents-kyc-credit
+        recursant.io/sidecar-inject: "true"
+        {{- include "recursant.labels" . | nindent 8 }}
+      annotations:
+        recursant.io/inject-sidecars: |
+          [
+            {"name":"credit","agentName":"Credit Agent","agentPort":5023,"sidecarPort":9913,"a2aPort":8453,"config":"{{ include "recursant.fullname" . }}-sidecar-credit","certs":"{{ include "recursant.fullname" . }}-mortgage-certs","advertiseHost":"{{ include "recursant.fullname" . }}-agents-kyc-credit"}
+          ]
+        recursant.io/secret-name: {{ include "recursant.secretName" . }}
+    spec:
+      containers:
+        - name: agents-kyc-credit
+          image: "{{ .Values.images.agentsKycCredit.repository }}:{{ .Values.images.agentsKycCredit.tag }}"
+          imagePullPolicy: {{ .Values.images.agentsKycCredit.pullPolicy }}
+          ports:
+            - containerPort: 5023
+              name: credit
+          env:
+            - name: STUB_API_URL
+              value: "http://{{ include "recursant.fullname" . }}-stub-apis:6000"
+            - name: LLM_PROVIDER
+              value: {{ .Values.mortgage.llmProvider | default "anthropic" | quote }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+            - name: MOONSHOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: MOONSHOT_API_KEY
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENROUTER_API_KEY
+            - name: LLM_MODEL
+              value: {{ .Values.mortgage.llmModel | quote }}
+            - name: REDIS_URL
+              value: "redis://{{ include "recursant.fullname" . }}-redis:6379/1"
+            - name: SIDECAR_URL_CREDIT
+              value: "http://localhost:9913"
+            - name: USE_SIDECAR_TOOLS
+              value: "1"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: credit
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: credit
+            initialDelaySeconds: 10
+            periodSeconds: 5
+{{- end }}

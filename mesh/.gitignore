@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+*.egg
+
+# Dev certificates (generated at build time)
+docker/certs/*.pem
+docker/certs/*.csr
+docker/certs/*.srl
+docker/certs/*.ext
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment (contains API keys)
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/

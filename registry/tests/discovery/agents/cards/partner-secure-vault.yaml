@@ -1,0 +1,18 @@
+name: Secure Vault
+description: Secure credential and secret management
+version: 1.0.0
+skills:
+- id: get-secret
+  name: Get Secret
+  description: Retrieve secrets from vault
+  tags:
+  - security
+  - secrets
+securitySchemes:
+  apiKey:
+    type: apiKey
+    in: header
+    name: Authorization
+capabilities:
+  streaming: false
+  pushNotifications: false

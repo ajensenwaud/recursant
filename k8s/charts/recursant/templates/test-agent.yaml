@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-test-agent
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-test-agent
+spec:
+  ports:
+    - port: {{ .Values.testAgent.port }}
+      targetPort: {{ .Values.testAgent.port }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "recursant.fullname" . }}-test-agent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-test-agent
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-test-agent
+spec:
+  replicas: {{ .Values.testAgent.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-test-agent
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-test-agent
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: test-agent
+          image: "{{ .Values.images.testAgent.repository }}:{{ .Values.images.testAgent.tag }}"
+          imagePullPolicy: {{ .Values.images.testAgent.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.testAgent.port }}
+              name: http
+          env:
+            - name: TEST_AGENT_PROVIDER
+              value: {{ .Values.testAgent.provider | quote }}
+            - name: TEST_AGENT_MODEL
+              value: {{ .Values.testAgent.model | quote }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENAI_API_KEY
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: GOOGLE_API_KEY
+            - name: MOONSHOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: MOONSHOT_API_KEY
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENROUTER_API_KEY
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.testAgent.resources | nindent 12 }}

@@ -1,0 +1,13 @@
+name: Experiment Tracker
+description: Tracks ML experiment runs and metrics
+version: 1.0.0
+skills:
+- id: track
+  name: Track
+  description: Track experiment metrics
+  tags:
+  - ml
+  - experiments
+capabilities:
+  streaming: false
+  pushNotifications: false

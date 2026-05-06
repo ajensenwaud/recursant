@@ -1,0 +1,57 @@
+{{- if .Values.mortgage.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-stub-apis
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-stub-apis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-stub-apis
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-stub-apis
+        {{- include "recursant.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: stub-apis
+          image: "{{ .Values.images.stubApis.repository }}:{{ .Values.images.stubApis.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6000
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-stub-apis
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-stub-apis
+spec:
+  ports:
+    - port: 6000
+      targetPort: 6000
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "recursant.fullname" . }}-stub-apis
+{{- end }}

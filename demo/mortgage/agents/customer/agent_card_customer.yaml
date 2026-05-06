@@ -1,0 +1,19 @@
+name: "Customer Agent"
+description: "Guides customers through the mortgage origination process, coordinating authentication, KYC, credit assessment, and loan disbursement"
+version: "1.0.0"
+provider:
+  name: "Agentic Bank"
+  url: "https://agenticbank.example.com"
+skills:
+  - id: "mortgage-origination"
+    name: "Mortgage Origination"
+    description: "Guides customers through a complete mortgage application including authentication, identity verification, credit assessment, and loan disbursement"
+    tags: ["mortgage", "origination", "banking"]
+    examples:
+      - "I'd like to apply for a mortgage"
+      - "Help me get a home loan"
+default_input_modes: ["text"]
+default_output_modes: ["text"]
+capabilities:
+  streaming: true
+  push_notifications: false

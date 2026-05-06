@@ -1,0 +1,22 @@
+## Helm values overlay for cluster-1 in a multi-cluster active-active deployment.
+## Usage:
+##   helm upgrade --install recursant k8s/charts/recursant \
+##     -f k8s/charts/recursant/values-cluster-1.yaml \
+##     --set multiCluster.remoteDbHost=<cluster-2-node-ip> \
+##     --set multiCluster.remoteRegistryUrl=http://<cluster-2-node-ip>:30500 \
+##     --kube-context kind-recursant-1
+
+multiCluster:
+  enabled: true
+  clusterId: "cluster-1"
+  # Override these at install time with --set
+  remoteRegistryUrl: "http://REPLACE_ME:30500"
+  remoteDbHost: "REPLACE_ME"
+  remoteDbPort: 30432
+
+db:
+  replication:
+    enabled: true
+    clusterName: "cluster-1"
+    remoteHost: "REPLACE_ME"
+    remotePort: 30432

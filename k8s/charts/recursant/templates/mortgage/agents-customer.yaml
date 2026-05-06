@@ -1,0 +1,127 @@
+{{- if .Values.mortgage.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "recursant.fullname" . }}-agents-customer
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agents-customer
+spec:
+  ports:
+    - port: 5020
+      targetPort: 5020
+      protocol: TCP
+      name: customer
+    - port: 5021
+      targetPort: 5021
+      protocol: TCP
+      name: auth
+    - port: 9910
+      targetPort: 9910
+      protocol: TCP
+      name: sidecar-customer
+    - port: 9911
+      targetPort: 9911
+      protocol: TCP
+      name: sidecar-auth
+    - port: 8450
+      targetPort: 8450
+      protocol: TCP
+      name: a2a-customer
+    - port: 8451
+      targetPort: 8451
+      protocol: TCP
+      name: a2a-auth
+  selector:
+    app: {{ include "recursant.fullname" . }}-agents-customer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recursant.fullname" . }}-agents-customer
+  namespace: {{ include "recursant.namespace" . }}
+  labels:
+    {{- include "recursant.labels" . | nindent 4 }}
+    app: {{ include "recursant.fullname" . }}-agents-customer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "recursant.fullname" . }}-agents-customer
+  template:
+    metadata:
+      labels:
+        app: {{ include "recursant.fullname" . }}-agents-customer
+        recursant.io/sidecar-inject: "true"
+        {{- include "recursant.labels" . | nindent 8 }}
+      annotations:
+        recursant.io/inject-sidecars: |
+          [
+            {"name":"customer","agentName":"Customer Agent","agentPort":5020,"sidecarPort":9910,"a2aPort":8450,"config":"{{ include "recursant.fullname" . }}-sidecar-customer","certs":"{{ include "recursant.fullname" . }}-mortgage-certs","advertiseHost":"{{ include "recursant.fullname" . }}-agents-customer"},
+            {"name":"auth","agentName":"Authentication Agent","agentPort":5021,"sidecarPort":9911,"a2aPort":8451,"config":"{{ include "recursant.fullname" . }}-sidecar-auth","certs":"{{ include "recursant.fullname" . }}-mortgage-certs","advertiseHost":"{{ include "recursant.fullname" . }}-agents-customer"}
+          ]
+        recursant.io/secret-name: {{ include "recursant.secretName" . }}
+    spec:
+      containers:
+        - name: agents-customer
+          image: "{{ .Values.images.agentsCustomer.repository }}:{{ .Values.images.agentsCustomer.tag }}"
+          imagePullPolicy: {{ .Values.images.agentsCustomer.pullPolicy }}
+          ports:
+            - containerPort: 5020
+              name: customer
+            - containerPort: 5021
+              name: auth
+          env:
+            - name: STUB_API_URL
+              value: "http://{{ include "recursant.fullname" . }}-stub-apis:6000"
+            - name: LLM_PROVIDER
+              value: {{ .Values.mortgage.llmProvider | default "anthropic" | quote }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: ANTHROPIC_API_KEY
+            - name: MOONSHOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: MOONSHOT_API_KEY
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "recursant.secretName" . }}
+                  key: OPENROUTER_API_KEY
+            - name: LLM_MODEL
+              value: {{ .Values.mortgage.llmModel | quote }}
+            - name: REDIS_URL
+              value: "redis://{{ include "recursant.fullname" . }}-redis:6379/1"
+            - name: SIDECAR_URL_CUSTOMER
+              value: "http://localhost:9910"
+            - name: SIDECAR_URL_AUTH
+              value: "http://localhost:9911"
+            - name: USE_SIDECAR_TOOLS
+              value: "1"
+            - name: KYC_AGENT_URL
+              # KYC is served by the n8n-kyc pod (KYC Agent runs as an n8n
+              # workflow); the kyc-credit pod hosts only the Credit agent.
+              value: "http://{{ include "recursant.fullname" . }}-n8n-kyc:5022/a2a"
+            - name: CREDIT_AGENT_URL
+              value: "http://{{ include "recursant.fullname" . }}-agents-kyc-credit:5023/a2a"
+            - name: CORE_BANKING_AGENT_URL
+              value: "http://{{ include "recursant.fullname" . }}-agents-core-banking:5024/a2a"
+            - name: COMPLIANCE_AGENT_URL
+              value: "http://{{ include "recursant.fullname" . }}-agents-compliance:5025/a2a"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: customer
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: customer
+            initialDelaySeconds: 10
+            periodSeconds: 5
+{{- end }}
