@@ -57,6 +57,7 @@ class EndpointType(enum.Enum):
     AGENTFORCE = 'agentforce'
     DATABRICKS = 'databricks'
     OPENAI = 'openai'
+    OPENCLAW = 'openclaw'
     CUSTOM = 'custom'
 
 

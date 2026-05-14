@@ -1,4 +1,4 @@
-.PHONY: help test test-unit test-integration test-smoke test-unit-mesh test-unit-registry test-integration-mesh test-integration-registry test-integration-k8s docker-up docker-down docker-build docker-clean docker-logs install seed-all lint db-migrate db-upgrade mortgage-up mortgage-up-fast mortgage-down mortgage-logs mortgage-ps mortgage-test k8s-up k8s-down k8s-build k8s-load k8s-install k8s-all k8s-smoke-test k8s-status k8s-logs k8s-port-forward k8s-test k8s-test-governance k8s-test-compliance k8s-test-features k8s-test-registry k8s-test-a2a k8s-test-isolation k8s-test-llm k8s-test-banking k8s-test-lifecycle k8s-test-governance-enforcement k8s-test-guardrail-integration multi-cluster-up multi-cluster-down multi-cluster-test multi-cluster-status
+.PHONY: help test test-unit test-integration test-smoke test-unit-mesh test-unit-registry test-integration-mesh test-integration-registry test-integration-k8s docker-up docker-down docker-build docker-clean docker-logs install seed-all lint db-migrate db-upgrade mortgage-up mortgage-up-fast mortgage-down mortgage-logs mortgage-ps mortgage-test k8s-up k8s-down k8s-build k8s-load k8s-install k8s-all k8s-smoke-test k8s-status k8s-logs k8s-port-forward k8s-test k8s-test-governance k8s-test-compliance k8s-test-features k8s-test-registry k8s-test-a2a k8s-test-isolation k8s-test-llm k8s-test-banking k8s-test-lifecycle k8s-test-governance-enforcement k8s-test-guardrail-integration k8s-test-openclaw openclaw-setup openclaw-gateway openclaw-smoke multi-cluster-up multi-cluster-down multi-cluster-test multi-cluster-status
 
 help:
 	@echo "Available commands:"
@@ -49,9 +49,15 @@ help:
 	@echo "    make k8s-test-lifecycle - Run registry lifecycle tests (from host)"
 	@echo "    make k8s-test-governance-enforcement - Run governance enforcement tests (from host)"
 	@echo "    make k8s-test-guardrail-integration - Run guardrail API integration tests (from host)"
+	@echo "    make k8s-test-openclaw  - Run OpenClaw API integration tests (in-cluster)"
 	@echo "    make k8s-status          - Show pods and services"
 	@echo "    make k8s-logs            - Tail registry and webhook logs"
 	@echo "    make k8s-port-forward    - Forward registry (5000), frontend (3000), mortgage (3001)"
+	@echo ""
+	@echo "  OpenClaw integration:"
+	@echo "    make openclaw-setup     - Provision a local OpenClaw with the recursant plugin"
+	@echo "    make openclaw-gateway   - Start the OpenClaw gateway with API keys from \$$ENV_FILE"
+	@echo "    make openclaw-smoke     - End-to-end smoke test: send a chat, verify audit row"
 	@echo ""
 	@echo "  Multi-cluster (active-active HA):"
 	@echo "    make multi-cluster-up    - Create 2 kind clusters, build, deploy to both"
@@ -336,6 +342,25 @@ k8s-test-governance-enforcement:
 
 k8s-test-guardrail-integration:
 	bash k8s/scripts/run-integration-tests.sh guardrail-integration
+
+## OpenClaw integration tests (registry endpoints, in-pod, real HTTP)
+k8s-test-openclaw:
+	$(eval POD := $(shell kubectl get pod -n $(K8S_NAMESPACE) -l app=$(K8S_RELEASE)-registry -o jsonpath='{.items[0].metadata.name}'))
+	kubectl cp registry/tests/integration/test_openclaw.py $(K8S_NAMESPACE)/$(POD):/app/tests/integration/test_openclaw.py -c registry
+	kubectl exec -n $(K8S_NAMESPACE) $(POD) -c registry -- \
+	  python -m pytest tests/integration/test_openclaw.py -v -m integration
+
+## Provision a local OpenClaw instance with the recursant plugin
+openclaw-setup:
+	bash integrations/openclaw/scripts/setup-openclaw.sh
+
+## Start the OpenClaw gateway with OPENROUTER_API_KEY in env
+openclaw-gateway:
+	bash integrations/openclaw/scripts/start-gateway.sh
+
+## End-to-end smoke test: send a message, verify audit row lands
+openclaw-smoke:
+	bash integrations/openclaw/scripts/smoke-test.sh
 
 k8s-status:
 	@echo "=== Pods ==="
