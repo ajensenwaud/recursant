@@ -86,6 +86,11 @@ from app.models.discovery import (
     GovernanceStatus,
     DiscoveredToolStatus,
 )
+from app.models.openclaw import (
+    OpenClawInstance,
+    OpenClawEnrollmentToken,
+    OpenClawInstanceStatus,
+)
 from app.models.euai import (
     EUAIClassification,
     ComplianceRequirement,
@@ -202,4 +207,8 @@ __all__ = [
     'ConformityAssessmentStatus',
     'MonitoringPlanStatus',
     'EvidenceType',
+    # OpenClaw models
+    'OpenClawInstance',
+    'OpenClawEnrollmentToken',
+    'OpenClawInstanceStatus',
 ]

@@ -1,0 +1,43 @@
+{
+  "id": "recursant",
+  "activation": {
+    "onStartup": true
+  },
+  "enabledByDefault": true,
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["registryUrl", "enrollmentToken"],
+    "properties": {
+      "registryUrl": {
+        "type": "string",
+        "description": "Base URL of the Recursant registry, e.g. https://recursant.example.com"
+      },
+      "enrollmentToken": {
+        "type": "string",
+        "description": "One-time enrollment token issued by a Recursant admin"
+      },
+      "tenantId": {
+        "type": "string",
+        "default": "default",
+        "description": "Tenant ID to register the instance under"
+      },
+      "heartbeatIntervalMs": {
+        "type": "integer",
+        "default": 30000,
+        "minimum": 5000,
+        "maximum": 600000
+      },
+      "auditBatchSize": {
+        "type": "integer",
+        "default": 50,
+        "minimum": 1,
+        "maximum": 500
+      },
+      "configFile": {
+        "type": "string",
+        "description": "Optional path to a JSON config file containing the same fields. Used when OpenClaw config is not available."
+      }
+    }
+  }
+}

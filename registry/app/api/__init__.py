@@ -21,3 +21,4 @@ from app.api import adversarial  # noqa: E402, F401
 from app.api import observability  # noqa: E402, F401
 from app.api import euai_compliance  # noqa: E402, F401
 from app.api import discovery  # noqa: E402, F401
+from app.api import openclaw  # noqa: E402, F401
