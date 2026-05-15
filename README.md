@@ -25,9 +25,9 @@ The architecture has two planes:
   [A2A protocol](https://github.com/a2aproject/A2A).
 
 Recursant is a **runtime governance layer for any AI agent** — LangChain,
-LangGraph, CrewAI, ServiceNow (in-flight), custom HTTP — not a framework for
-writing agents. Bring your own agent code; Recursant gives it identity,
-policy enforcement, observability, and compliance guarantees.
+LangGraph, CrewAI, OpenClaw, ServiceNow (in-flight), custom HTTP — not a
+framework for writing agents. Bring your own agent code; Recursant gives it
+identity, policy enforcement, observability, and compliance guarantees.
 
 ## Why use it?
 
@@ -120,6 +120,28 @@ tabs of the registry UI.
 
 ---
 
+## OpenClaw integration
+
+Recursant ships a governance plugin for [OpenClaw](https://www.openclaw.ai)
+in `integrations/openclaw/`. The plugin enrols an OpenClaw instance with the
+registry and intercepts its tool calls, LLM calls, and chat messages
+in-process — authorisation, PII redaction, rate limiting, and hash-chained
+audit. v0 is cooperative governance only (provider replacement and host-level
+enforcement land in v1).
+
+```bash
+# Start the OpenClaw gateway and run the end-to-end smoke test
+integrations/openclaw/scripts/start-gateway.sh
+integrations/openclaw/scripts/smoke-test.sh
+```
+
+The smoke test sends a message through the gateway, waits for the plugin's
+audit queue to flush, and verifies a new `openclaw.llm_call` row landed in
+the registry. See [`integrations/openclaw/README.md`](./integrations/openclaw/README.md)
+for plugin config and the registry endpoints it talks to.
+
+---
+
 ## Repository layout
 
 ```
@@ -148,6 +170,9 @@ recursant/
 │   ├── mcp_servers/       # MCP tool implementations
 │   └── stubs/             # Mock banking APIs
 │
+├── integrations/          # Third-party platform integrations
+│   └── openclaw/          # OpenClaw governance plugin (v0 cooperative)
+│
 ├── k8s/                   # Kubernetes deployment
 │   ├── charts/recursant/  # Helm chart
 │   ├── webhook/           # Sidecar injection webhook
@@ -175,6 +200,7 @@ recursant/
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to file issues and submit PRs |
 | [`AUTHOR.md`](./AUTHOR.md) | About the author |
 | `sdk/README.md` | Python SDK and CLI for agent developers |
+| `integrations/openclaw/README.md` | OpenClaw governance plugin (enrolment, interception, registry endpoints) |
 
 ---
 
