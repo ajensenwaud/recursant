@@ -1,6 +1,6 @@
 {
   "name": "openclaw-recursant",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Recursant governance plugin for OpenClaw — registers the instance with a Recursant registry and routes tool/LLM/message traffic through Recursant interceptors.",
   "license": "MIT",
   "type": "module",
@@ -8,7 +8,15 @@
   "types": "./dist/index.d.ts",
   "openclaw": {
     "extensions": ["./src/index.ts"],
-    "runtimeExtensions": ["./dist/index.js"]
+    "runtimeExtensions": ["./dist/index.js"],
+    "compat": {
+      "pluginApi": ">=2026.5.7",
+      "minGatewayVersion": "2026.5.7"
+    },
+    "build": {
+      "openclawVersion": "2026.5.7",
+      "pluginSdkVersion": "2026.5.7"
+    }
   },
   "files": [
     "dist",
