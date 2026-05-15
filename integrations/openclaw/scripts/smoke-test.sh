@@ -14,14 +14,26 @@ ENV_FILE="${ENV_FILE:-$HOME/.env}"
 MESSAGE="${MESSAGE:-Quick check: what is 6 plus 7? Reply with just the number.}"
 TO_NUMBER="${TO_NUMBER:-+15555550123}"
 TENANT_ID="${TENANT_ID:-default}"
-WAIT_FLUSH_SECONDS="${WAIT_FLUSH_SECONDS:-15}"
+# Maximum time to wait for the plugin audit queue to flush before failing.
+FLUSH_TIMEOUT_SECONDS="${FLUSH_TIMEOUT_SECONDS:-30}"
+FLUSH_POLL_INTERVAL_SECONDS="${FLUSH_POLL_INTERVAL_SECONDS:-1}"
 
 # Line-buffered output so piping to tee/log file streams in real time.
 exec 1> >(stdbuf -oL cat) 2>&1
 
-log() { printf '\033[1;36m[smoke-test]\033[0m %s\n' "$*"; }
-fail() { printf '\033[1;31m[smoke-test FAIL]\033[0m %s\n' "$*"; exit 1; }
-pass() { printf '\033[1;32m[smoke-test PASS]\033[0m %s\n' "$*"; }
+SMOKE_T0="$(date +%s.%N)"
+PHASE_T0="$SMOKE_T0"
+elapsed_since() { awk -v a="$1" -v b="$(date +%s.%N)" 'BEGIN { printf "%.2f", b - a }'; }
+log() { printf '\033[1;36m[smoke-test +%ss]\033[0m %s\n' "$(elapsed_since "$SMOKE_T0")" "$*"; }
+fail() { printf '\033[1;31m[smoke-test FAIL +%ss]\033[0m %s\n' "$(elapsed_since "$SMOKE_T0")" "$*"; exit 1; }
+pass() { printf '\033[1;32m[smoke-test PASS +%ss]\033[0m %s\n' "$(elapsed_since "$SMOKE_T0")" "$*"; }
+phase() {
+  local now took
+  now="$(date +%s.%N)"
+  took="$(awk -v a="$PHASE_T0" -v b="$now" 'BEGIN { printf "%.2f", b - a }')"
+  printf '\033[1;35m[smoke-test phase]\033[0m %s took %ss\n' "$1" "$took"
+  PHASE_T0="$now"
+}
 
 [[ -f "$ENV_FILE" ]] || fail "env file not found: $ENV_FILE"
 set -a; source "$ENV_FILE"; set +a
@@ -42,6 +54,7 @@ fi
 if ! ss -tln 2>/dev/null | grep -q '127.0.0.1:18789 '; then
   fail "gateway is not listening on 127.0.0.1:18789 — run start-gateway.sh first"
 fi
+phase "setup (env + preflight)"
 
 # ---------------------------------------------------------------------------
 # 1. Capture baseline audit count
@@ -65,6 +78,7 @@ before_count() {
 
 BEFORE="$(before_count)"
 log "baseline openclaw.llm_call rows for tenant=$TENANT_ID: $BEFORE"
+phase "admin login + baseline count"
 
 # ---------------------------------------------------------------------------
 # 2. Send a message via the agent CLI
@@ -87,19 +101,28 @@ trap 'rm -f "$AGENT_OUT"' EXIT
 ) >"$AGENT_OUT" 2>&1 || log "agent CLI exited non-zero (may still have produced output)"
 log "agent reply (last 3 lines):"
 tail -3 "$AGENT_OUT" | sed 's/^/    /'
+phase "agent CLI round-trip (gateway → LLM → reply)"
 
 # ---------------------------------------------------------------------------
-# 3. Wait for plugin audit queue to flush, then re-check count
+# 3. Poll the audit endpoint until the plugin flush lands (or we time out)
 # ---------------------------------------------------------------------------
-log "waiting ${WAIT_FLUSH_SECONDS}s for plugin audit flush"
-sleep "$WAIT_FLUSH_SECONDS"
-
-AFTER="$(before_count)"
+log "polling for openclaw.llm_call audit row (timeout=${FLUSH_TIMEOUT_SECONDS}s, interval=${FLUSH_POLL_INTERVAL_SECONDS}s)"
+POLL_DEADLINE=$(( $(date +%s) + FLUSH_TIMEOUT_SECONDS ))
+AFTER="$BEFORE"
+while [[ "$(date +%s)" -lt "$POLL_DEADLINE" ]]; do
+  AFTER="$(before_count)"
+  if [[ "$AFTER" -gt "$BEFORE" ]]; then
+    break
+  fi
+  sleep "$FLUSH_POLL_INTERVAL_SECONDS"
+done
 log "post-message openclaw.llm_call rows: $AFTER"
 
 if [[ "$AFTER" -le "$BEFORE" ]]; then
-  fail "no new openclaw.llm_call audit row landed (before=$BEFORE after=$AFTER)"
+  phase "audit flush poll (timed out)"
+  fail "no new openclaw.llm_call audit row landed within ${FLUSH_TIMEOUT_SECONDS}s (before=$BEFORE after=$AFTER)"
 fi
+phase "audit flush poll"
 
 DELTA=$((AFTER - BEFORE))
-pass "$DELTA new openclaw.llm_call audit row(s) landed"
+pass "$DELTA new openclaw.llm_call audit row(s) landed (total wall=$(elapsed_since "$SMOKE_T0")s)"
