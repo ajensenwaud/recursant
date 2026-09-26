@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+secrets/
+.hermes/runtime/
+.venv/
+__pycache__/
+*.pyc
+build/
+node_modules/
+.next/
+docs/evidence/**/raw/
+bench/runs/
+*.jsonl
