@@ -38,7 +38,11 @@ Cross-model figures are gross provider-token counts under different tokenizers, 
 - Safety: synthetic private data cannot reach public test sinks through concrete model IDs, fallback, auxiliary interpretation, trace export or provider serialization. Live user material is not evaluation input.
 - Deployment: repeatable Docker/bare-metal build and smoke commands, real baseline container execution, retained sanitised evidence and actual image/source identifiers.
 
-## Current execution blockers
+## Current execution scope
+
+The user explicitly approved the expanded live experiment after the previously unanswered form: up to 200 additional sequential local requests and US$10 aggregate public inference. See `evidence/m3-live-budget-approval.md` and the allocation ledger `evidence/m3-live-budget-allocation.md`. Synthetic/public tasks only; no serving changes, downloads, or personal Hermes configuration changes. Existing development/Hermes images and the GLM endpoint are available. Preserve every dispatched attempt and unresolved cost liability. This permission is not an acceptance result.
+
+## Historical execution blockers (superseded where noted above)
 
 - The container dependency-install/image-build approval form returned no response; no approval is inferred from timeout.
 - Paid public-inference ceiling has not been received. Do not spend through the supplied `.env` until scoped approval is available.

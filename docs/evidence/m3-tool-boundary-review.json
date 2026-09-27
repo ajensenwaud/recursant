@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-09-27T19:45:25.638189+00:00",
+  "reviewer": "independent delegated reviewer (not implementation producer)",
+  "repository": "/home/aj/projects/recursant-v4-m3-tool-boundary",
+  "base_commit": "3e0608031243a48b50d171696d81e142d716eee7",
+  "scope": [
+    "core/include/recursant/tool_boundary.h",
+    "core/src/context/tool_boundary.c",
+    "tests/unit/test_tool_boundary.c"
+  ],
+  "file_sha256": {
+    "core/include/recursant/tool_boundary.h": "0069393d8d3247c47ffbf67f46b222dbd8a64979eb0d10baad7afedf00fff57d",
+    "core/src/context/tool_boundary.c": "8a1cd8e43b63010867a503af788257b59a6ec66c1ac3082c94a0b973cbb2883e",
+    "tests/unit/test_tool_boundary.c": "f49486bae9dfa150974f4a922f1be09a2f98de6f671520c0e16b8bfde617e1e5"
+  },
+  "passed": true,
+  "verdict": "PASS for the documented standalone protocol-only validator; not authorization to switch models or proof of successful tool execution",
+  "security_concerns": [],
+  "logic_errors": [],
+  "reproducible_defects": [],
+  "environment": {
+    "image": "recursant-v4-dev:local",
+    "image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+    "compiler": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "network": "disabled for all test containers",
+    "source_mount": "read-only",
+    "installations_downloads_live_inference": false
+  },
+  "prerequisites": {
+    "instructions": "Read repository AGENTS.md (tool-injected directory context)",
+    "skills": [
+      "requesting-code-review",
+      "test-driven-development"
+    ],
+    "producer_transcript": "/home/aj/.hermes/cache/delegation/live/deleg_1faf16ee/task-0.log",
+    "transcript_observation": "Inspected producer RED/GREEN steps and standalone cc commands. Later combined normal/sanitizer commands are truncated in live transcript; reconstructed equivalent sanitizer build from current three files rather than claiming exact unavailable command text."
+  },
+  "executions": [
+    {
+      "name": "producer supplied unit suite normal (-fanalyzer) and ASan/UBSan",
+      "command": "docker run --rm --network none -v /home/aj/projects/recursant-v4-m3-tool-boundary:/src:ro -w /src recursant-v4-dev:local sh -c 'set -e; cc -std=c17 -Wall -Wextra -Wpedantic -Werror -fanalyzer -Icore/include tests/unit/test_tool_boundary.c core/src/context/tool_boundary.c -ljansson -o /tmp/test; /tmp/test; cc -std=c17 -Wall -Wextra -Wpedantic -Werror -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -fno-pie -no-pie -Icore/include tests/unit/test_tool_boundary.c core/src/context/tool_boundary.c -ljansson -o /tmp/test-san; ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/test-san'",
+      "exit_code": 0,
+      "output": "tool_boundary: PASS\ntool_boundary: PASS"
+    },
+    {
+      "name": "independent adversarial normal (-fanalyzer) and ASan/UBSan",
+      "command": "docker run --rm --network none -v /home/aj/projects/recursant-v4-m3-tool-boundary:/src:ro -v /home/aj/projects/recursant-v4/docs/evidence/m3-tool-boundary-review:/review:ro -w /src recursant-v4-dev:local sh -c 'set -e; cc -std=c17 -Wall -Wextra -Wpedantic -Werror -fanalyzer -Icore/include /review/probe.c core/src/context/tool_boundary.c -Wl,--wrap=calloc -ljansson -o /tmp/probe; /tmp/probe /review/cases.json; cc -std=c17 -Wall -Wextra -Wpedantic -Werror -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -fno-pie -no-pie -Icore/include /review/probe.c core/src/context/tool_boundary.c -Wl,--wrap=calloc -ljansson -o /tmp/probe-san; ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/probe-san /review/cases.json'",
+      "exit_code": 0,
+      "output": "adversarial corpus: 397 cases PASS; ownership, lifecycle, capability matrix PASS\nallocation faults: calloc=1 capture=94 replay=134 positions PASS\nexact byte bounds PASS\nadversarial corpus: 397 cases PASS; ownership, lifecycle, capability matrix PASS\nallocation faults: calloc=1 capture=94 replay=134 positions PASS\nexact byte bounds PASS"
+    }
+  ],
+  "coverage": {
+    "independent_corpus_cases_per_build": 397,
+    "result_groups": "Exhaustive sequences length 0..4 over three arbitrary pending IDs plus foreign ID: omissions, order permutations, duplicate and foreign IDs, oversized groups.",
+    "history_and_observation": "Removed/extra/modified messages; fabricated content and changed assistant observations; incomplete/duplicate/foreign historical results; historical/current ID reuse; original argument strings preserved.",
+    "bounds": "Exact/over 32768-byte history, assistant and replay; 126/127/128 prior messages with single call; 32/33 calls; cumulative 32-ID bound; 128/130-byte Unicode IDs and 128/129-byte ASCII IDs.",
+    "capabilities": "Exhaustive 0..15 known/supported masks for each successful capture; previous parallel exchange still requires parallel capability with a single current call; NULL candidate denied by producer suite.",
+    "lifecycle": "Overwrite/free caller input buffers immediately after capture; repeated replay stable; invalid replay does not mutate snapshot or revoke protocol capability; explicit caller-managed pin obligation verified in header.",
+    "allocation_failures": {
+      "boundary_calloc_positions": 1,
+      "capture_json_allocation_failure_thresholds": 94,
+      "replay_json_allocation_failure_thresholds": 134,
+      "method": "Jansson custom allocator fails at each observed allocation index and every subsequent allocation; linker wrap denies boundary calloc. No injected failure returns COMPLETE; failed capture clears out; good replay still works after parser failure. Both normal and ASan/UBSan passed."
+    },
+    "execution_outcome_separation": "Empty, failure, permission-denied, crash, success-looking and JSON-looking result text all treated as opaque strings: protocol completion does not infer execution success.",
+    "sanitizers": "Both supplied and independent suite compiled with address+undefined, leak checking and halt-on-error; no diagnostics."
+  },
+  "integration_constraints": [
+    {
+      "source": "core/include/recursant/tool_boundary.h:21-26,38-53",
+      "fact": "Caller supplies authoritative history/assistant and must bind exact scoped physical attempt, verify successful transport and finish_reason=tool_calls; client claims are not trusted observations."
+    },
+    {
+      "source": "core/src/context/tool_boundary.c:69-74,98,100-127",
+      "fact": "capture returns COMPLETE before results exist; candidate may return true before replay and after failed replay. This is explicitly a stateless capability predicate, not a lifecycle authorization. Integration must separately require successful replay and preserve permanent pins."
+    },
+    {
+      "source": "core/include/recursant/tool_boundary.h:43-46,60-62",
+      "fact": "Tool definitions/choice, request-root fields, token/context bounds, opaque state, M2, quality/cost and continuity remain caller obligations. Registry bits alone cannot authorize a switch."
+    }
+  ],
+  "limitations": [
+    "Only these three uncommitted files reviewed; no gateway integration or full-project regression certification.",
+    "No production/live inference or performance claim.",
+    "Malformed JSON and parser OOM may both report INVALID, as documented; tests confirm fail-closed behavior.",
+    "CMake integration intentionally absent from this file-disjoint slice."
+  ],
+  "suggestions": [
+    "Carry the independent allocation-failure and lifecycle/capability cases into maintained tests during integration."
+  ],
+  "implementation_modified": false,
+  "commit_or_push_performed": false,
+  "evidence_directory": "/home/aj/projects/recursant-v4/docs/evidence/m3-tool-boundary-review",
+  "supporting_artifact_sha256": {
+    "producer-suite.log": "7c69b1a5b7a776daddb7c26e51abeb35aede31ee25c70f0059fc23f1e819bd4a",
+    "adversarial.log": "c874d12ee129bcd7d4ebf2cb45eb08ba35c9de598af6062d9e46d1ebb310b3a2",
+    "cases.json": "56ffd168f7cbc0f29434b945e3c47cbd11282495459f2875380f004a083db85c",
+    "probe.c": "053da5a41287875cc416076c247b75eb84ec08652b63b346fc28b4dde1923bd0"
+  },
+  "summary": "No reproducible defects found within documented protocol-only contract; supplied suite plus 397 independent adversarial cases and allocation faults passed normal and ASan/UBSan builds."
+}

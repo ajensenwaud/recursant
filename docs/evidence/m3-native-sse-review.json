@@ -1,0 +1,1953 @@
+{
+  "schema": "recursant.independent-review.v1",
+  "reviewed_at_utc": "2026-09-27T19:52:59.718240+00:00",
+  "verdict": "approve_plaintext_sse_slice",
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "blocking_findings": [],
+  "suggestions": [
+    {
+      "severity": "nonblocking",
+      "text": "Promote the independent observer allocation sweep, callback calloc failure, and native-stream shadow/explicit-alias probes into committed regression tests; supplied tests pass but these particular fault/mode checks currently live in review evidence."
+    }
+  ],
+  "summary": "Frozen native plaintext SSE continuity implementation passes independent normal and ASan/UBSan verification; no landing blockers found. Tool streams and unsupported provider state remain pinned.",
+  "repository": "/home/aj/projects/recursant-v4-streaming",
+  "base_commit": "3e0608031243a48b50d171696d81e142d716eee7",
+  "reviewed_commit": "51edafdb0490f2e50e270d12739cc38c8e6ec6cc",
+  "snapshot": "/home/aj/sse-review-51edafd",
+  "docker_image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+  "source_hashes": {
+    "CMakeLists.txt": {
+      "sha256": "49f775467c924025dc9df57315f94a2ef69c273087e0c098c3e6e3c5c88e539c",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/include/recursant/gateway_context.h": {
+      "sha256": "10bbb092db8ab3390b6f87b53111ecb807b7d45e0f61b2aeb9a904661cb415ac",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/include/recursant/response_observer.h": {
+      "sha256": "c088e2a568f86307d4f890ee2a28d80ef54a1852d9af44f3dcd8b44cd0ba6697",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/context/gateway_context.c": {
+      "sha256": "5b3d785dfca44d3f1ff4684c66db1728e3eaa0b9fe44ebd65aadabbe6b38a0d4",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/context/response_observer.c": {
+      "sha256": "b17c6726ac3aec3551d03e0d98769fb44bf3d50fded0ab5ba0dfe84b7dd6e34b",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/http/router.c": {
+      "sha256": "11789d1a3477b7267f7ee915e4e294650ecc442b0f9e946f56640dcd9ca41e51",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-stream-asan.log": {
+      "sha256": "6d229a091a174d799a6bf7897751a480ad64fa000b93dcf4534ce9f16dee2aef",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-stream-asan.xml": {
+      "sha256": "d058d1336fb0fb4539b1da0b332de58a6033921be86a1b2596a8437bca2de98d",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-stream-normal.log": {
+      "sha256": "4e5df9a11b95afebdc3dec051f95dcbd8c02e920211f46c992b80942baa396d2",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-stream-normal.xml": {
+      "sha256": "09185b11595d864734af3452279196a2e4cff662b68bbdaae45d41d22ee74208",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-streaming.md": {
+      "sha256": "13d481f9d80f4a88dd7c40c4905326324718096ced080ff1f8999f7aa623eb33",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/m3-gateway-wire-contract.md": {
+      "sha256": "ab7d5379140fa87eded243132162b836a127fd91e003e44776e815fc14369292",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/m3-response-observation-api.md": {
+      "sha256": "cf66ad3aeb66c109c77da81eeb93aa25c28d44c973aac040738c189aae1d269c",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "tests/integration/test_gateway_context.py": {
+      "sha256": "1949cd92d7dcff4f1270e52676e6033a64dd8377e638f7d23e0bdc6f36bc40d0",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "tests/unit/test_response_observer.c": {
+      "sha256": "59c00b11764845e5c2a8dafe1488d7c5daadb0019f12052e03947f8a55a1b187",
+      "matches_commit": true,
+      "matches_worktree": true
+    }
+  },
+  "commands": [
+    {
+      "mode": "normal",
+      "purpose": "fresh build, full CTest, explicitly enabled actual-C HTTP bridge",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/sse-review-51edafd:/src:ro -v /home/aj/sse-review-51edafd/review-normal:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Debug && cmake --build /build -j4 && ctest --test-dir /build --output-on-failure --output-junit /build/results.xml && RECURSANT_CONTEXT_BRIDGE_BIN=/build/recursant PYTHONPATH=/src python3 -m unittest discover -s /src/tests/integration -p test_gateway_bridge_live.py -v'",
+      "exit_code": 0
+    },
+    {
+      "mode": "normal",
+      "purpose": "independent observer fragmentation and allocation-failure probes",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/sse-review-51edafd:/src:ro -v /home/aj/sse-review-51edafd/review-normal:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'cc -g -Wall -Wextra -Werror -I/src/core/include /src/review_probe.c /src/core/src/context/response_observer.c -ljansson -o /build/review_probe && python3 /src/review_cases.py > /build/probe-results.json'",
+      "exit_code": 0
+    },
+    {
+      "mode": "normal",
+      "purpose": "independent HTTP alias/shadow/pinning probes and observer calloc fault injection using separately linked frozen source",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/sse-review-51edafd:/src:ro -v /home/aj/sse-review-51edafd/review-normal:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'RECURSANT_BIN=/build/recursant python3 /src/review_http.py Review.test_stream_shadow_and_explicit_alias Review.test_more_wire_pins_and_irreversibility > /build/http.log 2>&1 && cc -g -I/src/core/include -c /src/review_calloc.c -o /build/review_calloc.o && cmake -S /src -B /build/fault -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXE_LINKER_FLAGS=\"/build/review_calloc.o -Wl,--wrap=calloc\" && cmake --build /build/fault --target recursant -j4 && RECURSANT_BIN=/build/fault/recursant python3 /src/review_http.py Review.test_observer_allocation_failure_preserves_wire_and_pins > /build/fault-http.log 2>&1'",
+      "exit_code": 0
+    },
+    {
+      "mode": "asan",
+      "purpose": "fresh build, full CTest, explicitly enabled actual-C HTTP bridge",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/sse-review-51edafd:/src:ro -v /home/aj/sse-review-51edafd/review-asan:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build /build -j4 && ctest --test-dir /build --output-on-failure --output-junit /build/results.xml && RECURSANT_CONTEXT_BRIDGE_BIN=/build/recursant PYTHONPATH=/src python3 -m unittest discover -s /src/tests/integration -p test_gateway_bridge_live.py -v'",
+      "exit_code": 0
+    },
+    {
+      "mode": "asan",
+      "purpose": "independent observer fragmentation and allocation-failure probes",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/sse-review-51edafd:/src:ro -v /home/aj/sse-review-51edafd/review-asan:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'cc -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie -I/src/core/include /src/review_probe.c /src/core/src/context/response_observer.c -ljansson -o /build/review_probe && python3 /src/review_cases.py > /build/probe-results.json'",
+      "exit_code": 0
+    },
+    {
+      "mode": "asan",
+      "purpose": "independent HTTP alias/shadow/pinning probes and observer calloc fault injection using separately linked frozen source",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/sse-review-51edafd:/src:ro -v /home/aj/sse-review-51edafd/review-asan:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'RECURSANT_BIN=/build/recursant python3 /src/review_http.py Review.test_stream_shadow_and_explicit_alias Review.test_more_wire_pins_and_irreversibility > /build/http.log 2>&1 && cc -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -I/src/core/include -c /src/review_calloc.c -o /build/review_calloc.o && cmake -S /src -B /build/fault -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON -DCMAKE_EXE_LINKER_FLAGS=\"/build/review_calloc.o -Wl,--wrap=calloc -fsanitize=address,undefined -no-pie\" && cmake --build /build/fault --target recursant -j4 && RECURSANT_BIN=/build/fault/recursant python3 /src/review_http.py Review.test_observer_allocation_failure_preserves_wire_and_pins > /build/fault-http.log 2>&1'",
+      "exit_code": 0
+    }
+  ],
+  "results": {
+    "normal": {
+      "ctest": {
+        "name": "Linux-cc",
+        "tests": "18",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "4d716ade879f",
+        "time": "140",
+        "timestamp": "2026-09-27T19:47:11"
+      },
+      "ctest_groups": [
+        {
+          "name": "selector_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_overflow",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_alloc",
+          "status": "run"
+        },
+        {
+          "name": "context_unit",
+          "status": "run"
+        },
+        {
+          "name": "egress_policy",
+          "status": "run"
+        },
+        {
+          "name": "config_strict",
+          "status": "run"
+        },
+        {
+          "name": "admission_unit",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_loopback",
+          "status": "run"
+        },
+        {
+          "name": "response_observer_unit",
+          "status": "run"
+        },
+        {
+          "name": "gateway_context_integration",
+          "status": "run"
+        },
+        {
+          "name": "hermes_observer",
+          "status": "run"
+        },
+        {
+          "name": "compliance_integration",
+          "status": "run"
+        },
+        {
+          "name": "router_integration",
+          "status": "run"
+        },
+        {
+          "name": "transport_integration",
+          "status": "run"
+        },
+        {
+          "name": "admission_integration",
+          "status": "run"
+        },
+        {
+          "name": "trajectory_reference",
+          "status": "run"
+        },
+        {
+          "name": "accounting",
+          "status": "run"
+        }
+      ],
+      "bridge_tests": 2,
+      "additional_http_tests": 2,
+      "additional_http_subcases": 8,
+      "observer_allocation_http_tests": 1,
+      "observer_probes": {
+        "cases": [
+          {
+            "name": "valid",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "cr",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "crlf",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "comments",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "usage_tail",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "usage_early",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "early_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "missing_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "missing_stop",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "missing_delimiter",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "duplicate_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "after_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "raw_nul",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "escaped_nul",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "bad_utf8",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "bad_comment_utf8",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "duplicate_key",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "duplicate_null",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "sse_unknown",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "oversize",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:'length'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:'tool_calls'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:'content_filter'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:False",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:0",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:''",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:1",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:-1",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:True",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:'0'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:-1",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:True",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:{}",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:'0'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:future",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:kv_transfer_params",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:id",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:model",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:created",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:system_fingerprint",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:service_tier",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:tool_calls:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:tool_calls:[]",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:reasoning_content:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:reasoning_content:'hidden'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:future:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:function_call:{}",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:content:True",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_choice:logprobs",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_choice:token_ids",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_choice:routed_experts",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:refusal",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:annotations",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:audio",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:function_call",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "valid_metadata",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "mixed:id",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "mixed:model",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "mixed:created",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          }
+        ],
+        "case_count": 63,
+        "allocation_sweep": "allocation failure points checked: 54\n"
+      },
+      "fragment_run_count": 378,
+      "binary_sha256": {
+        "review-normal/recursant": "805d1ec2ad404fd41a9d9ff17f8495c90439dcd932ef1cf55e0cf1a51cab0713",
+        "review-normal/test_response_observer": "b406825ca13cce35d9f176ed948395027608c783531f56e4576bf7a6102655f1",
+        "review-normal/review_probe": "14d5bc31fb34b47cabb402d38d00b9a8f7b8d0166beefdd5281add044776a78d",
+        "review-normal/fault/recursant": "af65a1b726b182dbcf72ece767e7ded0213748e0ad02a09ec023ec79f1d863c2"
+      },
+      "logs": {
+        "run.log": {
+          "path": "/home/aj/sse-review-51edafd/review-normal/run.log",
+          "sha256": "edaad8b27d9a34e00f13497687e7123e03686e5ba5be369b1cde91ca335b30fc",
+          "content": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.7s)\n-- Generating done (0.0s)\n-- Build files have been written to: /build\n[  2%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[  4%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[  6%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o\n[  8%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[ 10%] Linking C static library librecursant_policy.a\n[ 12%] Linking C static library librecursant_selector.a\n[ 14%] Linking C static library librecursant_context.a\n[ 14%] Built target recursant_selector\n[ 14%] Built target recursant_policy\n[ 16%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 16%] Built target recursant_context\n[ 18%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o\n[ 20%] Linking C static library librecursant_config.a\n[ 22%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o\n[ 24%] Linking C executable test_selector\n[ 24%] Built target recursant_config\n[ 26%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o\n[ 26%] Built target test_selector\n[ 28%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o\n[ 30%] Linking C executable test_egress\n[ 32%] Linking C executable test_context\n[ 34%] Linking C static library librecursant_interpreter.a\n[ 34%] Built target test_egress\n[ 36%] Linking C executable test_interpreter_alloc\n[ 36%] Built target test_context\n[ 38%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o\n[ 38%] Built target recursant_interpreter\n[ 40%] Building C object CMakeFiles/test_response_observer.dir/tests/unit/test_response_observer.c.o\n[ 42%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 44%] Building C object CMakeFiles/test_response_observer.dir/core/src/context/response_observer.c.o\n[ 46%] Linking C static library librecursant_auth.a\n[ 46%] Built target test_interpreter_alloc\n[ 48%] Linking C executable test_config\n[ 48%] Built target recursant_auth\n[ 51%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o\n[ 53%] Linking C executable test_response_observer\n[ 55%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o\n[ 57%] Linking C executable recursant-validate\n[ 57%] Built target test_config\n[ 57%] Built target test_response_observer\n[ 59%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 59%] Built target recursant-validate\n[ 61%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o\n[ 63%] Linking C executable test_interpreter\n[ 65%] Linking C static library librecursant_admission.a\n[ 67%] Linking C static library librecursant_attempts.a\n[ 69%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o\n[ 69%] Built target recursant_admission\n[ 69%] Built target recursant_attempts\n[ 71%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o\n[ 73%] Linking C executable test_attempts_internal\n[ 75%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o\n[ 75%] Built target test_interpreter\n[ 75%] Built target test_attempts_internal\n[ 77%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 79%] Linking C executable test_admission\n[ 81%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o\n[ 81%] Built target test_admission\n[ 83%] Linking C executable recursant-tracer\n[ 85%] Linking C executable test_attempts\n[ 87%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 89%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o\n[ 89%] Built target recursant-tracer\n[ 89%] Built target test_attempts\n[ 91%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 93%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 95%] Linking C shared library libattempt_probe.so\n[ 97%] Building C object CMakeFiles/recursant.dir/core/src/context/response_observer.c.o\n[ 97%] Built target attempt_probe\n[100%] Linking C executable recursant\n[100%] Built target recursant\nTest project /build\n      Start  1: selector_unit\n 1/18 Test  #1: selector_unit ....................   Passed    0.00 sec\n      Start  2: attempts_unit\n 2/18 Test  #2: attempts_unit ....................   Passed    0.00 sec\n      Start  3: attempts_overflow\n 3/18 Test  #3: attempts_overflow ................   Passed    0.00 sec\n      Start  4: interpreter_alloc\n 4/18 Test  #4: interpreter_alloc ................   Passed    0.04 sec\n      Start  5: context_unit\n 5/18 Test  #5: context_unit .....................   Passed    0.00 sec\n      Start  6: egress_policy\n 6/18 Test  #6: egress_policy ....................   Passed    0.00 sec\n      Start  7: config_strict\n 7/18 Test  #7: config_strict ....................   Passed    0.00 sec\n      Start  8: admission_unit\n 8/18 Test  #8: admission_unit ...................   Passed    0.00 sec\n      Start  9: interpreter_loopback\n 9/18 Test  #9: interpreter_loopback .............   Passed   10.83 sec\n      Start 10: response_observer_unit\n10/18 Test #10: response_observer_unit ...........   Passed    0.00 sec\n      Start 11: gateway_context_integration\n11/18 Test #11: gateway_context_integration ......   Passed   73.12 sec\n      Start 12: hermes_observer\n12/18 Test #12: hermes_observer ..................   Passed    7.43 sec\n      Start 13: compliance_integration\n13/18 Test #13: compliance_integration ...........   Passed   19.77 sec\n      Start 14: router_integration\n14/18 Test #14: router_integration ...............   Passed   23.37 sec\n      Start 15: transport_integration\n15/18 Test #15: transport_integration ............   Passed    1.49 sec\n      Start 16: admission_integration\n16/18 Test #16: admission_integration ............   Passed    0.35 sec\n      Start 17: trajectory_reference\n17/18 Test #17: trajectory_reference .............   Passed    3.72 sec\n      Start 18: accounting\n18/18 Test #18: accounting .......................   Passed    0.11 sec\n\n100% tests passed, 0 tests failed out of 18\n\nTotal Test time (real) = 140.25 sec\ntest_companion_opens_tags_exports_to_real_c_interpreter (test_gateway_bridge_live.LiveBridgeTests.test_companion_opens_tags_exports_to_real_c_interpreter) ... ok\ntest_foreign_headers_cannot_bypass_registered_branch_pin (test_gateway_bridge_live.LiveBridgeTests.test_foreign_headers_cannot_bypass_registered_branch_pin) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 1.056s\n\nOK\n"
+        },
+        "http.log": {
+          "path": "/home/aj/sse-review-51edafd/review-normal/http.log",
+          "sha256": "c9c3f34780995aa985bcf9c073098f687624c9fab9df4e5f2467c5d53c6a93ab",
+          "content": "test_stream_shadow_and_explicit_alias (__main__.Review.test_stream_shadow_and_explicit_alias) ... ok\ntest_more_wire_pins_and_irreversibility (__main__.Review.test_more_wire_pins_and_irreversibility) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 2.867s\n\nOK\n"
+        },
+        "fault-http.log": {
+          "path": "/home/aj/sse-review-51edafd/review-normal/fault-http.log",
+          "sha256": "e8691c794a588ee400b8e65f8c59c35103f7e64243b00461cbb5a2ac8a552dab",
+          "content": "test_observer_allocation_failure_preserves_wire_and_pins (__main__.Review.test_observer_allocation_failure_preserves_wire_and_pins) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.529s\n\nOK\n"
+        },
+        "extra-build.log": {
+          "path": "/home/aj/sse-review-51edafd/review-normal/extra-build.log",
+          "sha256": "92938d93ff4c6abda02058fb55618cd0bdabdaca1caa14d4a992383a318a6419",
+          "content": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.6s)\n-- Generating done (0.1s)\n-- Build files have been written to: /build/fault\n[  5%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[ 11%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 16%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[ 22%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[ 27%] Linking C static library librecursant_selector.a\n[ 33%] Linking C static library librecursant_context.a\n[ 33%] Built target recursant_selector\n[ 38%] Linking C static library librecursant_config.a\n[ 44%] Linking C static library librecursant_interpreter.a\n[ 44%] Built target recursant_context\n[ 44%] Built target recursant_config\n[ 44%] Built target recursant_interpreter\n[ 50%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 55%] Linking C static library librecursant_auth.a\n[ 55%] Built target recursant_auth\n[ 61%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 66%] Linking C static library librecursant_attempts.a\n[ 66%] Built target recursant_attempts\n[ 72%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 77%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 83%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 88%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 94%] Building C object CMakeFiles/recursant.dir/core/src/context/response_observer.c.o\n[100%] Linking C executable recursant\n[100%] Built target recursant\n"
+        },
+        "results.xml": {
+          "path": "/home/aj/sse-review-51edafd/review-normal/results.xml",
+          "sha256": "5ddacf419ba275fb3b21934e49fb805ab671de0894907154b9d5e06977761199",
+          "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuite name=\"Linux-cc\"\n\ttests=\"18\"\n\tfailures=\"0\"\n\tdisabled=\"0\"\n\tskipped=\"0\"\n\thostname=\"4d716ade879f\"\n\ttime=\"140\"\n\ttimestamp=\"2026-09-27T19:47:11\"\n\t>\n\t<testcase name=\"selector_unit\" classname=\"selector_unit\" time=\"0.00274515\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>safety matrix: 4608 cases passed\nselector tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"attempts_unit\" classname=\"attempts_unit\" time=\"0.00207067\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>attempt ledger tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"attempts_overflow\" classname=\"attempts_overflow\" time=\"0.00172156\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out></system-out>\n\t</testcase>\n\t<testcase name=\"interpreter_alloc\" classname=\"interpreter_alloc\" time=\"0.0413395\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>request integrity: structured=1 count=1, 286 sites x 2 modes; zero live allocations\nrequest integrity: structured=0 count=1, 66 sites x 2 modes; zero live allocations\nrequest integrity: structured=1 count=16, 513 sites x 2 modes; zero live allocations\nrequest integrity: structured=0 count=16, 262 sites x 2 modes; zero live allocations\n</system-out>\n\t</testcase>\n\t<testcase name=\"context_unit\" classname=\"context_unit\" time=\"0.00195859\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>context tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"egress_policy\" classname=\"egress_policy\" time=\"0.00165382\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>PASS egress rejection checks and 24 state combinations\n</system-out>\n\t</testcase>\n\t<testcase name=\"config_strict\" classname=\"config_strict\" time=\"0.00149278\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>PASS config strictness suite (10 test groups)\n</system-out>\n\t</testcase>\n\t<testcase name=\"admission_unit\" classname=\"admission_unit\" time=\"0.00177465\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>PASS admission unit suite\n</system-out>\n\t</testcase>\n\t<testcase name=\"interpreter_loopback\" classname=\"interpreter_loopback\" time=\"10.8334\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_delayed_nonblocking_and_copied_input (__main__.HTTP.test_delayed_nonblocking_and_copied_input) ... ok\ntest_http_cancel (__main__.HTTP.test_http_cancel) ... ok\ntest_http_forbidden_fields (__main__.HTTP.test_http_forbidden_fields) ... ok\ntest_http_no_redirect (__main__.HTTP.test_http_no_redirect) ... ok\ntest_http_overflow (__main__.HTTP.test_http_overflow) ... ok\ntest_http_revision_mismatch (__main__.HTTP.test_http_revision_mismatch) ... ok\ntest_http_shutdown (__main__.HTTP.test_http_shutdown) ... ok\ntest_http_timeout (__main__.HTTP.test_http_timeout) ... ok\ntest_structured_request (__main__.HTTP.test_structured_request) ... ok\ntest_structured_still_rejects_invalid (__main__.HTTP.test_structured_still_rejects_invalid) ... ok\ntest_structured_still_rejects_markdown (__main__.HTTP.test_structured_still_rejects_markdown) ... ok\ntest_null_function_call_is_not_a_tool_invocation (__main__.Parser.test_null_function_call_is_not_a_tool_invocation) ... ok\ntest_rejections (__main__.Parser.test_rejections) ... ok\ntest_...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"response_observer_unit\" classname=\"response_observer_unit\" time=\"0.00463748\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>response observer tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"gateway_context_integration\" classname=\"gateway_context_integration\" time=\"73.1161\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok\ntest_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok\ntest_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok\ntest_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok\ntest_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok\ntest_empty_choice_null_response_remains_pinned (test_gateway_context.GatewayContextTests.test_empty_choice_null_response_remains_pinned) ... ok\ntest_empty_choice_opaque_response_remains_pinned (test_gateway_context...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"hermes_observer\" classname=\"hermes_observer\" time=\"7.4268\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok\ntest_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok\ntest_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok\ntest_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok\ntest_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok\ntest_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok\ntest_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok\ntest_lone_surrogate_content_i...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"compliance_integration\" classname=\"compliance_integration\" time=\"19.7717\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok\ntest_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok\ntest_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok\ntest_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok\ntest_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok\ntest_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok\ntest_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok\ntest_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok\ntest_0...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"router_integration\" classname=\"router_integration\" time=\"23.3679\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_00_production_binary_exists (test_router.RouterTests.test_00_production_binary_exists) ... ok\ntest_01_normal_forwarding (test_router.RouterTests.test_01_normal_forwarding) ... ok\ntest_02_auth_and_models (test_router.RouterTests.test_02_auth_and_models) ... ok\ntest_03_stream_tools_passthrough (test_router.RouterTests.test_03_stream_tools_passthrough) ... ok\ntest_04_failures_and_limits (test_router.RouterTests.test_04_failures_and_limits) ... ok\ntest_05_public_destination (test_router.RouterTests.test_05_public_destination) ... ok\ntest_06_strict_startup (test_router.RouterTests.test_06_strict_startup) ... ok\ntest_07_redirect_failure_no_retry (test_router.RouterTests.test_07_redirect_failure_no_retry) ... ok\ntest_08_timeout (test_router.RouterTests.test_08_timeout) ... ok\ntest_09_large_stream_queue (test_router.RouterTests.test_09_large_stream_queue) ... ok\ntest_10_public_http_requires_explicit_test_mode (test_router.RouterTests.test_10_public_http_requires_explicit_test_mode) ... ok\ntest_11_upload_absolute...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"transport_integration\" classname=\"transport_integration\" time=\"1.48702\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream) ... ok\ntest_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream) ... ok\ntest_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models) ... ok\ntest_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream) ... ok\ntest_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured) ... ok\ntest_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order) ... ok\ntest_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 1.394s\n\nOK\n</system-out>\n\t</testcase>\n\t<testcase name=\"admission_integration\" classname=\"admission_integration\" time=\"0.3475\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_missing_secret_fails_startup (test_admission.AdmissionTests.test_missing_secret_fails_startup) ... ok\ntest_oversized_body_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_oversized_body_sends_zero_upstream_bytes) ... ok\ntest_scheme_case_insensitive_token_exact (test_admission.AdmissionTests.test_scheme_case_insensitive_token_exact) ... ok\ntest_unauthenticated_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_unauthenticated_sends_zero_upstream_bytes) ... ok\ntest_valid_token_roundtrips (test_admission.AdmissionTests.test_valid_token_roundtrips) ... ok\ntest_wrong_token_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_wrong_token_sends_zero_upstream_bytes) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.268s\n\nOK\n</system-out>\n\t</testcase>\n\t<testcase name=\"trajectory_reference\" classname=\"trajectory_reference\" time=\"3.72226\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_case_and_record_containers_and_records_are_validated (test_trajectory_reference.FixtureValidationTests.test_case_and_record_containers_and_records_are_validated) ... ok\ntest_cli_malformed_fixtures_have_fixed_safe_error (test_trajectory_reference.FixtureValidationTests.test_cli_malformed_fixtures_have_fixed_safe_error) ... ok\ntest_invalid_expected_rejected_independent_of_response (test_trajectory_reference.FixtureValidationTests.test_invalid_expected_rejected_independent_of_response) ... ok\ntest_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid (test_trajectory_reference.FixtureValidationTests.test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid) ... ok\ntest_malformed_metadata_rejected_before_any_scoring (test_trajectory_reference.FixtureValidationTests.test_malformed_metadata_rejected_before_any_scoring) ... ok\ntest_accepts_scoped_typed_state (test_trajectory_reference.InterpretationTests.test_accepts_scoped_typed_state) ... ok\ntest_cli_reports_missing_records_without_...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"accounting\" classname=\"accounting\" time=\"0.108162\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_cli_reads_json_file_and_emits_json (test_accounting.AccountingTests.test_cli_reads_json_file_and_emits_json) ... ok\ntest_complete_matched_actual_evidence_gate (test_accounting.AccountingTests.test_complete_matched_actual_evidence_gate) ... ok\ntest_dispatch_deduplication_rejects_conflicts (test_accounting.AccountingTests.test_dispatch_deduplication_rejects_conflicts) ... ok\ntest_duplicate_episode_identity_is_rejected (test_accounting.AccountingTests.test_duplicate_episode_identity_is_rejected) ... ok\ntest_episode_totals_retain_failed_task_spend (test_accounting.AccountingTests.test_episode_totals_retain_failed_task_spend) ... ok\ntest_gate_blocks_unfair_or_incomplete_comparisons (test_accounting.AccountingTests.test_gate_blocks_unfair_or_incomplete_comparisons) ... ok\ntest_invalid_episode_arm_and_budget_are_not_eligible (test_accounting.AccountingTests.test_invalid_episode_arm_and_budget_are_not_eligible) ... ok\ntest_invalid_usage_or_identity_is_rejected (test_accounting.AccountingTests.test_invalid_usage_...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n</testsuite>\n"
+        }
+      }
+    },
+    "asan": {
+      "ctest": {
+        "name": "Linux-cc",
+        "tests": "18",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "3b5cc29172b9",
+        "time": "142",
+        "timestamp": "2026-09-27T19:47:24"
+      },
+      "ctest_groups": [
+        {
+          "name": "selector_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_overflow",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_alloc",
+          "status": "run"
+        },
+        {
+          "name": "context_unit",
+          "status": "run"
+        },
+        {
+          "name": "egress_policy",
+          "status": "run"
+        },
+        {
+          "name": "config_strict",
+          "status": "run"
+        },
+        {
+          "name": "admission_unit",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_loopback",
+          "status": "run"
+        },
+        {
+          "name": "response_observer_unit",
+          "status": "run"
+        },
+        {
+          "name": "gateway_context_integration",
+          "status": "run"
+        },
+        {
+          "name": "hermes_observer",
+          "status": "run"
+        },
+        {
+          "name": "compliance_integration",
+          "status": "run"
+        },
+        {
+          "name": "router_integration",
+          "status": "run"
+        },
+        {
+          "name": "transport_integration",
+          "status": "run"
+        },
+        {
+          "name": "admission_integration",
+          "status": "run"
+        },
+        {
+          "name": "trajectory_reference",
+          "status": "run"
+        },
+        {
+          "name": "accounting",
+          "status": "run"
+        }
+      ],
+      "bridge_tests": 2,
+      "additional_http_tests": 2,
+      "additional_http_subcases": 8,
+      "observer_allocation_http_tests": 1,
+      "observer_probes": {
+        "cases": [
+          {
+            "name": "valid",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "cr",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "crlf",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "comments",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "usage_tail",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "usage_early",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "early_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "missing_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "missing_stop",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "missing_delimiter",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "duplicate_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "after_done",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "raw_nul",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "escaped_nul",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "bad_utf8",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "bad_comment_utf8",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "duplicate_key",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "duplicate_null",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "sse_unknown",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "oversize",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:'length'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:'tool_calls'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:'content_filter'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:False",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:0",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:''",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "finish_reason:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:1",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:-1",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:True",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:'0'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "index:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:-1",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:True",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:{}",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "stop_reason:'0'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:future",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:kv_transfer_params",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:id",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:model",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:created",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:system_fingerprint",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "root:service_tier",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:tool_calls:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:tool_calls:[]",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:reasoning_content:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:reasoning_content:'hidden'",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:future:None",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:function_call:{}",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "delta:content:True",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_choice:logprobs",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_choice:token_ids",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_choice:routed_experts",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:refusal",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:annotations",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:audio",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "null_delta:function_call",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "valid_metadata",
+            "portable": true,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "mixed:id",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "mixed:model",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          },
+          {
+            "name": "mixed:created",
+            "portable": false,
+            "fragment_sizes": [
+              1,
+              2,
+              3,
+              7,
+              127,
+              65536
+            ]
+          }
+        ],
+        "case_count": 63,
+        "allocation_sweep": "allocation failure points checked: 54\n"
+      },
+      "fragment_run_count": 378,
+      "binary_sha256": {
+        "review-asan/recursant": "e9be1838393014d8af9e04b3af62e878247b218801d765d022c45f683d02a314",
+        "review-asan/test_response_observer": "d0ef9ca3b41e85f83793ae3fe2ddba6041b08a4c95146b9421cf4c0c0a557fd2",
+        "review-asan/review_probe": "46d948d0d065c067231c29e85f47b5d15b5be2def6e27b483bd9586373dfe0bc",
+        "review-asan/fault/recursant": "076cfc300571a9785f1513023a0c12806b952db158ee940d431cb5fc1f74c077"
+      },
+      "logs": {
+        "run.log": {
+          "path": "/home/aj/sse-review-51edafd/review-asan/run.log",
+          "sha256": "2b2c8b556e71a706b13986a7feed03d97c89b7c5c7592eb5003dfbb594cb92f9",
+          "content": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.9s)\n-- Generating done (0.1s)\n-- Build files have been written to: /build\n[  2%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[  4%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[  6%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o\n[  8%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[ 10%] Linking C static library librecursant_policy.a\n[ 12%] Linking C static library librecursant_context.a\n[ 12%] Built target recursant_policy\n[ 14%] Linking C static library librecursant_selector.a\n[ 14%] Built target recursant_context\n[ 16%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o\n[ 18%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 18%] Built target recursant_selector\n[ 20%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o\n[ 22%] Linking C static library librecursant_config.a\n[ 24%] Built target recursant_config\n[ 24%] Linking C executable test_interpreter_alloc\n[ 26%] Linking C static library librecursant_interpreter.a\n[ 28%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o\n[ 30%] Linking C executable test_context\n[ 30%] Built target recursant_interpreter\n[ 32%] Linking C executable test_egress\n[ 34%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o\n[ 34%] Built target test_interpreter_alloc\n[ 34%] Built target test_context\n[ 36%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o\n[ 38%] Building C object CMakeFiles/test_response_observer.dir/tests/unit/test_response_observer.c.o\n[ 38%] Built target test_egress\n[ 40%] Building C object CMakeFiles/test_response_observer.dir/core/src/context/response_observer.c.o\n[ 42%] Linking C executable test_config\n[ 44%] Linking C executable test_interpreter\n[ 46%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 48%] Linking C static library librecursant_auth.a\n[ 51%] Linking C executable test_response_observer\n[ 51%] Built target test_config\n[ 51%] Built target recursant_auth\n[ 53%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o\n[ 55%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o\n[ 57%] Linking C executable recursant-validate\n[ 57%] Built target test_response_observer\n[ 57%] Built target test_interpreter\n[ 59%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 61%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o\n[ 61%] Built target recursant-validate\n[ 63%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o\n[ 65%] Linking C executable test_selector\n[ 67%] Linking C static library librecursant_attempts.a\n[ 69%] Linking C executable test_attempts_internal\n[ 71%] Linking C static library librecursant_admission.a\n[ 71%] Built target recursant_admission\n[ 71%] Built target recursant_attempts\n[ 73%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o\n[ 73%] Built target test_selector\n[ 75%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 75%] Built target test_attempts_internal\n[ 77%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o\n[ 79%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o\n[ 81%] Linking C executable test_admission\n[ 83%] Linking C executable test_attempts\n[ 83%] Built target test_admission\n[ 85%] Linking C executable recursant-tracer\n[ 87%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 87%] Built target test_attempts\n[ 89%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 91%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o\n[ 91%] Built target recursant-tracer\n[ 93%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 95%] Linking C shared library libattempt_probe.so\n[ 97%] Building C object CMakeFiles/recursant.dir/core/src/context/response_observer.c.o\n[ 97%] Built target attempt_probe\n[100%] Linking C executable recursant\n[100%] Built target recursant\nTest project /build\n      Start  1: selector_unit\n 1/18 Test  #1: selector_unit ....................   Passed    0.03 sec\n      Start  2: attempts_unit\n 2/18 Test  #2: attempts_unit ....................   Passed    0.01 sec\n      Start  3: attempts_overflow\n 3/18 Test  #3: attempts_overflow ................   Passed    0.01 sec\n      Start  4: interpreter_alloc\n 4/18 Test  #4: interpreter_alloc ................   Passed    0.19 sec\n      Start  5: context_unit\n 5/18 Test  #5: context_unit .....................   Passed    0.01 sec\n      Start  6: egress_policy\n 6/18 Test  #6: egress_policy ....................   Passed    0.01 sec\n      Start  7: config_strict\n 7/18 Test  #7: config_strict ....................   Passed    0.01 sec\n      Start  8: admission_unit\n 8/18 Test  #8: admission_unit ...................   Passed    0.01 sec\n      Start  9: interpreter_loopback\n 9/18 Test  #9: interpreter_loopback .............   Passed   11.25 sec\n      Start 10: response_observer_unit\n10/18 Test #10: response_observer_unit ...........   Passed    0.05 sec\n      Start 11: gateway_context_integration\n11/18 Test #11: gateway_context_integration ......   Passed   74.20 sec\n      Start 12: hermes_observer\n12/18 Test #12: hermes_observer ..................   Passed    7.42 sec\n      Start 13: compliance_integration\n13/18 Test #13: compliance_integration ...........   Passed   19.38 sec\n      Start 14: router_integration\n14/18 Test #14: router_integration ...............   Passed   24.13 sec\n      Start 15: transport_integration\n15/18 Test #15: transport_integration ............   Passed    1.54 sec\n      Start 16: admission_integration\n16/18 Test #16: admission_integration ............   Passed    0.40 sec\n      Start 17: trajectory_reference\n17/18 Test #17: trajectory_reference .............   Passed    3.91 sec\n      Start 18: accounting\n18/18 Test #18: accounting .......................   Passed    0.12 sec\n\n100% tests passed, 0 tests failed out of 18\n\nTotal Test time (real) = 142.70 sec\ntest_companion_opens_tags_exports_to_real_c_interpreter (test_gateway_bridge_live.LiveBridgeTests.test_companion_opens_tags_exports_to_real_c_interpreter) ... ok\ntest_foreign_headers_cannot_bypass_registered_branch_pin (test_gateway_bridge_live.LiveBridgeTests.test_foreign_headers_cannot_bypass_registered_branch_pin) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 1.060s\n\nOK\n"
+        },
+        "http.log": {
+          "path": "/home/aj/sse-review-51edafd/review-asan/http.log",
+          "sha256": "ca62f290654b642ae4161316b967bfc37d5a395d6ce5a7447393d2377de52fb9",
+          "content": "test_stream_shadow_and_explicit_alias (__main__.Review.test_stream_shadow_and_explicit_alias) ... ok\ntest_more_wire_pins_and_irreversibility (__main__.Review.test_more_wire_pins_and_irreversibility) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 2.885s\n\nOK\n"
+        },
+        "fault-http.log": {
+          "path": "/home/aj/sse-review-51edafd/review-asan/fault-http.log",
+          "sha256": "77aaa2948552f95b168105795c201e2d2c2edd26ae027bea9a08e017308d09b1",
+          "content": "test_observer_allocation_failure_preserves_wire_and_pins (__main__.Review.test_observer_allocation_failure_preserves_wire_and_pins) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.531s\n\nOK\n"
+        },
+        "extra-build.log": {
+          "path": "/home/aj/sse-review-51edafd/review-asan/extra-build.log",
+          "sha256": "5f79effd87fcee6e583cdda31f32d53fbd6399f11759453e69b31b1c52144a7e",
+          "content": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.7s)\n-- Generating done (0.1s)\n-- Build files have been written to: /build/fault\n[  5%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[ 11%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[ 16%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[ 22%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 27%] Linking C static library librecursant_selector.a\n[ 33%] Linking C static library librecursant_context.a\n[ 33%] Built target recursant_selector\n[ 33%] Built target recursant_context\n[ 38%] Linking C static library librecursant_config.a\n[ 44%] Linking C static library librecursant_interpreter.a\n[ 44%] Built target recursant_config\n[ 50%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 50%] Built target recursant_interpreter\n[ 55%] Linking C static library librecursant_auth.a\n[ 55%] Built target recursant_auth\n[ 61%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 66%] Linking C static library librecursant_attempts.a\n[ 66%] Built target recursant_attempts\n[ 72%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 83%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 83%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 88%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 94%] Building C object CMakeFiles/recursant.dir/core/src/context/response_observer.c.o\n[100%] Linking C executable recursant\n[100%] Built target recursant\n"
+        },
+        "results.xml": {
+          "path": "/home/aj/sse-review-51edafd/review-asan/results.xml",
+          "sha256": "08cd0a7d5595fc49e0af0ec96705268e29f33b5cfbc1d1bbae33a5447f0ba2f1",
+          "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuite name=\"Linux-cc\"\n\ttests=\"18\"\n\tfailures=\"0\"\n\tdisabled=\"0\"\n\tskipped=\"0\"\n\thostname=\"3b5cc29172b9\"\n\ttime=\"142\"\n\ttimestamp=\"2026-09-27T19:47:24\"\n\t>\n\t<testcase name=\"selector_unit\" classname=\"selector_unit\" time=\"0.02689\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>safety matrix: 4608 cases passed\nselector tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"attempts_unit\" classname=\"attempts_unit\" time=\"0.0118306\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>attempt ledger tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"attempts_overflow\" classname=\"attempts_overflow\" time=\"0.010951\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out></system-out>\n\t</testcase>\n\t<testcase name=\"interpreter_alloc\" classname=\"interpreter_alloc\" time=\"0.190574\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>request integrity: structured=1 count=1, 286 sites x 2 modes; zero live allocations\nrequest integrity: structured=0 count=1, 66 sites x 2 modes; zero live allocations\nrequest integrity: structured=1 count=16, 513 sites x 2 modes; zero live allocations\nrequest integrity: structured=0 count=16, 262 sites x 2 modes; zero live allocations\n</system-out>\n\t</testcase>\n\t<testcase name=\"context_unit\" classname=\"context_unit\" time=\"0.0115497\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>context tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"egress_policy\" classname=\"egress_policy\" time=\"0.00936041\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>PASS egress rejection checks and 24 state combinations\n</system-out>\n\t</testcase>\n\t<testcase name=\"config_strict\" classname=\"config_strict\" time=\"0.0136078\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>PASS config strictness suite (10 test groups)\n</system-out>\n\t</testcase>\n\t<testcase name=\"admission_unit\" classname=\"admission_unit\" time=\"0.0112951\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>PASS admission unit suite\n</system-out>\n\t</testcase>\n\t<testcase name=\"interpreter_loopback\" classname=\"interpreter_loopback\" time=\"11.254\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_delayed_nonblocking_and_copied_input (__main__.HTTP.test_delayed_nonblocking_and_copied_input) ... ok\ntest_http_cancel (__main__.HTTP.test_http_cancel) ... ok\ntest_http_forbidden_fields (__main__.HTTP.test_http_forbidden_fields) ... ok\ntest_http_no_redirect (__main__.HTTP.test_http_no_redirect) ... ok\ntest_http_overflow (__main__.HTTP.test_http_overflow) ... ok\ntest_http_revision_mismatch (__main__.HTTP.test_http_revision_mismatch) ... ok\ntest_http_shutdown (__main__.HTTP.test_http_shutdown) ... ok\ntest_http_timeout (__main__.HTTP.test_http_timeout) ... ok\ntest_structured_request (__main__.HTTP.test_structured_request) ... ok\ntest_structured_still_rejects_invalid (__main__.HTTP.test_structured_still_rejects_invalid) ... ok\ntest_structured_still_rejects_markdown (__main__.HTTP.test_structured_still_rejects_markdown) ... ok\ntest_null_function_call_is_not_a_tool_invocation (__main__.Parser.test_null_function_call_is_not_a_tool_invocation) ... ok\ntest_rejections (__main__.Parser.test_rejections) ... ok\ntest_...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"response_observer_unit\" classname=\"response_observer_unit\" time=\"0.0472647\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>response observer tests passed\n</system-out>\n\t</testcase>\n\t<testcase name=\"gateway_context_integration\" classname=\"gateway_context_integration\" time=\"74.1961\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok\ntest_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok\ntest_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok\ntest_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok\ntest_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok\ntest_empty_choice_null_response_remains_pinned (test_gateway_context.GatewayContextTests.test_empty_choice_null_response_remains_pinned) ... ok\ntest_empty_choice_opaque_response_remains_pinned (test_gateway_context...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"hermes_observer\" classname=\"hermes_observer\" time=\"7.42428\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok\ntest_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok\ntest_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok\ntest_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok\ntest_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok\ntest_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok\ntest_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok\ntest_lone_surrogate_content_i...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"compliance_integration\" classname=\"compliance_integration\" time=\"19.3783\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok\ntest_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok\ntest_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok\ntest_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok\ntest_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok\ntest_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok\ntest_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok\ntest_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok\ntest_0...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"router_integration\" classname=\"router_integration\" time=\"24.1312\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_00_production_binary_exists (test_router.RouterTests.test_00_production_binary_exists) ... ok\ntest_01_normal_forwarding (test_router.RouterTests.test_01_normal_forwarding) ... ok\ntest_02_auth_and_models (test_router.RouterTests.test_02_auth_and_models) ... ok\ntest_03_stream_tools_passthrough (test_router.RouterTests.test_03_stream_tools_passthrough) ... ok\ntest_04_failures_and_limits (test_router.RouterTests.test_04_failures_and_limits) ... ok\ntest_05_public_destination (test_router.RouterTests.test_05_public_destination) ... ok\ntest_06_strict_startup (test_router.RouterTests.test_06_strict_startup) ... ok\ntest_07_redirect_failure_no_retry (test_router.RouterTests.test_07_redirect_failure_no_retry) ... ok\ntest_08_timeout (test_router.RouterTests.test_08_timeout) ... ok\ntest_09_large_stream_queue (test_router.RouterTests.test_09_large_stream_queue) ... ok\ntest_10_public_http_requires_explicit_test_mode (test_router.RouterTests.test_10_public_http_requires_explicit_test_mode) ... ok\ntest_11_upload_absolute...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"transport_integration\" classname=\"transport_integration\" time=\"1.53726\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream) ... ok\ntest_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream) ... ok\ntest_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models) ... ok\ntest_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream) ... ok\ntest_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured) ... ok\ntest_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order) ... ok\ntest_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 1.449s\n\nOK\n</system-out>\n\t</testcase>\n\t<testcase name=\"admission_integration\" classname=\"admission_integration\" time=\"0.404455\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_missing_secret_fails_startup (test_admission.AdmissionTests.test_missing_secret_fails_startup) ... ok\ntest_oversized_body_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_oversized_body_sends_zero_upstream_bytes) ... ok\ntest_scheme_case_insensitive_token_exact (test_admission.AdmissionTests.test_scheme_case_insensitive_token_exact) ... ok\ntest_unauthenticated_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_unauthenticated_sends_zero_upstream_bytes) ... ok\ntest_valid_token_roundtrips (test_admission.AdmissionTests.test_valid_token_roundtrips) ... ok\ntest_wrong_token_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_wrong_token_sends_zero_upstream_bytes) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.322s\n\nOK\n</system-out>\n\t</testcase>\n\t<testcase name=\"trajectory_reference\" classname=\"trajectory_reference\" time=\"3.91187\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_case_and_record_containers_and_records_are_validated (test_trajectory_reference.FixtureValidationTests.test_case_and_record_containers_and_records_are_validated) ... ok\ntest_cli_malformed_fixtures_have_fixed_safe_error (test_trajectory_reference.FixtureValidationTests.test_cli_malformed_fixtures_have_fixed_safe_error) ... ok\ntest_invalid_expected_rejected_independent_of_response (test_trajectory_reference.FixtureValidationTests.test_invalid_expected_rejected_independent_of_response) ... ok\ntest_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid (test_trajectory_reference.FixtureValidationTests.test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid) ... ok\ntest_malformed_metadata_rejected_before_any_scoring (test_trajectory_reference.FixtureValidationTests.test_malformed_metadata_rejected_before_any_scoring) ... ok\ntest_accepts_scoped_typed_state (test_trajectory_reference.InterpretationTests.test_accepts_scoped_typed_state) ... ok\ntest_cli_reports_missing_records_without_...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n\t<testcase name=\"accounting\" classname=\"accounting\" time=\"0.117432\" status=\"run\">\n\t\t<properties/>\n\t\t<system-out>test_cli_reads_json_file_and_emits_json (test_accounting.AccountingTests.test_cli_reads_json_file_and_emits_json) ... ok\ntest_complete_matched_actual_evidence_gate (test_accounting.AccountingTests.test_complete_matched_actual_evidence_gate) ... ok\ntest_dispatch_deduplication_rejects_conflicts (test_accounting.AccountingTests.test_dispatch_deduplication_rejects_conflicts) ... ok\ntest_duplicate_episode_identity_is_rejected (test_accounting.AccountingTests.test_duplicate_episode_identity_is_rejected) ... ok\ntest_episode_totals_retain_failed_task_spend (test_accounting.AccountingTests.test_episode_totals_retain_failed_task_spend) ... ok\ntest_gate_blocks_unfair_or_incomplete_comparisons (test_accounting.AccountingTests.test_gate_blocks_unfair_or_incomplete_comparisons) ... ok\ntest_invalid_episode_arm_and_budget_are_not_eligible (test_accounting.AccountingTests.test_invalid_episode_arm_and_budget_are_not_eligible) ... ok\ntest_invalid_usage_or_identity_is_rejected (test_accounting.AccountingTests.test_invalid_usage_...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n</system-out>\n\t</testcase>\n</testsuite>\n"
+        }
+      }
+    }
+  },
+  "review_checks": [
+    "Inspected every observer, gateway, router, public-header and CMake delta plus all test and contract deltas at the frozen commit.",
+    "Normal and sanitizer complete suites freshly built from git archive; existing author builds and evidence not used for verification.",
+    "Every split point and byte-at-a-time UTF-8 framing in committed unit tests; independent 63-case matrix at six fragment sizes per mode.",
+    "Early/missing/duplicate DONE, missing stop/delimiter, trailing events, usage-only chunks, finish reasons, invalid choice indices, malformed and mixed metadata, duplicate/unknown/null fields, raw/escaped NUL, invalid UTF-8, CR/LF/CRLF, comments and overflow fail closed as appropriate.",
+    "Committed exact-64KiB acceptance and over-limit persistent failure tests pass.",
+    "54 Jansson allocation failure points across event parsing and owned normalized message construction fail closed in each mode.",
+    "Separately linked calloc-wrapped gateway verifies actual callback observer allocation failure preserves exact wire bytes and permanently pins, even after later valid SSE.",
+    "Actual HTTP pin probes verify early DONE, duplicate-null key, unknown-null delta, raw NUL and early usage; rejected bytes are still forwarded unchanged and later clean streams cannot clear pins.",
+    "Actual HTTP native-stream shadow and explicit-alias tests verify shadow auto remains frontier and explicit baseline/alias are respected after clean boundaries.",
+    "Committed transport tests verify incomplete upstream Content-Length and downstream RST after DONE pin; inflight exclusion and delayed-interpreter final-M2 checks pass.",
+    "Request tools, tool definitions, reasoning_effort, streamed tool calls and tool finish reasons remain unsupported/pinning.",
+    "Observer feeds before queuing without modifying source bytes; completion requires joined worker and independent upstream/downstream success; normalized Jansson message ownership/freeing inspected.",
+    "git diff --check passed; targeted added-line security scan found no eval/shell/deserialization patterns; manual source review found no hardcoded secrets or network scope changes."
+  ],
+  "limits": [
+    "Scripted loopback only, Docker --network none; no inference, installs, image pulls, service changes, source edits or pushes.",
+    "Not evidence of live model compatibility, tool-stream portability, model quality, cost savings, or complete M3 acceptance.",
+    "Baseline commit was diff-reviewed, not separately rebuilt; target normal and sanitizer suites have zero failing CTest groups.",
+    "Fault-injection gateway is separately linked from the same frozen production source with --wrap=calloc; ordinary HTTP probes and suites use the unmodified-link target binaries."
+  ],
+  "review_artifacts": {
+    "review_probe.c": {
+      "sha256": "fd88f25fd4bc3bdd327153c2aaf73c7531b9a90dec605bbd8938aacec7d7f840",
+      "content": "#include \"recursant/response_observer.h\"\n#include <assert.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\nstatic long count, fail_at=-1;\nstatic void *alloc(size_t n){if(count++==fail_at)return NULL;return malloc(n);}\nstatic void release(void *p){free(p);}\nint main(int argc,char **argv){\n char wire[100000];size_t n=fread(wire,1,sizeof wire,stdin);\n rc_response_observer *o=calloc(1,sizeof *o);assert(o);\n if(argc>1&&!strcmp(argv[1],\"alloc\")){\n   json_set_alloc_funcs(alloc,release);long observed=0;\n   for(long f=-1;f<observed;f++){\n     memset(o,0,sizeof *o);count=0;fail_at=f;\n     rc_response_observer_feed(o,wire,n);json_t *m=rc_response_observer_message(o);\n     if(f==-1){assert(m);observed=count;}else assert(!m);\n     json_decref(m);\n   }\n   printf(\"allocation failure points checked: %ld\\n\",observed);\n }else{\n   size_t step=argc>1?(size_t)atoi(argv[1]):1;if(!step)step=n;\n   for(size_t i=0;i<n;i+=step)rc_response_observer_feed(o,wire+i,n-i<step?n-i:step);\n   json_t *m=rc_response_observer_message(o);if(m){char *s=json_dumps(m,JSON_COMPACT);puts(s);free(s);json_decref(m);}else puts(\"PIN\");\n }\n free(o);return 0;\n}\n"
+    },
+    "review_cases.py": {
+      "sha256": "e3ad7b97487cf8c822eb5e7447a189719f926746f7d0571caee66120c282c68a",
+      "content": "import json,subprocess,copy,os\n\ndef enc(events):\n    return b''.join(b'data: '+json.dumps(e,ensure_ascii=False).encode()+b'\\n\\n' for e in events)\na={'choices':[{'index':0,'delta':{'role':'assistant','content':'café 🦀'},'finish_reason':None}]}\nb={'choices':[{'index':0,'delta':{},'finish_reason':'stop'}]}\nu={'choices':[],'usage':{'prompt_tokens':1,'completion_tokens':2,'total_tokens':3}}\ndone=b'data: [DONE]\\n\\n'\nvalid=enc([a,b])+done\ncases={}\ndef add(name,wire,ok=False):cases[name]=(wire,ok)\nadd('valid',valid,True)\nadd('cr',valid.replace(b'\\n',b'\\r'),True)\nadd('crlf',valid.replace(b'\\n',b'\\r\\n'),True)\nadd('comments',': café\\n\\n'.encode()+valid+b': trailer\\n\\n',True)\nadd('usage_tail',enc([a,b,u])+done,True)\nadd('usage_early',enc([a,u,b])+done)\nadd('early_done',enc([a])+done+enc([b]))\nadd('missing_done',enc([a,b]))\nadd('missing_stop',enc([a])+done)\nadd('missing_delimiter',valid[:-1])\nadd('duplicate_done',valid+done)\nadd('after_done',valid+enc([u]))\nadd('raw_nul',valid.replace(b'caf',b'ca\\x00f'))\nadd('escaped_nul',valid.replace(b'caf',b'ca\\\\u0000f'))\nadd('bad_utf8',valid.replace(b'caf',b'ca\\xfff'))\nadd('bad_comment_utf8',b':\\xff\\n\\n'+valid)\nadd('duplicate_key',valid.replace(b'\"index\": 0',b'\"index\": 0, \"index\": 0',1))\nadd('duplicate_null',valid.replace(b'\"finish_reason\": null',b'\"finish_reason\": null, \"finish_reason\": null',1))\nadd('sse_unknown',b'event: message\\n'+valid)\nadd('oversize',b':'+b'x'*65536+b'\\n\\n'+valid)\nfor field,values in [('finish_reason',['length','tool_calls','content_filter',False,0,'',None]),('index',[1,-1,True,'0',None]),('stop_reason',[None,-1,True,{},'0'])]:\n for value in values:\n  x=copy.deepcopy(b);x['choices'][0][field]=value;add(f'{field}:{value!r}',enc([a,x])+done)\nfor field,value in [('future',None),('',None),('kv_transfer_params',{}),('id',None),('model',False),('created',True),('system_fingerprint',{}),('service_tier','default')]:\n x=copy.deepcopy(a);x[field]=value;add(f'root:{field}',enc([x,b])+done)\nfor field,value in [('tool_calls',None),('tool_calls',[]),('reasoning_content',None),('reasoning_content','hidden'),('future',None),('function_call',{}),('content',True)]:\n x=copy.deepcopy(a);x['choices'][0]['delta'][field]=value;add(f'delta:{field}:{value!r}',enc([x,b])+done)\nfor field in ['logprobs','token_ids','routed_experts']:\n x=copy.deepcopy(a);x['choices'][0][field]=None;add('null_choice:'+field,enc([x,b])+done,True)\nfor field in ['refusal','annotations','audio','function_call']:\n x=copy.deepcopy(a);x['choices'][0]['delta'][field]=None;add('null_delta:'+field,enc([x,b])+done,True)\nx=copy.deepcopy(a);x.update(id='one',model='m',created=1,object='chat.completion.chunk',system_fingerprint='fp',kv_transfer_params=None)\ny=copy.deepcopy(b);y.update(id='one',model='m',created=1)\nadd('valid_metadata',enc([x,y])+done,True)\nfor field,value in [('id','two'),('model','other'),('created',2)]:\n z=copy.deepcopy(y);z[field]=value;add('mixed:'+field,enc([x,z])+done)\nresults=[]\nfor name,(wire,expected) in cases.items():\n for step in [1,2,3,7,127,65536]:\n  p=subprocess.run(['/build/review_probe',str(step)],input=wire,capture_output=True)\n  assert p.returncode==0,(name,step,p.stderr)\n  actual=p.stdout!=b'PIN\\n';assert actual==expected,(name,step,p.stdout)\n  if actual: assert json.loads(p.stdout)['content']=='café 🦀'\n results.append({'name':name,'portable':expected,'fragment_sizes':[1,2,3,7,127,65536]})\np=subprocess.run(['/build/review_probe','alloc'],input=valid,capture_output=True)\nassert p.returncode==0,p.stderr\nprint(json.dumps({'cases':results,'case_count':len(results),'allocation_sweep':p.stdout.decode()},indent=2))\n"
+    },
+    "review_calloc.c": {
+      "sha256": "7820c50eea71be67ab16c82ed546f6de92f6eb0d3c363f506132341ca2423077",
+      "content": "#include \"recursant/response_observer.h\"\n#include <stdlib.h>\n#include <unistd.h>\n#include <stdio.h>\nvoid *__real_calloc(size_t,size_t);\nvoid *__wrap_calloc(size_t n,size_t s){\n const char *arm=getenv(\"SSE_REVIEW_ARM\");\n if(n==1&&s==sizeof(rc_response_observer)&&arm&&unlink(arm)==0){fputs(\"review-observer-calloc-failed\\n\",stderr);return NULL;}\n return __real_calloc(n,s);\n}\n"
+    },
+    "review_http.py": {
+      "sha256": "b8d8f15d221b35b334cf6ff82976c976c3f761b0f5e15ba16f50f9e96ee2972c",
+      "content": "import sys,os,json,time,copy,unittest\nfrom pathlib import Path\nsys.path.insert(0,'/src/tests/integration')\nfrom test_gateway_context import GatewayContextTests,ContextSink\n\nclass Review(unittest.TestCase):\n router=GatewayContextTests.router\n request=GatewayContextTests.request\n configure=staticmethod(GatewayContextTests.configure)\n open_scope=GatewayContextTests.open_scope\n headers=staticmethod(GatewayContextTests.headers)\n event=GatewayContextTests.event\n ingest=GatewayContextTests.ingest\n stream_bytes=staticmethod(GatewayContextTests.stream_bytes)\n stream_events=staticmethod(GatewayContextTests.stream_events)\n def test_stream_shadow_and_explicit_alias(self):\n  for mode,second,expected in [('shadow','auto','frontier'),('active','baseline','frontier'),('active','alias','physical')]:\n   with self.subTest(mode=mode,second=second):\n    def edit(c,s):\n     self.configure(c,s,mode);s.RequestHandlerClass=ContextSink;s.stream_wire=self.stream_bytes(self.stream_events())\n    with self.router(edit) as (p,sink):\n     scope=self.open_scope(p);history=[{'role':'user','content':'start'}]\n     body={'model':'auto','messages':history,'max_tokens':128,'stream':True}\n     code,raw,_=self.request(p,body=body,headers=self.headers(scope,1));self.assertEqual(code,200);self.assertEqual(raw,sink.stream_wire)\n     self.assertEqual(self.ingest(p,self.event(scope,1,1)),202);time.sleep(.25)\n     history += [{'role':'assistant','content':'café 🦀'},{'role':'user','content':'continue'}]\n     body['model']=second;sink.stream_wire=None\n     self.assertEqual(self.request(p,body=body,headers=self.headers(scope,2))[0],200)\n     self.assertEqual(sink.seen[-1][2]['model'],expected)\n def test_more_wire_pins_and_irreversibility(self):\n  valid=self.stream_bytes(self.stream_events())\n  wires={'early_done':b'data: [DONE]\\n\\n'+valid,'raw_nul':valid.replace(b'caf',b'ca\\x00f'),\n         'duplicate_null':valid.replace(b'\"finish_reason\": null',b'\"finish_reason\": null,\"finish_reason\": null',1),\n         'unknown_null':valid.replace(b'\"delta\": {',b'\"delta\": {\"future\":null,',1),\n         'usage_early':self.stream_bytes([{'choices':[],'usage':{'prompt_tokens':0,'completion_tokens':0,'total_tokens':0}}],False)+valid}\n  def edit(c,s):self.configure(c,s);s.RequestHandlerClass=ContextSink\n  with self.router(edit) as (p,sink):\n   for name,wire in wires.items():\n    with self.subTest(name=name):\n     status,raw,_=self.request(p,path='/v1/context/open',source=True,body={'task_id':name,'session_id':name,'branch':'b'});self.assertEqual(status,201);scope=json.loads(raw)\n     history=[{'role':'user','content':'start'}];body={'model':'baseline','messages':history,'max_tokens':128,'stream':True}\n     sink.stream_wire=wire\n     code,raw,_=self.request(p,body=body,headers=self.headers(scope,1));self.assertEqual(code,200);self.assertEqual(raw,wire)\n     history += [{'role':'assistant','content':'café 🦀'},{'role':'user','content':'continue'}];body['model']='alias'\n     self.assertEqual(self.request(p,body=body,headers=self.headers(scope,2))[0],403)\n     body['model']='baseline';sink.stream_wire=valid\n     self.assertEqual(self.request(p,body=body,headers=self.headers(scope,3))[0],200)\n     history += [{'role':'assistant','content':'café 🦀'},{'role':'user','content':'again'}];body['model']='alias'\n     self.assertEqual(self.request(p,body=body,headers=self.headers(scope,4))[0],403)\n def test_observer_allocation_failure_preserves_wire_and_pins(self):\n  arm=Path('/build/observer-arm');os.environ['SSE_REVIEW_ARM']=str(arm)\n  def edit(c,s):self.configure(c,s);s.RequestHandlerClass=ContextSink;s.stream_wire=self.stream_bytes(self.stream_events());s.wire_step=1\n  with self.router(edit) as (p,sink):\n   scope=self.open_scope(p);arm.touch();history=[{'role':'user','content':'start'}]\n   body={'model':'baseline','messages':history,'max_tokens':128,'stream':True}\n   code,raw,_=self.request(p,body=body,headers=self.headers(scope,1));self.assertEqual(code,200);self.assertEqual(raw,sink.stream_wire);self.assertFalse(arm.exists(),'fault not injected')\n   history += [{'role':'assistant','content':'café 🦀'},{'role':'user','content':'continue'}];body['model']='alias'\n   self.assertEqual(self.request(p,body=body,headers=self.headers(scope,2))[0],403)\n   body['model']='baseline'\n   self.assertEqual(self.request(p,body=body,headers=self.headers(scope,3))[0],200)\n   history += [{'role':'assistant','content':'café 🦀'},{'role':'user','content':'again'}];body['model']='alias'\n   self.assertEqual(self.request(p,body=body,headers=self.headers(scope,4))[0],403)\n  del os.environ['SSE_REVIEW_ARM']\n\nif __name__=='__main__':unittest.main(verbosity=2)\n"
+    }
+  },
+  "review_harness_issues": [
+    "An initial independent Python probe contained a non-ASCII bytes literal in dead code; syntax checking caught it and it was removed before execution. No production change was needed.",
+    "Background shell emitted an unrelated missing /home/aj/.openclaw/completions/openclaw.bash startup warning; both Docker verification processes exited 0."
+  ]
+}

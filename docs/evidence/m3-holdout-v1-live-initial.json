@@ -1,0 +1,91 @@
+{
+  "kind": "reference_interpretation_not_release_benchmark",
+  "assigned_cases": 12,
+  "recorded_attempts": 3,
+  "missing_cases": [
+    "holdout-v1-04-identical-reruns",
+    "holdout-v1-05-revert-before-repair",
+    "holdout-v1-06-external-authorization-stop",
+    "holdout-v1-07-unordered-conflicting-notes",
+    "holdout-v1-08-quoted-injection-final-table",
+    "holdout-v1-09-metadata-only-abstention",
+    "holdout-v1-10-cross-service-causal-proof",
+    "holdout-v1-11-bounded-two-consumer-edit",
+    "holdout-v1-12-claimed-ease-not-progress"
+  ],
+  "complete": false,
+  "schema_valid_cases": 1,
+  "label_matched_cases": 0,
+  "attempts": [
+    {
+      "case_id": "holdout-v1-01-negative-result-new-information",
+      "schema_valid": true,
+      "labels_match": false,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": false,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 374,
+        "completion_tokens": 881,
+        "total_tokens": 1255
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-02-failure-without-workflow-status",
+      "schema_valid": false,
+      "labels_match": false,
+      "field_matches": {},
+      "usage": null,
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-03-retracted-plan-redesign",
+      "schema_valid": false,
+      "labels_match": false,
+      "field_matches": {},
+      "usage": null,
+      "reasoning_inclusion": "unverified"
+    }
+  ],
+  "release_pass": false,
+  "source_ledgers": [
+    {
+      "path": ".hermes/runtime/m3-live/holdout-v1.json",
+      "sha256": "8f4b16508ef5a35469d973a0671c669e3dcfe18c98bca9f309e0e678c3fcf96d"
+    },
+    {
+      "path": ".hermes/runtime/m3-live/holdout-v1-continuation.json",
+      "sha256": "af61938142f3849ccd3b3bcd3d9b2a0b763cba9e4baf34b76d8f84d480fa7a40"
+    }
+  ],
+  "projection_note": "Scored recorded content/finish/usage projection; original first-ledger inline evaluation had caller-shape error and is not used; no labels changed or inference repeated",
+  "dispatches": [
+    {
+      "case_id": "holdout-v1-01-negative-result-new-information",
+      "status": "received",
+      "elapsed_seconds": 68.67245603632182,
+      "error_type": null
+    },
+    {
+      "case_id": "holdout-v1-02-failure-without-workflow-status",
+      "status": "failed",
+      "elapsed_seconds": 180.10448307497427,
+      "error_type": "TimeoutError"
+    },
+    {
+      "case_id": "holdout-v1-03-retracted-plan-redesign",
+      "status": "failed",
+      "elapsed_seconds": 180.094994999934,
+      "error_type": "TimeoutError"
+    }
+  ],
+  "max_tokens": 4096,
+  "timeout_seconds": 180,
+  "structured": true,
+  "approved_additional_local_calls_consumed": 3
+}

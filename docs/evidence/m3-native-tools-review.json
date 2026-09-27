@@ -1,0 +1,279 @@
+{
+  "schema": "recursant.independent-review.v1",
+  "reviewed_at_utc": "2026-09-27T20:32:01.999197+00:00",
+  "reviewer": "independent delegated reviewer, not implementation producer",
+  "passed": true,
+  "verdict": "approve_bounded_nonstream_tool_source_routing_slice",
+  "security_concerns": [],
+  "logic_errors": [],
+  "blocking_findings": [],
+  "summary": "No landing blockers found in frozen 5c75c25 versus ae5c983; full normal/sanitizer suites, real bridge and independent adversarial/fault probes passed. Not full M3 acceptance.",
+  "repository": "/home/aj/projects/recursant-v4-m3-native-tools",
+  "reviewed_commit": "5c75c2519aae1430fce3be640b690847b161e283",
+  "base_commit": "ae5c983ed4d7756ed22c84bcc074b95ad7b0347e",
+  "snapshot": "/home/aj/native-tools-review-5c75c25/src",
+  "main_at_review_start": "a2f5a85cc2e8d8e267382a4c6845730a331be410",
+  "integration_note": "Main separately includes M2 empty-key guard 5553e19419ca3d36ef89781de00561785b1f1c27; retain it. Frozen branch does not contain that guard. A merged tree was not built or certified.",
+  "prerequisites": {
+    "instructions": "Read repository AGENTS.md",
+    "skills": [
+      "requesting-code-review",
+      "agent-observability-routing-design"
+    ],
+    "approved_dependencies": {
+      "m3-tool-boundary-review.json": {
+        "passed": true,
+        "sha256": "a536ba96331c4be432be3e6defa2aa8fcecc0f7170034e717462174ed0d5c985"
+      },
+      "m3-native-sse-review.json": {
+        "passed": true,
+        "sha256": "d3c29e46bdfce75dc37dc00282ca525dc10bce9cb6989a261ee7c8ac785adea8"
+      },
+      "m3-metadata-observation-review.json": {
+        "passed": true,
+        "sha256": "f970bc0471b1f5b66742cc11b5fe7195e69235c52736abaefd5726424960f1b8"
+      }
+    }
+  },
+  "environment": {
+    "image": "recursant-v4-dev:local",
+    "image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+    "network": "none",
+    "source_mount": "/src:ro",
+    "build_mount": "/build",
+    "uid_gid": "1000:1000",
+    "installs_or_live_inference": false
+  },
+  "source_hashes": {
+    "CMakeLists.txt": {
+      "sha256": "d727161d8c5805b0c8b56c1b66b80a594314bc2f1e5d753d66efcffa85f83eeb",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/include/recursant/tool_boundary.h": {
+      "sha256": "0069393d8d3247c47ffbf67f46b222dbd8a64979eb0d10baad7afedf00fff57d",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/context/gateway_context.c": {
+      "sha256": "ac6fd428474fb9755e48f34f65ea9c4b9807671905fd9ba75d5984ccd5d10d94",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/context/tool_boundary.c": {
+      "sha256": "8a1cd8e43b63010867a503af788257b59a6ec66c1ac3082c94a0b973cbb2883e",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "deploy/hermes/context_adapter/gateway.py": {
+      "sha256": "147d2e7a87db5e67ae7bb89a3a8fce4da14a1d533002c61bdda59f52b350cc1a",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "deploy/hermes/test_gateway_bridge.py": {
+      "sha256": "e7d7e402d55582e33b7310b8b3955475356cc844483974fc8cf34ffb610b585a",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-tools-asan.log": {
+      "sha256": "c874c7d0b83ffd439d2133e2d9b382f47cff816576cb8a896dc8d0868d8fcdf1",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-tools-asan.xml": {
+      "sha256": "2e9432297b2966dfe0359f2a73cceb7944f206a9d66f38fec319adbb84b50acf",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-tools-normal.log": {
+      "sha256": "e21f503d99f408c29a15e2c7c8381143aa6d037425c246deed9f4b8928667f2f",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-tools-normal.xml": {
+      "sha256": "0bc59946e1925ddd601592bc4b85b1091b2f41d2c98e0d500dab42b990beda78",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-tools-red.log": {
+      "sha256": "b0ee2f07bb741687fcdfd44aa35430fae1c34cc93cc3b6382f6852d3c33d190a",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/evidence/m3-native-tools.md": {
+      "sha256": "14429b1f30857d3084056fbdb0ec30c9f7d8e4071922fdb8fb16614e44f011ea",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/m3-gateway-wire-contract.md": {
+      "sha256": "6c7a9bb1f4aceaf8ef67db2eec5040fc3fe9fc1f09c563f97dbcbb1d14e1283b",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "docs/m3-nonstream-tool-continuation.md": {
+      "sha256": "00488973936e0a6e3bc6f94e6a8c9dcda50df64c023745b121c105a5c8e5dcad",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "tests/integration/test_native_tools.py": {
+      "sha256": "8a6a31058854918eec11f5dbebd4cb40adcc9ed3d463b2a4315d62f9357c0483",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "tests/unit/test_tool_boundary.c": {
+      "sha256": "f49486bae9dfa150974f4a922f1be09a2f98de6f671520c0e16b8bfde617e1e5",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/http/router.c": {
+      "sha256": "11789d1a3477b7267f7ee915e4e294650ecc442b0f9e946f56640dcd9ca41e51",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/compliance/classifier.c": {
+      "sha256": "4b723de7c6da52c2349bc9da80a4600a5342e8866250d046ea99bb0fe2c65056",
+      "matches_commit": true,
+      "matches_worktree": true
+    },
+    "core/src/context/response_observer.c": {
+      "sha256": "b17c6726ac3aec3551d03e0d98769fb44bf3d50fded0ab5ba0dfe84b7dd6e34b",
+      "matches_commit": true,
+      "matches_worktree": true
+    }
+  },
+  "binary_sha256": {
+    "normal": {
+      "recursant": "4557e74a84f94bffc5d24c45470b32f4a0be01b40dafa7391f492102fee3abbf",
+      "recursant-oom": "1b8506ca090dcdf01a8d93ab71e95e955afd05530a62111aafa0903d5a785223"
+    },
+    "asan": {
+      "recursant": "b2807645e291a9bd7f912ae95cfa95e028673c010e145a255a0a52ae4cc66991",
+      "recursant-oom": "d65d856efc1ed27ac36e9ba847ffce0f0bbc281752da72e83f44a75bc8dba48c"
+    }
+  },
+  "executions": [
+    {
+      "name": "normal full CTest plus explicit bridge",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/normal:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 recursant-v4-dev:local sh -c 'cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Debug && cmake --build /build -j4 && ctest --test-dir /build --output-on-failure --output-junit /build/tests.xml && RECURSANT_CONTEXT_BRIDGE_BIN=/build/recursant PYTHONPATH=/src python3 -m unittest discover -s /src/tests/integration -p test_gateway_bridge_live.py -v'",
+      "exit_code": 0,
+      "ctest_passed": 20,
+      "ctest_skipped": 0,
+      "bridge_passed": 2,
+      "log": "m3-native-tools-review/normal.log"
+    },
+    {
+      "name": "normal independent probe",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/normal:/build -v /home/aj/projects/recursant-v4/docs/evidence/m3-native-tools-review:/review:ro -e PYTHONDONTWRITEBYTECODE=1 -e RECURSANT_BIN=/build/recursant -e PYTHONPATH=/src/tests/integration:/src recursant-v4-dev:local python3 /review/probe.py",
+      "exit_code": 0,
+      "log": "m3-native-tools-review/probe-normal.log"
+    },
+    {
+      "name": "normal independent oom",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/normal:/build -v /home/aj/projects/recursant-v4/docs/evidence/m3-native-tools-review:/review:ro -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src/tests/integration:/src recursant-v4-dev:local python3 /review/run_oom.py",
+      "exit_code": 0,
+      "log": "m3-native-tools-review/oom-normal.log"
+    },
+    {
+      "name": "normal independent config",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/normal:/build -v /home/aj/projects/recursant-v4/docs/evidence/m3-native-tools-review:/review:ro -e PYTHONDONTWRITEBYTECODE=1 -e RECURSANT_BIN=/build/recursant recursant-v4-dev:local python3 /review/config_probe.py",
+      "exit_code": 0,
+      "log": "m3-native-tools-review/config-normal.log"
+    },
+    {
+      "name": "asan full CTest plus explicit bridge",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/asan:/build -w /src -e PYTHONDONTWRITEBYTECODE=1 -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 recursant-v4-dev:local sh -c 'cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build /build -j4 && ctest --test-dir /build --output-on-failure --output-junit /build/tests.xml && RECURSANT_CONTEXT_BRIDGE_BIN=/build/recursant PYTHONPATH=/src python3 -m unittest discover -s /src/tests/integration -p test_gateway_bridge_live.py -v'",
+      "exit_code": 0,
+      "ctest_passed": 20,
+      "ctest_skipped": 0,
+      "bridge_passed": 2,
+      "log": "m3-native-tools-review/asan.log"
+    },
+    {
+      "name": "asan independent probe",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/asan:/build -v /home/aj/projects/recursant-v4/docs/evidence/m3-native-tools-review:/review:ro -e PYTHONDONTWRITEBYTECODE=1 -e RECURSANT_BIN=/build/recursant -e PYTHONPATH=/src/tests/integration:/src -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 recursant-v4-dev:local python3 /review/probe.py",
+      "exit_code": 0,
+      "log": "m3-native-tools-review/probe-asan.log"
+    },
+    {
+      "name": "asan independent oom",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/asan:/build -v /home/aj/projects/recursant-v4/docs/evidence/m3-native-tools-review:/review:ro -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src/tests/integration:/src -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 recursant-v4-dev:local python3 /review/run_oom.py",
+      "exit_code": 0,
+      "log": "m3-native-tools-review/oom-asan.log"
+    },
+    {
+      "name": "asan independent config",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/native-tools-review-5c75c25/src:/src:ro -v /home/aj/native-tools-review-5c75c25/asan:/build -v /home/aj/projects/recursant-v4/docs/evidence/m3-native-tools-review:/review:ro -e PYTHONDONTWRITEBYTECODE=1 -e RECURSANT_BIN=/build/recursant -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 recursant-v4-dev:local python3 /review/config_probe.py",
+      "exit_code": 0,
+      "log": "m3-native-tools-review/config-asan.log"
+    }
+  ],
+  "coverage": {
+    "scope_history": "Initial fabricated tool history cannot authorize movement. Validated authoritative nonstream envelope captured; exact prefix and assistant/call IDs preserved. Incomplete replay 409 is temporary; invalid replay pins. Historical reused ID capture fails closed.",
+    "source_identity": "Source authorization unchanged; exact scoped latest completed row required. Duplicate, foreign, historical callbacks rejected. Repeated invocation identities make attribution ambiguous rather than selecting latest. Metadata-only callback creates no interpreter work and clears old advice.",
+    "provenance": "All six admitted status literals tested. Arbitrary success-looking output remains executor tool_result text and separate literal tool_status evidence. Protocol completion does not assert execution success.",
+    "configuration": "7 malformed capability configurations rejected with matching valid startup control; absent/false capabilities and quality/cost/advice failure exercised by supplied tests. Protocol requirements accumulate conservatively.",
+    "mandatory_policy": "Shadow remains baseline; explicit destination cannot bypass tool owner. Final M2 redirect cannot bypass candidate qualification. Sensitive tool source privacy survives metadata-only revision; unsupported options pin permanently.",
+    "memory": "Mutex serializes scope updates; snapshots own deep copies; previous boundary/observed calls freed before dispatch, pending objects released at finish/destroy. ASan/UBSan with leak checks passed.",
+    "oom": "Five one-shot wrapper targets per build: pending history, tools, named choice, observed calls, complete replay serialization. Each marker consumed; response passthrough and permanent pin under later fresh advice verified. Original unwrapped binary used for full suites/bridge/ordinary probes.",
+    "counts_per_build": {
+      "ctest": 20,
+      "explicit_bridge": 2,
+      "independent_http_methods": 8,
+      "status_literal_subcases": 6,
+      "oom_targets": 5,
+      "invalid_configurations": 7,
+      "valid_config_control": 1
+    }
+  },
+  "review_findings": [
+    {
+      "severity": "informational",
+      "location": "core/src/context/gateway_context.c:387-460,499-536",
+      "text": "Pending exchange is separate from permanent pin; bounded authoritative capture and exact replay guard selection. Incomplete does not consume the boundary."
+    },
+    {
+      "severity": "informational",
+      "location": "core/src/context/gateway_context.c:203-267",
+      "text": "Tool callbacks use own allowlist, exact current attempt and observed ID, duplicate flag, separate executor status and sticky privacy. Metadata does not synthesize advice."
+    },
+    {
+      "severity": "informational",
+      "location": "core/src/context/gateway_context.c:87-96,410-447",
+      "text": "Nonbaseline candidates require known supported protocol bits alongside ordinary qualification; explicit aliases, shadow mode and final policy retain mandatory fences."
+    }
+  ],
+  "suggestions": [
+    "Promote independent identity/mode/privacy probes and targeted gateway OOM checks into maintained regression tests."
+  ],
+  "limitations": [
+    "Streamed tools remain pinned.",
+    "Non-flat tool schemas remain pinned.",
+    "reasoning_effort=medium remains pinned.",
+    "Scripted loopback, not real native Hermes timing or real-model semantics, quality, savings or full M3 acceptance.",
+    "Targeted gateway faults are not exhaustive allocator-failure coverage; standalone validator sweeps are separate dependency evidence.",
+    "No merged-main full-suite result is claimed."
+  ],
+  "issues_encountered": [
+    "Initial independent configuration probe expected the wrong diagnostic wording (invalid context configuration versus actual invalid runtime configuration). Corrected the probe assertion, added valid startup control, reran both builds successfully; no implementation change."
+  ],
+  "implementation_modified": false,
+  "commit_or_push_performed": false,
+  "supporting_artifact_sha256": {
+    "asan.log": "3784e02fe9e7287ea45cb11d95381d9b0b1f8ff573f01a2aef46df1d718ea8d8",
+    "asan.xml": "ad6aa653476215efd2a952e87a99b4d886e41630424da839169bd5fa534bfbb8",
+    "config-asan.log": "7a7ce0ab1043d1542a9b1322936e549233c6e744261861b4963e59816a85d6a4",
+    "config-normal.log": "7a7ce0ab1043d1542a9b1322936e549233c6e744261861b4963e59816a85d6a4",
+    "config_probe.py": "8c70baa4edebe6549b2c315ed94e1b61b6fb006d35cec9888c5ecf3b716c42fc",
+    "normal.log": "cba257c7866c11253397dd6bc02bcb9014f0e45038662dcd7f70dfae331e7bd5",
+    "normal.xml": "504c20c9e561d8b6f093acd186b7388aeffe9640397ed17df571a6e234ff5205",
+    "oom-asan.log": "0fa7ecd2ce0af3582f162e73d39d44f9abcfcc92cb3254048ffe3b70662a65d9",
+    "oom-normal.log": "e04b15897277b995deeb5f5e2ad87b765b48d572b2b38b98044dc60ac28bde90",
+    "oom.c": "dcc67e8af41338570150488a221c7559fc059343f806a63223e4f379dbb04af5",
+    "oom_probe.py": "508f1aa23828484c5fa3d496732c5733d2d7ba474d0fd04bd02d92d083fde6d2",
+    "probe-asan.log": "8601f9a0d3932df9c288119aa5e0986402940cf1d9927941ee8485933c8c97b1",
+    "probe-normal.log": "a0bea337d0bab9bc49a496271df47cee8760e937a75af3a5987836610752bc7c",
+    "probe.py": "53ad15f05fc42a8d93f7ab7744ba83248ffe8174337f866cf64cd4295ca684bc",
+    "run_oom.py": "f9ed8a3d13d2361b56025acfd33a45ff678c0fe5bd1a7b4af33281b2db204bfb"
+  },
+  "documentation_sha256": "8c715b102769be0effa6c0c7d548b2f6740706ed76f4a993822b63d84dc6eb93"
+}
