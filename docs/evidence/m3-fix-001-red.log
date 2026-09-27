@@ -1,0 +1,42 @@
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /src/build/gateway
+[  4%] Built target recursant_config
+[  8%] Built target recursant_context
+[ 13%] Built target recursant_policy
+[ 17%] Built target recursant_selector
+[ 22%] Built target recursant_interpreter
+[ 26%] Built target test_egress
+[ 31%] Built target test_interpreter_alloc
+[ 35%] Built target test_config
+[ 40%] Built target recursant_auth
+[ 44%] Built target test_selector
+[ 48%] Built target recursant-validate
+[ 53%] Built target recursant_attempts
+[ 57%] Built target test_context
+[ 62%] Built target test_interpreter
+[ 66%] Built target recursant_admission
+[ 71%] Built target attempt_probe
+[ 82%] Built target recursant
+[ 86%] Built target test_attempts_internal
+[ 91%] Built target test_attempts
+[ 95%] Built target test_admission
+[100%] Built target recursant-tracer
+test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice) ... FAIL
+
+======================================================================
+FAIL: test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 223, in test_scoped_explicit_tool_exchange_invalidates_auto_advice
+    self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'physical' != 'frontier'
+- physical
++ frontier
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.780s
+
+FAILED (failures=1)

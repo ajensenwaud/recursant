@@ -1,0 +1,29 @@
+[  4%] Built target recursant_policy
+[  8%] Built target recursant_context
+[ 13%] Built target recursant_selector
+[ 17%] Built target recursant_config
+[ 22%] Built target test_interpreter_alloc
+[ 26%] Built target recursant_interpreter
+[ 31%] Built target test_egress
+[ 35%] Built target test_selector
+[ 40%] Built target test_context
+[ 44%] Built target test_config
+[ 48%] Built target recursant-validate
+[ 55%] Built target recursant_auth
+[ 57%] Built target test_interpreter
+[ 62%] Built target recursant_admission
+[ 68%] Built target test_attempts_internal
+[ 71%] Built target recursant_attempts
+[ 75%] Built target recursant-tracer
+[ 84%] Built target test_attempts
+[ 84%] Built target test_admission
+[ 86%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 91%] Built target attempt_probe
+[ 93%] Linking C executable recursant
+[100%] Built target recursant
+test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.783s
+
+OK

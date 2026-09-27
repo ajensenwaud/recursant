@@ -167,8 +167,11 @@ class GatewayContextTests(unittest.TestCase):
             self.turn(p, scope, 1, history)
             self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
             time.sleep(.2)
+            # Fill with unrelated, fully attributed physical requests: using
+            # this branch's explicit alias would now correctly pin/conflict.
             for n in range(2, 257):
-                self.assertEqual(self.request(p, headers=self.headers(scope, n))[0], 200)
+                self.assertEqual(self.request(p, headers=self.headers(
+                    {'task_id': 'filler', 'session_id': 'filler'}, n))[0], 200)
             history.append({'role': 'user', 'content': 'continue'})
             self.turn(p, scope, 999, history)
             self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
@@ -202,6 +205,178 @@ class GatewayContextTests(unittest.TestCase):
             self.turn(p, scope, 2, history)
             self.assertLess(time.monotonic() - start, .4)
             self.assertEqual([x for x in sink.seen if 'response_format' not in x[2]][-1][2]['model'], 'frontier')
+
+    def test_scoped_explicit_tool_exchange_invalidates_auto_advice(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+            self.turn(p, scope, 1, history)
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25)
+            sink.tool_response = True
+            code, data, _ = self.request(p, headers=self.headers(scope, 2), body={
+                'model': 'baseline', 'messages': history, 'max_tokens': 128})
+            self.assertEqual(code, 200, data)
+            self.assertEqual(json.loads(data)['choices'][0]['finish_reason'], 'tool_calls')
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+            sink.tool_response = False
+            history.append({'role': 'user', 'content': 'omit the tool exchange'})
+            self.turn(p, scope, 3, history)
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+
+    def test_scoped_explicit_policy_conflict_rejects_without_retargeting(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+            c['compliance'] = {'enabled': True, 'public_allowed': True}
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p)
+            code, _, _ = self.request(p, headers=self.headers(scope, 1), body={
+                'model': 'baseline', 'messages': [{'role': 'user', 'content': 'alice@example.com'}], 'max_tokens': 128})
+            self.assertEqual(code, 403)
+            self.assertEqual(sink.seen, [])
+
+    def test_shadow_optional_selector_veto_does_not_block_baseline(self):
+        def edit(c, s):
+            self.configure(c, s, 'shadow'); s.RequestHandlerClass = ContextSink
+            c['context']['candidates'][0]['context_limit'] = 1
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p)
+            body = {'model': 'auto', 'messages': [{'role': 'user', 'content': 'hello'}], 'max_tokens': 128}
+            self.assertEqual(self.request(p, body=body)[0], 200)
+            self.assertEqual(self.request(p, body=body, headers=self.headers(scope, 1))[0], 200)
+            self.assertEqual([x[2]['model'] for x in sink.seen], ['frontier', 'frontier'])
+
+    def test_known_workflow_missing_scope_cannot_bypass_private_pin(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+            self.turn(p, scope, 1, history)
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25); history.append({'role': 'user', 'content': 'continue'})
+            sink.tool_response = True
+            self.turn(p, scope, 2, history)
+            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+            sink.tool_response = False
+            history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'fixture output'})
+            before = len(sink.seen)
+            for model in ('auto', 'baseline', 'alias'):
+                for missing in (('generation',), ('branch',), ('generation', 'branch')):
+                    with self.subTest(model=model, missing=missing):
+                        headers = self.headers(scope, 3)
+                        for name in missing: del headers['X-Recursant-' + name]
+                        code, _, _ = self.request(p, headers=headers, body={
+                            'model': model, 'messages': history, 'max_tokens': 128})
+                        self.assertEqual(code, 403)
+                        self.assertEqual(len(sink.seen), before)
+            # Scope-free traffic truly unrelated to this registration stays M1/M2.
+            for headers in ({}, self.headers({'task_id': 'other', 'session_id': 'other'}, 4)):
+                self.assertEqual(self.request(p, headers=headers, body={
+                    'model': 'auto', 'messages': [{'role': 'user', 'content': 'unrelated'}]})[0], 200)
+                self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+
+    def test_explicit_replay_updates_history_and_consumes_prior_advice(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+            self.turn(p, scope, 1, history)
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25)
+            history.append({'role': 'user', 'content': 'explicit private turn'})
+            code, data, _ = self.request(p, headers=self.headers(scope, 2), body={
+                'model': 'alias', 'messages': history, 'max_tokens': 128})
+            self.assertEqual(code, 200, data)
+            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+            history.append(json.loads(data)['choices'][0]['message'])
+            history.append({'role': 'user', 'content': 'continue with full explicit exchange'})
+            self.turn(p, scope, 3, history)
+            # Full explicit history must be recognized, and old cheap advice
+            # must be consumed: otherwise either pin or stale advice yields physical.
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+            self.assertEqual(self.ingest(p, self.event(scope, 2, 2)), 409)
+
+    def test_explicit_pin_conflict_rejects_instead_of_rerouting(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink; s.tool_response = True
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p)
+            body = {'model': 'alias', 'messages': [{'role': 'user', 'content': 'start'}], 'max_tokens': 128}
+            self.assertEqual(self.request(p, headers=self.headers(scope, 1), body=body)[0], 200)
+            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+            sink.tool_response = False
+            self.assertEqual(self.request(p, headers=self.headers(scope, 2), body={**body, 'model': 'baseline'})[0], 403)
+            self.assertEqual(len(sink.seen), 1)
+            self.assertEqual(self.request(p, headers=self.headers(scope, 3), body=body)[0], 200)
+            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+
+    def test_shadow_privacy_authority_and_pin_conflict_still_apply(self):
+        for pinned in (False, True):
+            with self.subTest(pinned=pinned):
+                def edit(c, s):
+                    self.configure(c, s, 'shadow'); s.RequestHandlerClass = ContextSink
+                    s.tool_response = pinned
+                    c['compliance'] = {'enabled': True, 'public_allowed': True}
+                with self.router(edit) as (p, sink):
+                    scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+                    self.turn(p, scope, 1, history); sink.tool_response = False
+                    self.assertEqual(self.ingest(p, self.event(scope, 1, 1, 'format alice@example.com')), 202)
+                    time.sleep(.25); history.append({'role': 'user', 'content': 'continue'})
+                    before = len(sink.seen)
+                    code, _, _ = self.request(p, headers=self.headers(scope, 2), body={
+                        'model': 'auto', 'messages': history, 'max_tokens': 128})
+                    self.assertEqual(code, 403 if pinned else 200)
+                    if pinned: self.assertEqual(len(sink.seen), before)
+                    else: self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+
+    def test_missing_scope_ambiguous_registered_identity_is_not_joined(self):
+        with self.router(self.configure) as (p, sink):
+            self.open_scope(p)
+            self.assertEqual(self.request(p, path='/v1/context/open', source=True,
+                body={'task_id': 't', 'session_id': 's', 'branch': 'other'})[0], 201)
+            for identity in ({'task_id': 't', 'session_id': 's'}, {'task_id': 't'}, {'session_id': 's'}):
+                for model in ('auto', 'baseline'):
+                    self.assertEqual(self.request(p, headers=self.headers(identity, 1), body={
+                        'model': model, 'messages': [{'role': 'user', 'content': 'hello'}]})[0], 403)
+            self.assertEqual(sink.seen, [])
+
+    def test_scoped_explicit_inflight_exclusion_in_both_directions(self):
+        import threading
+        for first, second in (('auto', 'baseline'), ('baseline', 'auto'), ('baseline', 'baseline')):
+            with self.subTest(first=first, second=second):
+                def edit(c, s):
+                    self.configure(c, s); s.RequestHandlerClass = ContextSink; s.chat_delay = .3
+                with self.router(edit) as (p, sink):
+                    scope = self.open_scope(p); result = []
+                    body = {'model': first, 'messages': [{'role': 'user', 'content': 'start'}], 'max_tokens': 128}
+                    t = threading.Thread(target=lambda: result.append(self.request(p, headers=self.headers(scope, 1), body=body)[0]))
+                    t.start()
+                    try:
+                        for _ in range(100):
+                            if sink.seen: break
+                            time.sleep(.005)
+                        self.assertTrue(sink.seen)
+                        self.assertEqual(self.request(p, headers=self.headers(scope, 2), body={**body, 'model': second})[0], 409)
+                    finally: t.join()
+                    self.assertEqual(result, [200]); self.assertEqual(len(sink.seen), 1)
+
+    def test_private_source_authority_preserves_permitted_explicit_private_alias(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+            c['aliases'].append({'from': 'private-other', 'endpoint': 'private', 'model': 'private-other-physical'})
+            c['compliance'] = {'enabled': True, 'public_allowed': True}
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+            self.turn(p, scope, 1, history)
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1, 'format alice@example.com')), 202)
+            time.sleep(.25); history.append({'role': 'user', 'content': 'explicit private turn'})
+            before = len(sink.seen)
+            body = {'model': 'baseline', 'messages': history, 'max_tokens': 128}
+            self.assertEqual(self.request(p, headers=self.headers(scope, 2), body=body)[0], 403)
+            self.assertEqual(len(sink.seen), before)
+            self.assertEqual(self.request(p, headers=self.headers(scope, 3), body={**body, 'model': 'private-other'})[0], 200)
+            self.assertEqual(sink.seen[-1][2]['model'], 'private-other-physical')
 
     def test_shadow_and_explicit_aliases_keep_actual_destination(self):
         def edit(c, s):

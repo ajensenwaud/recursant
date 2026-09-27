@@ -248,7 +248,12 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
     if(g->rows_used==RC_ATTEMPT_MAX_ROWS||h->invocation.invalid||h->invocation.mask!=31)rc_attempt_lost(g->ledger);
-    if(automatic&&(h->generation[0]||h->branch[0]||h->invalid)) {
+    if(!h->generation[0]&&!h->branch[0]){
+        /* Diagnostic identity is only a loss fence, never a fallback join.
+         * Even a partial match may denote a registered workflow/branch. */
+        for(size_t i=0;i<g->used;i++)if(!strcmp(g->scopes[i].task,h->invocation.values[0])||!strcmp(g->scopes[i].session,h->invocation.values[1])){status=403;goto done;}
+    }
+    if(h->generation[0]||h->branch[0]||h->invalid) {
         int slot=scope_find(g,h->generation,h->branch);
         if(h->invalid||slot<0){status=403;goto done;}
         s=&g->scopes[slot];
@@ -256,8 +261,8 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(s->inflight){status=409;goto done;}
         ticket->scope=slot;
         if(!replayable(s,body))s->pinned=true;
-        if(s->pinned&&s->owner){*endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}}
-        else {
+        if(automatic&&s->pinned&&s->owner){*endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}}
+        else if(automatic) {
             rc_context_snapshot snapshot;bool usable=rc_context_get(g->contexts,&s->key,now,&snapshot)==RC_CONTEXT_OK&&snapshot.has_interpretation&&snapshot.revision==s->interpretation.revision&&exact(g,s->evidence_row,now)&&s->evidence_row==s->last_row;
             for(size_t i=0;i<g->rows_used;i++)if(same_headers(&h->invocation,&g->rows[i].headers))usable=false;
             char *wire=json_dumps(body,JSON_COMPACT);uint64_t tokens=wire?strlen(wire):0;free(wire);
@@ -277,18 +282,32 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             /* A baseline placement veto belongs to final M2, not to inferred
              * context. Do not ask the downshift selector to invent recovery. */
             rc_selection selected={.alias_index=g->baseline};
-            if(baseline_permitted&&rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK){status=403;goto done;}
+            /* Shadow proposal failure has no dispatch authority. Mandatory
+             * scope continuity and final M2 below apply in either mode. */
+            if(baseline_permitted&&rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
         }
     }
+    /* Explicit scoped aliases are never silently retargeted by authority.
+     * Run final M2, then reject a conflict instead of changing the alias. */
+    rc_endpoint requested_endpoint=*endpoint;char requested_model[129]={0};
+    if(s&&!automatic){
+        const char *requested=json_string_value(json_object_get(body,"model"));
+        if(!requested||strlen(requested)>128){status=403;goto done;}
+        strcpy(requested_model,requested);
+    }
     if(s&&s->private_only){
-        *endpoint=RC_ENDPOINT_PRIVATE;
-        if(json_object_set_new(body,"model",json_string(rt->config.private_model))){status=500;goto done;}
+        if(!automatic){if(*endpoint!=RC_ENDPOINT_PRIVATE){status=403;goto done;}}
+        else {
+            *endpoint=RC_ENDPOINT_PRIVATE;
+            if(json_object_set_new(body,"model",json_string(rt->config.private_model))){status=500;goto done;}
+        }
     }
     if(rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)){status=403;goto done;}
     const char *model=json_string_value(json_object_get(body,"model"));
     if(s){
         if(!model||strlen(model)>128){status=403;goto done;}
+        if(!automatic&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
         if(s->pinned&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
         s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;
         if(s->pinned){json_decref(s->history);s->history=NULL;}

@@ -1,0 +1,15 @@
+test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting) ... FAIL
+
+======================================================================
+FAIL: test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 233, in test_scoped_explicit_policy_conflict_rejects_without_retargeting
+    self.assertEqual(code, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: 200 != 403
+
+----------------------------------------------------------------------
+Ran 1 test in 0.526s
+
+FAILED (failures=1)

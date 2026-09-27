@@ -1,0 +1,138 @@
+-- Configuring done (0.2s)
+-- Generating done (0.2s)
+-- Build files have been written to: /src/build/gateway
+[  4%] Built target recursant_config
+[  8%] Built target recursant_context
+[ 13%] Built target recursant_policy
+[ 17%] Built target recursant_selector
+[ 22%] Built target recursant_interpreter
+[ 26%] Built target test_interpreter_alloc
+[ 31%] Built target test_context
+[ 35%] Built target test_egress
+[ 40%] Built target test_config
+[ 44%] Built target test_interpreter
+[ 48%] Built target recursant_auth
+[ 53%] Built target test_selector
+[ 57%] Built target recursant-validate
+[ 62%] Built target recursant_admission
+[ 66%] Built target recursant_attempts
+[ 71%] Built target test_attempts_internal
+[ 75%] Built target test_admission
+[ 80%] Built target test_attempts
+[ 91%] Built target recursant-tracer
+[ 95%] Built target recursant
+[100%] Built target attempt_probe
+Test project /src/build/gateway
+      Start  1: selector_unit
+ 1/17 Test  #1: selector_unit ....................   Passed    0.00 sec
+      Start  2: attempts_unit
+ 2/17 Test  #2: attempts_unit ....................   Passed    0.00 sec
+      Start  3: attempts_overflow
+ 3/17 Test  #3: attempts_overflow ................   Passed    0.00 sec
+      Start  4: interpreter_alloc
+ 4/17 Test  #4: interpreter_alloc ................   Passed    0.04 sec
+      Start  5: context_unit
+ 5/17 Test  #5: context_unit .....................   Passed    0.00 sec
+      Start  6: egress_policy
+ 6/17 Test  #6: egress_policy ....................   Passed    0.00 sec
+      Start  7: config_strict
+ 7/17 Test  #7: config_strict ....................   Passed    0.00 sec
+      Start  8: admission_unit
+ 8/17 Test  #8: admission_unit ...................   Passed    0.00 sec
+      Start  9: interpreter_loopback
+ 9/17 Test  #9: interpreter_loopback .............   Passed   10.44 sec
+      Start 10: gateway_context_integration
+10/17 Test #10: gateway_context_integration ......   Passed   22.92 sec
+      Start 11: hermes_observer
+11/17 Test #11: hermes_observer ..................   Passed    0.11 sec
+      Start 12: compliance_integration
+12/17 Test #12: compliance_integration ...........   Passed   19.75 sec
+      Start 13: router_integration
+13/17 Test #13: router_integration ...............   Passed   23.73 sec
+      Start 14: transport_integration
+14/17 Test #14: transport_integration ............   Passed    1.49 sec
+      Start 15: admission_integration
+15/17 Test #15: admission_integration ............   Passed    0.34 sec
+      Start 16: trajectory_reference
+16/17 Test #16: trajectory_reference .............   Passed    3.59 sec
+      Start 17: accounting
+17/17 Test #17: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 17
+
+Total Test time (real) =  82.54 sec
+test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok
+test_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok
+test_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok
+test_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok
+test_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok
+test_expiry_feed_loss_and_invalid_interpreter_retain_baseline (test_gateway_context.GatewayContextTests.test_expiry_feed_loss_and_invalid_interpreter_retain_baseline) ... ok
+test_explicit_pin_conflict_rejects_instead_of_rerouting (test_gateway_context.GatewayContextTests.test_explicit_pin_conflict_rejects_instead_of_rerouting) ... ok
+test_explicit_replay_updates_history_and_consumes_prior_advice (test_gateway_context.GatewayContextTests.test_explicit_replay_updates_history_and_consumes_prior_advice) ... ok
+test_full_attempt_ledger_cannot_downshift_on_last_snapshot (test_gateway_context.GatewayContextTests.test_full_attempt_ledger_cannot_downshift_on_last_snapshot) ... ok
+test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) ... ok
+test_live_interpreter_downshift_and_changed_action_escalates (test_gateway_context.GatewayContextTests.test_live_interpreter_downshift_and_changed_action_escalates) ... ok
+test_missing_scope_ambiguous_registered_identity_is_not_joined (test_gateway_context.GatewayContextTests.test_missing_scope_ambiguous_registered_identity_is_not_joined) ... ok
+test_pin_survives_lost_feed_and_policy_conflict_blocks (test_gateway_context.GatewayContextTests.test_pin_survives_lost_feed_and_policy_conflict_blocks) ... ok
+test_private_source_authority_preserves_permitted_explicit_private_alias (test_gateway_context.GatewayContextTests.test_private_source_authority_preserves_permitted_explicit_private_alias) ... ok
+test_registration_cannot_reset_live_continuity (test_gateway_context.GatewayContextTests.test_registration_cannot_reset_live_continuity) ... ok
+test_rejected_new_source_revision_revokes_old_advice (test_gateway_context.GatewayContextTests.test_rejected_new_source_revision_revokes_old_advice) ... ok
+test_scoped_explicit_inflight_exclusion_in_both_directions (test_gateway_context.GatewayContextTests.test_scoped_explicit_inflight_exclusion_in_both_directions) ... ok
+test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting) ... ok
+test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice) ... ok
+test_scoped_generation_cannot_dispatch_concurrently (test_gateway_context.GatewayContextTests.test_scoped_generation_cannot_dispatch_concurrently) ... ok
+test_selector_quotes_recheck_concrete_candidate_m2_eligibility (test_gateway_context.GatewayContextTests.test_selector_quotes_recheck_concrete_candidate_m2_eligibility) ... ok
+test_sensitive_source_cannot_send_derived_selection_public (test_gateway_context.GatewayContextTests.test_sensitive_source_cannot_send_derived_selection_public) ... ok
+test_shadow_and_explicit_aliases_keep_actual_destination (test_gateway_context.GatewayContextTests.test_shadow_and_explicit_aliases_keep_actual_destination) ... ok
+test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline) ... ok
+test_shadow_privacy_authority_and_pin_conflict_still_apply (test_gateway_context.GatewayContextTests.test_shadow_privacy_authority_and_pin_conflict_still_apply) ... ok
+test_source_auth_replay_foreign_scope_and_schemas (test_gateway_context.GatewayContextTests.test_source_auth_replay_foreign_scope_and_schemas) ... ok
+test_strict_context_configuration (test_gateway_context.GatewayContextTests.test_strict_context_configuration) ... ok
+test_tool_exchange_is_pinned_even_if_caller_removes_tools (test_gateway_context.GatewayContextTests.test_tool_exchange_is_pinned_even_if_caller_removes_tools) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 22.783s
+
+OK
+{
+  "explicit_tool_exchange": {
+    "explicit_status": 200,
+    "tool_reply": {
+      "choices": [
+        {
+          "index": 0,
+          "finish_reason": "tool_calls",
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call-1",
+                "type": "function",
+                "function": {
+                  "name": "f",
+                  "arguments": "{}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "subsequent_auto_model": "frontier"
+  },
+  "shadow_candidate_veto": {
+    "unassociated_status": 200,
+    "associated_status": 200,
+    "physical_dispatches": 2
+  },
+  "shadow_source_placement": {
+    "first_model": "frontier",
+    "second_model": "physical"
+  },
+  "client_reset": {
+    "next_status": 200,
+    "next_model": "frontier"
+  }
+}
+{"provider": "synthetic loopback", "owner": "physical", "next_status": 403, "next_model": "physical"}

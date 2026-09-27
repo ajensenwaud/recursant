@@ -1,0 +1,29 @@
+[  8%] Built target recursant_context
+[  8%] Built target recursant_policy
+[ 13%] Built target recursant_selector
+[ 17%] Built target recursant_config
+[ 22%] Built target test_interpreter_alloc
+[ 26%] Built target recursant_interpreter
+[ 31%] Built target test_context
+[ 35%] Built target test_egress
+[ 40%] Built target recursant_auth
+[ 44%] Built target recursant-validate
+[ 48%] Built target test_config
+[ 53%] Built target test_selector
+[ 57%] Built target test_interpreter
+[ 62%] Built target recursant_admission
+[ 66%] Built target recursant_attempts
+[ 71%] Built target test_attempts_internal
+[ 75%] Built target recursant-tracer
+[ 80%] Built target test_attempts
+[ 84%] Built target test_admission
+[ 86%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 91%] Built target attempt_probe
+[ 93%] Linking C executable recursant
+[100%] Built target recursant
+test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.529s
+
+OK

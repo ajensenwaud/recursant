@@ -1,0 +1,15 @@
+test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline) ... FAIL
+
+======================================================================
+FAIL: test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 244, in test_shadow_optional_selector_veto_does_not_block_baseline
+    self.assertEqual(self.request(p, body=body, headers=self.headers(scope, 1))[0], 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 403 != 200
+
+----------------------------------------------------------------------
+Ran 1 test in 0.526s
+
+FAILED (failures=1)

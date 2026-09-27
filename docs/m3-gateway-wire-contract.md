@@ -1,9 +1,7 @@
-# M3 gateway wire contract (review blockers open; not Hermes proof)
+# M3 gateway wire contract (fixes awaiting independent re-review)
 
-Parent frozen-snapshot review identified explicit-scoped continuity bypass and
-shadow-selector dispatch veto blockers. The author commit is for fresh-agent
-fix/review, not production landing. See `docs/evidence/m3-gateway-review.json`
-in the parent main checkout.
+Gateway review defects 001/002/003 have regression-tested fixes in this worktree.
+See `evidence/m3-gateway-fixes.md`. This is not native Hermes or production proof.
 
 One C binary, same HTTP listener, opt-in context configuration. One existing
 inference bearer identifies the one configured project. Config `context.tenant`
@@ -36,7 +34,7 @@ are not recycled. Exporter stores this registration, not an inferred timestamp
 join. After gateway restart a new open and fresh physical inference are required;
 old events cannot attach to new boot state.
 
-Associated chat requests use model `context.auto_alias` plus these headers:
+Associated chat requests (automatic or explicit alias) carry these headers:
 
 ```
 X-Recursant-generation: <returned generation>
@@ -56,9 +54,22 @@ IDs are opaque printable ASCII without spaces, <=128 bytes; task/session/branch
 registration is restricted to <=63 bytes. Generation/branch bind only within the
 single authenticated principal. No `_recursant` body metadata is required.
 
-Missing association on an automatic request uses baseline, never cheaper advice.
-Unknown generation or conflicting association is denied. Explicit aliases stay
-explicit; their physical attempts are still counted when context is enabled.
+Truly unassociated automatic requests use baseline, never cheaper advice.
+Unknown, partial, duplicate generation/branch or conflicting scope is denied403
+in either selection mode. If both scope tags disappear but task OR session matches
+a registration, reject403: diagnostic identity is a loss fence, NEVER a fallback
+join, including when multiple branches match. Requests with no scope tags and no
+registered task/session match retain baseline M1/M2 behavior. Complete removal of
+all identity is indistinguishable from unrelated traffic; no identity is guessed.
+
+Explicit associated aliases remain explicit, bypassing optional semantic selection
+but NOT inflight409, replay history, pinning, physical completion or advice
+invalidation. Every accepted associated request advances the branch last attempt,
+so old advice (including a late worker completion) cannot apply to the next turn.
+An explicit destination conflicting with the mandatory pin or M2 placement is
+rejected403, not silently retargeted. Permitted private aliases remain explicit
+even under inherited private-only source authority. Unassociated explicit M1/M2
+behavior is unchanged. No new headers, schemas or exporter endpoints are added.
 
 ## Source HTTP ingestion
 
@@ -122,6 +133,16 @@ user text. Tools, opaque provider state, stream, truncation, failures or history
 mismatch permanently pin the branch. No source `replayable=true` is accepted.
 An in-flight generation blocks concurrent branch dispatch. Final M2 may force
 private; if that conflicts with an existing pin, block rather than switch.
+
+## Shadow authority exception
+
+Shadow semantic proposals cannot change baseline acceptance or destination; an
+optional selector veto (for example candidate context capacity) is not a dispatch
+veto. Mandatory continuity and final deterministic M2 still apply. Sensitivity
+inherited from authenticated source text is persistent M2-derived authority, NOT
+optional interpretation: even shadow may move an automatic request private or
+reject a pin conflict. Scoped explicit aliases conflicting with that authority
+are rejected. This exception must not be weakened to make shadow look unchanged.
 
 ## Configuration and bounds
 

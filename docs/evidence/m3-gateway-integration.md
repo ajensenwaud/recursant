@@ -1,5 +1,9 @@
 # M3 gateway integration: bounded nonstreaming subset
 
+Historical author evidence below describes `219a6bf`. The subsequent fresh-context
+review fixes and current verification are in [m3-gateway-fixes.md](m3-gateway-fixes.md);
+they supersede the open-blocker status below, pending independent re-review.
+
 ## Result and limits
 
 The actual `recursant` binary now connects authenticated source ingestion, the

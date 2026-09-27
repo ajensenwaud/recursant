@@ -60,7 +60,7 @@ Add an explicit opt-in automatic route while preserving explicit model selection
 
 Ranking considers expected task cost, including conversation replay, known cache discounts, extra attempts and interpreter overhead. Distinguish measured cache residency from affinity estimates and unknowns. Initially use a frozen calibrated selector with switching hysteresis; no autonomous policy training. Missing useful context retains the configured baseline/pin.
 
-Modes: disabled creates no observation listener/worker; shadow computes proposals without changing actual dispatch; active permits validated context to affect eligible next-step selection.
+Modes: disabled creates no observation listener/worker; shadow computes optional semantic proposals without changing baseline acceptance or destination; active permits validated context to affect eligible next-step selection. Mandatory authoritative continuity and deterministic M2 remain enforced in shadow. Sensitivity inherited from authenticated source text is persistent M2-derived placement authority, not a semantic proposal: it can force automatic private routing or reject a pin/explicit-alias conflict even in shadow. Optional selector vetoes cannot veto baseline dispatch.
 
 ## Delivery gates
 

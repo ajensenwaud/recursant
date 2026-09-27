@@ -1,0 +1,109 @@
+[  6%] Built target recursant_context
+[  8%] Built target recursant_config
+[ 17%] Built target recursant_policy
+[ 17%] Built target recursant_selector
+[ 22%] Built target test_interpreter_alloc
+[ 26%] Built target recursant_interpreter
+[ 31%] Built target test_egress
+[ 35%] Built target test_context
+[ 40%] Built target recursant_auth
+[ 44%] Built target test_config
+[ 48%] Built target recursant-validate
+[ 53%] Built target test_interpreter
+[ 57%] Built target test_selector
+[ 62%] Built target recursant_admission
+[ 66%] Built target recursant_attempts
+[ 71%] Built target test_attempts_internal
+[ 75%] Built target test_admission
+[ 80%] Built target recursant-tracer
+[ 84%] Built target test_attempts
+[ 86%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 91%] Built target attempt_probe
+[ 93%] Linking C executable recursant
+[100%] Built target recursant
+test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.782s
+
+OK
+Test project /src/build/gateway
+      Start  1: selector_unit
+ 1/17 Test  #1: selector_unit ....................   Passed    0.00 sec
+      Start  2: attempts_unit
+ 2/17 Test  #2: attempts_unit ....................   Passed    0.01 sec
+      Start  3: attempts_overflow
+ 3/17 Test  #3: attempts_overflow ................   Passed    0.00 sec
+      Start  4: interpreter_alloc
+ 4/17 Test  #4: interpreter_alloc ................   Passed    0.04 sec
+      Start  5: context_unit
+ 5/17 Test  #5: context_unit .....................   Passed    0.00 sec
+      Start  6: egress_policy
+ 6/17 Test  #6: egress_policy ....................   Passed    0.00 sec
+      Start  7: config_strict
+ 7/17 Test  #7: config_strict ....................   Passed    0.00 sec
+      Start  8: admission_unit
+ 8/17 Test  #8: admission_unit ...................   Passed    0.00 sec
+      Start  9: interpreter_loopback
+ 9/17 Test  #9: interpreter_loopback .............   Passed   10.46 sec
+      Start 10: gateway_context_integration
+10/17 Test #10: gateway_context_integration ......***Failed   16.05 sec
+test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok
+test_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok
+test_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok
+test_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok
+test_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok
+test_expiry_feed_loss_and_invalid_interpreter_retain_baseline (test_gateway_context.GatewayContextTests.test_expiry_feed_loss_and_invalid_interpreter_retain_baseline) ... ok
+test_full_attempt_ledger_cannot_downshift_on_last_snapshot (test_gateway_context.GatewayContextTests.test_full_attempt_ledger_cannot_downshift_on_last_snapshot) ... FAIL
+test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) ... ok
+test_live_interpreter_downshift_and_changed_action_escalates (test_gateway_context.GatewayContextTests.test_live_interpreter_downshift_and_changed_action_escalates) ... ok
+test_pin_survives_lost_feed_and_policy_conflict_blocks (test_gateway_context.GatewayContextTests.test_pin_survives_lost_feed_and_policy_conflict_blocks) ... ok
+test_registration_cannot_reset_live_continuity (test_gateway_context.GatewayContextTests.test_registration_cannot_reset_live_continuity) ... ok
+test_rejected_new_source_revision_revokes_old_advice (test_gateway_context.GatewayContextTests.test_rejected_new_source_revision_revokes_old_advice) ... ok
+test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting) ... ok
+test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice) ... ok
+test_scoped_generation_cannot_dispatch_concurrently (test_gateway_context.GatewayContextTests.test_scoped_generation_cannot_dispatch_concurrently) ... ok
+test_selector_quotes_recheck_concrete_candidate_m2_eligibility (test_gateway_context.GatewayContextTests.test_selector_quotes_recheck_concrete_candidate_m2_eligibility) ... ok
+test_sensitive_source_cannot_send_derived_selection_public (test_gateway_context.GatewayContextTests.test_sensitive_source_cannot_send_derived_selection_public) ... ok
+test_shadow_and_explicit_aliases_keep_actual_destination (test_gateway_context.GatewayContextTests.test_shadow_and_explicit_aliases_keep_actual_destination) ... ok
+test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline) ... ok
+test_source_auth_replay_foreign_scope_and_schemas (test_gateway_context.GatewayContextTests.test_source_auth_replay_foreign_scope_and_schemas) ... ok
+test_strict_context_configuration (test_gateway_context.GatewayContextTests.test_strict_context_configuration) ... ok
+test_tool_exchange_is_pinned_even_if_caller_removes_tools (test_gateway_context.GatewayContextTests.test_tool_exchange_is_pinned_even_if_caller_removes_tools) ... ok
+
+======================================================================
+FAIL: test_full_attempt_ledger_cannot_downshift_on_last_snapshot (test_gateway_context.GatewayContextTests.test_full_attempt_ledger_cannot_downshift_on_last_snapshot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 171, in test_full_attempt_ledger_cannot_downshift_on_last_snapshot
+    self.assertEqual(self.request(p, headers=self.headers(scope, n))[0], 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 403 != 200
+
+----------------------------------------------------------------------
+Ran 22 tests in 15.943s
+
+FAILED (failures=1)
+
+      Start 11: hermes_observer
+11/17 Test #11: hermes_observer ..................   Passed    0.12 sec
+      Start 12: compliance_integration
+12/17 Test #12: compliance_integration ...........   Passed   19.75 sec
+      Start 13: router_integration
+13/17 Test #13: router_integration ...............   Passed   23.31 sec
+      Start 14: transport_integration
+14/17 Test #14: transport_integration ............   Passed    1.47 sec
+      Start 15: admission_integration
+15/17 Test #15: admission_integration ............   Passed    0.35 sec
+      Start 16: trajectory_reference
+16/17 Test #16: trajectory_reference .............   Passed    3.55 sec
+      Start 17: accounting
+17/17 Test #17: accounting .......................   Passed    0.11 sec
+
+94% tests passed, 1 tests failed out of 17
+
+Total Test time (real) =  75.23 sec
+
+The following tests FAILED:
+	 10 - gateway_context_integration (Failed)
+Errors while running CTest

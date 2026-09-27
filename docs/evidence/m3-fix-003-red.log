@@ -1,0 +1,76 @@
+test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) ... 
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='auto', missing=('generation', 'branch')) ... FAIL
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='baseline', missing=('generation',)) ... FAIL
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='baseline', missing=('branch',)) ... FAIL
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='baseline', missing=('generation', 'branch')) ... FAIL
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='alias', missing=('generation',)) ... FAIL
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='alias', missing=('branch',)) ... FAIL
+  test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='alias', missing=('generation', 'branch')) ... FAIL
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='auto', missing=('generation', 'branch'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 268, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(code, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: 200 != 403
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='baseline', missing=('generation',))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 269, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(len(sink.seen), before)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 4 != 3
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='baseline', missing=('branch',))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 269, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(len(sink.seen), before)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 4 != 3
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='baseline', missing=('generation', 'branch'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 268, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(code, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: 200 != 403
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='alias', missing=('generation',))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 269, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(len(sink.seen), before)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 5 != 3
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='alias', missing=('branch',))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 269, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(len(sink.seen), before)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 5 != 3
+
+======================================================================
+FAIL: test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) (model='alias', missing=('generation', 'branch'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 268, in test_known_workflow_missing_scope_cannot_bypass_private_pin
+    self.assertEqual(code, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: 200 != 403
+
+----------------------------------------------------------------------
+Ran 1 test in 0.787s
+
+FAILED (failures=7)

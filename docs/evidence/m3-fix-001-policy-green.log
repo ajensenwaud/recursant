@@ -1,0 +1,29 @@
+[  4%] Built target recursant_context
+[  8%] Built target recursant_policy
+[ 13%] Built target recursant_config
+[ 17%] Built target recursant_selector
+[ 22%] Built target recursant_interpreter
+[ 31%] Built target test_context
+[ 31%] Built target test_interpreter_alloc
+[ 35%] Built target test_egress
+[ 40%] Built target test_config
+[ 44%] Built target recursant_auth
+[ 48%] Built target recursant-validate
+[ 53%] Built target test_interpreter
+[ 57%] Built target recursant_attempts
+[ 62%] Built target test_attempts_internal
+[ 66%] Built target test_selector
+[ 71%] Built target recursant_admission
+[ 73%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 77%] Built target attempt_probe
+[ 82%] Built target test_attempts
+[ 86%] Built target recursant-tracer
+[ 91%] Built target test_admission
+[ 93%] Linking C executable recursant
+[100%] Built target recursant
+test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.503s
+
+OK

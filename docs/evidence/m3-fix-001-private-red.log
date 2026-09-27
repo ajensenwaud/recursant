@@ -1,0 +1,15 @@
+test_private_source_authority_preserves_permitted_explicit_private_alias (test_gateway_context.GatewayContextTests.test_private_source_authority_preserves_permitted_explicit_private_alias) ... FAIL
+
+======================================================================
+FAIL: test_private_source_authority_preserves_permitted_explicit_private_alias (test_gateway_context.GatewayContextTests.test_private_source_authority_preserves_permitted_explicit_private_alias)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 378, in test_private_source_authority_preserves_permitted_explicit_private_alias
+    self.assertEqual(self.request(p, headers=self.headers(scope, 3), body={**body, 'model': 'private-other'})[0], 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 403 != 200
+
+----------------------------------------------------------------------
+Ran 1 test in 0.528s
+
+FAILED (failures=1)
