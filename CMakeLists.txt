@@ -56,8 +56,8 @@ if(INTERPRETER_DEPS_FOUND)
 endif()
 pkg_check_modules(ROUTER_DEPS IMPORTED_TARGET libmicrohttpd libcurl jansson libpcre2-8)
 if(ROUTER_DEPS_FOUND)
-  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c)
-  target_link_libraries(recursant PRIVATE recursant_config Threads::Threads PkgConfig::ROUTER_DEPS)
+  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/context/gateway_context.c)
+  target_link_libraries(recursant PRIVATE recursant_config recursant_selector recursant_context recursant_attempts recursant_interpreter Threads::Threads PkgConfig::ROUTER_DEPS)
   target_compile_options(recursant PRIVATE -Wall -Wextra -Wpedantic -Werror)
 else()
   message(STATUS "router dependencies (libmicrohttpd/libcurl/jansson/pcre2) not found: "
@@ -147,6 +147,10 @@ if(BUILD_TESTING)
         ENVIRONMENT "INTERPRETER_BIN=$<TARGET_FILE:test_interpreter>;PYTHONDONTWRITEBYTECODE=1")
     endif()
     if(ROUTER_DEPS_FOUND)
+      add_test(NAME gateway_context_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_context.py -v)
+      set_tests_properties(gateway_context_integration PROPERTIES TIMEOUT 120
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME hermes_observer
                COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
                        ${CMAKE_SOURCE_DIR}/deploy/hermes -p "test_*.py" -v)

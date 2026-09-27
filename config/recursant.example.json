@@ -16,6 +16,7 @@
     "max_connections": 16,
     "request_timeout_seconds": 120
   },
+  "context": {"mode": "disabled"},
   "compliance": {
     "enabled": true,
     "public_allowed": true,

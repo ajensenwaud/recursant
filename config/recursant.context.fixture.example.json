@@ -1,0 +1,24 @@
+{
+  "listen": {"host": "127.0.0.1", "port": 8080},
+  "private": {"url": "http://127.0.0.1:18081/v1", "model": "physical"},
+  "public": {"url": "http://127.0.0.1:18082/v1", "api_key_env": "RC_FIXTURE_INFERENCE_KEY"},
+  "auth": {"api_key_env": "RC_FIXTURE_INFERENCE_KEY"},
+  "aliases": [
+    {"from": "baseline", "endpoint": "public", "model": "frontier"},
+    {"from": "cheap", "endpoint": "private", "model": "physical"}
+  ],
+  "context": {
+    "mode": "shadow",
+    "tenant": "fixture-only",
+    "project": "one-project",
+    "source_key_env": "RC_FIXTURE_SOURCE_KEY",
+    "auto_alias": "auto",
+    "baseline_alias": "baseline",
+    "ttl_ms": 2000,
+    "candidates": [
+      {"alias": "baseline", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000, "expected_task_cost": 10.0},
+      {"alias": "cheap", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000, "expected_task_cost": 1.0}
+    ]
+  },
+  "compliance": {"enabled": true, "public_allowed": true}
+}

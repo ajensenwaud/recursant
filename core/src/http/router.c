@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "recursant/runtime.h"
+#include "recursant/gateway_context.h"
 #include "recursant/classifier.h"
 #include <microhttpd.h>
 #include <curl/curl.h>
@@ -27,6 +28,8 @@ typedef struct {
     long status; char *payload; rc_endpoint endpoint;
     int downstream_fd; /* Owned duplicate; valid until worker has joined. */
     struct timespec deadline;
+    rc_gateway_ticket ticket;
+    char observation[65536];size_t observed;bool observation_overflow;
 } request;
 static void stop_server(int sig){(void)sig;stopping=1;}
 static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char *text,const char *type){
@@ -62,6 +65,10 @@ static size_t receive(char *data,size_t size,size_t nmemb,void *ctx){
     request *r=ctx;size_t n=size*nmemb,offset=0;
     pthread_mutex_lock(&r->lock);
     if(r->status<200||r->status>=300){pthread_mutex_unlock(&r->lock);return 0;}
+    if(r->ticket.begun&&r->ticket.scope>=0){
+        if(n>sizeof r->observation-r->observed)r->observation_overflow=true;
+        else if(!r->observation_overflow){memcpy(r->observation+r->observed,data,n);r->observed+=n;}
+    }
     while(offset<n&&!r->cancel){
         while(r->count==QUEUE_SIZE&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
         if(r->cancel)break;
@@ -106,16 +113,22 @@ static ssize_t read_response(void *ctx,uint64_t pos,char *buf,size_t max){
     memcpy(buf,r->queue+r->head,n);r->head=(r->head+n)%QUEUE_SIZE;r->count-=n;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);return (ssize_t)n;
 }
 static void completed(void *ctx,struct MHD_Connection *c,void **con_cls,enum MHD_RequestTerminationCode code){
-    (void)ctx;(void)c;(void)code;request *r=*con_cls;if(!r)return;
+    (void)ctx;(void)c;request *r=*con_cls;if(!r)return;
+    pthread_mutex_lock(&r->lock);bool complete=code==MHD_REQUEST_TERMINATED_COMPLETED_OK&&r->started&&r->done&&!r->failed&&!r->cancel&&r->status>=200&&r->status<300&&r->count==0;pthread_mutex_unlock(&r->lock);
     pthread_mutex_lock(&r->lock);r->cancel=true;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);
     if(r->started)pthread_join(r->worker,NULL);
+    rc_gateway_finish(r->runtime,&r->ticket,complete,r->sse,r->observation_overflow?NULL:r->observation,r->observed);
     if(r->downstream_fd>=0)close(r->downstream_fd);
     pthread_mutex_destroy(&r->lock);pthread_cond_destroy(&r->changed);free(r->body);free(r->payload);free(r);*con_cls=NULL;
 }
 static bool route(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const char **physical){
+    if(rc_gateway_auto(rt,model,endpoint,physical))return true;
     for(size_t i=0;i<rt->config.alias_count;i++){rc_alias *a=&rt->config.aliases[i];if(!strcmp(model,a->from)||!strcmp(model,a->model)){*endpoint=a->endpoint;*physical=a->model;return true;}}
     if(!strcmp(model,rt->config.private_model)){*endpoint=RC_ENDPOINT_PRIVATE;*physical=rt->config.private_model;return true;}
     if(rt->config.public_model&&!strcmp(model,rt->config.public_model)){*endpoint=RC_ENDPOINT_PUBLIC;*physical=rt->config.public_model;return true;}return false;
+}
+static enum MHD_Result collect_header(void *ctx,enum MHD_ValueKind kind,const char *key,const char *value){
+    (void)kind;rc_gateway_header(ctx,key,value);return MHD_YES;
 }
 static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url,const char *method,const char *version,const char *upload,size_t *upload_size,void **con_cls){
     (void)version;rc_runtime *rt=ctx;request *r=*con_cls;
@@ -125,7 +138,9 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(now.tv_sec>r->deadline.tv_sec || (now.tv_sec==r->deadline.tv_sec && now.tv_nsec>=r->deadline.tv_nsec))return MHD_NO;
     const char *auth=MHD_lookup_connection_value(c,MHD_HEADER_KIND,"Authorization");
     bool health=!strcmp(url,"/healthz")&&!strcmp(method,"GET");
-    if(!health && (!auth||strncmp(auth,"Bearer ",7)||strcmp(auth+7,rt->auth_key)))r->rejection=401;
+    bool context_path=rt->gateway&&(!strcmp(url,"/v1/context")||!strcmp(url,"/v1/context/open"));
+    const char *expected=context_path?rt->source_key:rt->auth_key;
+    if(!health && (!auth||!expected||strncmp(auth,"Bearer ",7)||strcmp(auth+7,expected)))r->rejection=401;
     if(*upload_size){
         if(*upload_size>rt->max_body_bytes-r->used)r->rejection=413;
         if(!r->rejection){char *b=realloc(r->body,r->used+*upload_size+1);if(!b)return MHD_NO;r->body=b;memcpy(b+r->used,upload,*upload_size);r->used+=*upload_size;b[r->used]=0;}
@@ -147,14 +162,24 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
         if(!s)return error_reply(c,500);
         enum MHD_Result result=reply(c,200,s,"application/json");free(s);return result;
     }
+    if((!strcmp(url,"/v1/context/open")||!strcmp(url,"/v1/context"))&&!strcmp(method,"POST")){
+        r->replied=true;json_error_t error;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&error),*out=NULL;
+        unsigned status=rc_gateway_event(rt,url,body,&out);json_decref(body);
+        char *text=out?json_dumps(out,JSON_COMPACT):NULL;json_decref(out);
+        enum MHD_Result result=text?reply(c,status,text,"application/json"):error_reply(c,status);free(text);return result;
+    }
     if(strcmp(url,"/v1/chat/completions")||strcmp(method,"POST")){r->replied=true;return error_reply(c,404);}
     r->replied=true;json_error_t je;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&je);
     json_t *m=json_object_get(body,"model");const char *model=json_string_value(m),*physical=NULL;
     if(!json_is_object(body)||!model||strlen(model)!=json_string_length(m)||!route(rt,model,&r->endpoint,&physical)){json_decref(body);return error_reply(c,400);}
+    rc_endpoint ignored;const char *ignored_model;bool automatic=rc_gateway_auto(rt,model,&ignored,&ignored_model);
     json_t *rewritten=json_string(physical);
     if(!rewritten || json_object_set_new(body,"model",rewritten)!=0){json_decref(body);return error_reply(c,500);}
     /* M2 hard gate: final provider object, before serialization and any network. */
-    if(rc_dispatch_gate&&rc_dispatch_gate(rt,body,&r->endpoint)){json_decref(body);return error_reply(c,403);}
+    rc_gateway_headers headers={0};
+    if(rt->gateway)MHD_get_connection_values(c,MHD_HEADER_KIND,collect_header,&headers);
+    unsigned denial=rc_gateway_prepare(rt,body,automatic,&headers,&r->endpoint,&r->ticket);
+    if(denial){json_decref(body);return error_reply(c,denial);}
     if((r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC)||(r->endpoint==RC_ENDPOINT_PUBLIC&&!rt->config.public_url)){json_decref(body);return error_reply(c,403);}
     r->payload=json_dumps(body,JSON_COMPACT);json_decref(body);if(!r->payload)return error_reply(c,500);
     const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
@@ -169,6 +194,7 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     enum MHD_Result result=MHD_queue_response(c,(unsigned)status,response);MHD_destroy_response(response);return result;
 }
 int rc_router_serve(rc_runtime *rt){
+    if(!rc_gateway_start(rt))return 1;
     struct sockaddr_in bind_addr={.sin_family=AF_INET,.sin_port=htons((uint16_t)rt->config.listen_port)};
     if(inet_pton(AF_INET,rt->config.listen_host,&bind_addr.sin_addr)!=1)return 1;
     signal(SIGTERM,stop_server);signal(SIGINT,stop_server);signal(SIGPIPE,SIG_IGN);
@@ -177,7 +203,7 @@ int rc_router_serve(rc_runtime *rt){
         MHD_OPTION_CONNECTION_TIMEOUT,rt->request_timeout_seconds,MHD_OPTION_CONNECTION_MEMORY_LIMIT,(size_t)32768,
         MHD_OPTION_NOTIFY_COMPLETED,completed,NULL,MHD_OPTION_END);
     if(!daemon)return 1;
-    while(!stopping){struct timespec t={0,100000000};nanosleep(&t,NULL);}MHD_stop_daemon(daemon);return 0;
+    while(!stopping){rc_gateway_poll(rt);struct timespec t={0,100000000};nanosleep(&t,NULL);}MHD_stop_daemon(daemon);return 0;
 }
 
 int main(int argc,char **argv) {

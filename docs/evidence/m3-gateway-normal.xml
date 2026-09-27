@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Linux-cc"
+	tests="17"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname="005d625db1d8"
+	time="72"
+	timestamp="2026-09-27T13:58:57"
+	>
+	<testcase name="selector_unit" classname="selector_unit" time="0.00160852" status="run">
+		<properties/>
+		<system-out>safety matrix: 4608 cases passed
+selector tests passed
+</system-out>
+	</testcase>
+	<testcase name="attempts_unit" classname="attempts_unit" time="0.00113414" status="run">
+		<properties/>
+		<system-out>attempt ledger tests passed
+</system-out>
+	</testcase>
+	<testcase name="attempts_overflow" classname="attempts_overflow" time="0.00121098" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="interpreter_alloc" classname="interpreter_alloc" time="0.0464084" status="run">
+		<properties/>
+		<system-out>request integrity: structured=1 count=1, 286 sites x 2 modes; zero live allocations
+request integrity: structured=0 count=1, 66 sites x 2 modes; zero live allocations
+request integrity: structured=1 count=16, 513 sites x 2 modes; zero live allocations
+request integrity: structured=0 count=16, 262 sites x 2 modes; zero live allocations
+</system-out>
+	</testcase>
+	<testcase name="context_unit" classname="context_unit" time="0.00179379" status="run">
+		<properties/>
+		<system-out>context tests passed
+</system-out>
+	</testcase>
+	<testcase name="egress_policy" classname="egress_policy" time="0.00137452" status="run">
+		<properties/>
+		<system-out>PASS egress rejection checks and 24 state combinations
+</system-out>
+	</testcase>
+	<testcase name="config_strict" classname="config_strict" time="0.00147918" status="run">
+		<properties/>
+		<system-out>PASS config strictness suite (10 test groups)
+</system-out>
+	</testcase>
+	<testcase name="admission_unit" classname="admission_unit" time="0.00139545" status="run">
+		<properties/>
+		<system-out>PASS admission unit suite
+</system-out>
+	</testcase>
+	<testcase name="interpreter_loopback" classname="interpreter_loopback" time="10.4433" status="run">
+		<properties/>
+		<system-out>test_delayed_nonblocking_and_copied_input (__main__.HTTP.test_delayed_nonblocking_and_copied_input) ... ok
+test_http_cancel (__main__.HTTP.test_http_cancel) ... ok
+test_http_forbidden_fields (__main__.HTTP.test_http_forbidden_fields) ... ok
+test_http_no_redirect (__main__.HTTP.test_http_no_redirect) ... ok
+test_http_overflow (__main__.HTTP.test_http_overflow) ... ok
+test_http_revision_mismatch (__main__.HTTP.test_http_revision_mismatch) ... ok
+test_http_shutdown (__main__.HTTP.test_http_shutdown) ... ok
+test_http_timeout (__main__.HTTP.test_http_timeout) ... ok
+test_structured_request (__main__.HTTP.test_structured_request) ... ok
+test_structured_still_rejects_invalid (__main__.HTTP.test_structured_still_rejects_invalid) ... ok
+test_structured_still_rejects_markdown (__main__.HTTP.test_structured_still_rejects_markdown) ... ok
+test_rejections (__main__.Parser.test_rejections) ... ok
+test_schema_edges (__main__.Parser.test_schema_edges) ... ok
+test_valid (__main__.Parser.test_valid) ... ok
+
+-------------------...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="gateway_context_integration" classname="gateway_context_integration" time="13.834" status="run">
+		<properties/>
+		<system-out>test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok
+test_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok
+test_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok
+test_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok
+test_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok
+test_expiry_feed_loss_and_invalid_interpreter_retain_baseline (test_gateway_context.GatewayContextTests.test_expiry_feed_loss_and_invalid_interpreter_retain_baseline) ... ok
+test_full_attempt_ledger_cannot_downshif...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="hermes_observer" classname="hermes_observer" time="0.119036" status="run">
+		<properties/>
+		<system-out>test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok
+test_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok
+test_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok
+test_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok
+test_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok
+test_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok
+test_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok
+test_lone_surrogate_content_i...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="compliance_integration" classname="compliance_integration" time="19.2681" status="run">
+		<properties/>
+		<system-out>test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok
+test_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok
+test_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok
+test_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok
+test_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok
+test_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok
+test_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok
+test_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok
+test_0...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="router_integration" classname="router_integration" time="23.282" status="run">
+		<properties/>
+		<system-out>test_00_production_binary_exists (test_router.RouterTests.test_00_production_binary_exists) ... ok
+test_01_normal_forwarding (test_router.RouterTests.test_01_normal_forwarding) ... ok
+test_02_auth_and_models (test_router.RouterTests.test_02_auth_and_models) ... ok
+test_03_stream_tools_passthrough (test_router.RouterTests.test_03_stream_tools_passthrough) ... ok
+test_04_failures_and_limits (test_router.RouterTests.test_04_failures_and_limits) ... ok
+test_05_public_destination (test_router.RouterTests.test_05_public_destination) ... ok
+test_06_strict_startup (test_router.RouterTests.test_06_strict_startup) ... ok
+test_07_redirect_failure_no_retry (test_router.RouterTests.test_07_redirect_failure_no_retry) ... ok
+test_08_timeout (test_router.RouterTests.test_08_timeout) ... ok
+test_09_large_stream_queue (test_router.RouterTests.test_09_large_stream_queue) ... ok
+test_10_public_http_requires_explicit_test_mode (test_router.RouterTests.test_10_public_http_requires_explicit_test_mode) ... ok
+test_11_upload_absolute...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="transport_integration" classname="transport_integration" time="1.48468" status="run">
+		<properties/>
+		<system-out>test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream) ... ok
+test_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream) ... ok
+test_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models) ... ok
+test_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream) ... ok
+test_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured) ... ok
+test_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order) ... ok
+test_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.401s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="admission_integration" classname="admission_integration" time="0.355192" status="run">
+		<properties/>
+		<system-out>test_missing_secret_fails_startup (test_admission.AdmissionTests.test_missing_secret_fails_startup) ... ok
+test_oversized_body_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_oversized_body_sends_zero_upstream_bytes) ... ok
+test_scheme_case_insensitive_token_exact (test_admission.AdmissionTests.test_scheme_case_insensitive_token_exact) ... ok
+test_unauthenticated_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_unauthenticated_sends_zero_upstream_bytes) ... ok
+test_valid_token_roundtrips (test_admission.AdmissionTests.test_valid_token_roundtrips) ... ok
+test_wrong_token_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_wrong_token_sends_zero_upstream_bytes) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.269s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="trajectory_reference" classname="trajectory_reference" time="3.89704" status="run">
+		<properties/>
+		<system-out>test_case_and_record_containers_and_records_are_validated (test_trajectory_reference.FixtureValidationTests.test_case_and_record_containers_and_records_are_validated) ... ok
+test_cli_malformed_fixtures_have_fixed_safe_error (test_trajectory_reference.FixtureValidationTests.test_cli_malformed_fixtures_have_fixed_safe_error) ... ok
+test_invalid_expected_rejected_independent_of_response (test_trajectory_reference.FixtureValidationTests.test_invalid_expected_rejected_independent_of_response) ... ok
+test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid (test_trajectory_reference.FixtureValidationTests.test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid) ... ok
+test_malformed_metadata_rejected_before_any_scoring (test_trajectory_reference.FixtureValidationTests.test_malformed_metadata_rejected_before_any_scoring) ... ok
+test_accepts_scoped_typed_state (test_trajectory_reference.InterpretationTests.test_accepts_scoped_typed_state) ... ok
+test_cli_reports_missing_records_without_...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="accounting" classname="accounting" time="0.110484" status="run">
+		<properties/>
+		<system-out>test_cli_reads_json_file_and_emits_json (test_accounting.AccountingTests.test_cli_reads_json_file_and_emits_json) ... ok
+test_complete_matched_actual_evidence_gate (test_accounting.AccountingTests.test_complete_matched_actual_evidence_gate) ... ok
+test_dispatch_deduplication_rejects_conflicts (test_accounting.AccountingTests.test_dispatch_deduplication_rejects_conflicts) ... ok
+test_duplicate_episode_identity_is_rejected (test_accounting.AccountingTests.test_duplicate_episode_identity_is_rejected) ... ok
+test_episode_totals_retain_failed_task_spend (test_accounting.AccountingTests.test_episode_totals_retain_failed_task_spend) ... ok
+test_gate_blocks_unfair_or_incomplete_comparisons (test_accounting.AccountingTests.test_gate_blocks_unfair_or_incomplete_comparisons) ... ok
+test_invalid_episode_arm_and_budget_are_not_eligible (test_accounting.AccountingTests.test_invalid_episode_arm_and_budget_are_not_eligible) ... ok
+test_invalid_usage_or_identity_is_rejected (test_accounting.AccountingTests.test_invalid_usage_...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+</testsuite>

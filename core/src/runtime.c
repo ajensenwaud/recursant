@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "recursant/runtime.h"
+#include "recursant/gateway_context.h"
 #include "recursant/classifier.h"
 #include <curl/curl.h>
 #include <stdio.h>
@@ -51,18 +52,20 @@ static bool number(json_t *o,const char *k,size_t def,size_t max,size_t *out) {
     *out=(size_t)json_integer_value(v);return true;
 }
 void rc_runtime_free(rc_runtime *r) {
+    rc_gateway_destroy(r);
     rc_compliance_free(r);
     rc_config *c=&r->config;
     free(c->listen_host);free(c->private_url);free(c->private_model);free(c->private_key_env);
     free(c->public_url);free(c->public_model);free(c->public_key_env);
     for(size_t i=0;i<c->alias_count;i++){free(c->aliases[i].from);free(c->aliases[i].model);}free(c->aliases);
-    free(r->auth_key);free(r->private_key);free(r->public_key);json_decref(r->patterns);memset(r,0,sizeof *r);
+    free(r->source_key);free(r->auth_key);free(r->private_key);free(r->public_key);json_decref(r->patterns);memset(r,0,sizeof *r);
 }
 bool rc_runtime_load(const char *path,bool test,rc_runtime *r,char *err,size_t n) {
     memset(r,0,sizeof *r);r->test_mode=test;
     json_error_t je;json_t *root=json_load_file(path,JSON_REJECT_DUPLICATES,&je),*o,*v;
     rc_config *c=&r->config;size_t num;
-    if(!keys(root,"|listen||private||public||aliases||auth||limits||compliance|"))goto bad;
+    if(!keys(root,"|listen||private||public||aliases||auth||limits||compliance||context|"))goto bad;
+
     o=json_object_get(root,"listen");
     if(!keys(o,"|host||port|") || !(c->listen_host=text(o,"host")) || !json_object_get(o,"port") || !number(o,"port",0,65535,&num))goto bad;
     c->listen_port=(long)num;
@@ -114,6 +117,12 @@ bool rc_runtime_load(const char *path,bool test,rc_runtime *r,char *err,size_t n
         if(v){for(size_t i=0;i<json_array_size(v);i++)if(!json_is_string(json_array_get(v,i)))goto bad;r->patterns=json_incref(v);}
     }
     if(r->compliance_enabled&&!rc_dispatch_gate)goto bad;
+    o=json_object_get(root,"context");
+    if(o && json_object_get(o,"source_key_env")){
+        char *name=NULL;bool ok=secret(o,"source_key_env",true,&name,&r->source_key);free(name);
+        if(!ok||!strcmp(r->source_key,r->auth_key))goto bad;
+    }
+    if(!rc_gateway_configure(r,o))goto bad;
     json_decref(root);return true;
 bad:
     snprintf(err,n,"invalid runtime configuration");json_decref(root);rc_runtime_free(r);return false;

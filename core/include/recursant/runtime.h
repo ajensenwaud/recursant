@@ -7,7 +7,9 @@
 
 typedef struct rc_runtime {
     rc_config config;
+    struct rc_gateway_context *gateway;
     char *auth_key;
+    char *source_key;
     char *private_key;
     char *public_key;
     size_t max_body_bytes;
