@@ -1,0 +1,34 @@
+test_pinned_hermes_completes_artifact_with_host_only_grader (bench.evaluation.test_evaluation.DockerTests.test_pinned_hermes_completes_artifact_with_host_only_grader) ... ok
+test_pinned_hermes_uses_metered_baseline_protocol (bench.evaluation.test_evaluation.DockerTests.test_pinned_hermes_uses_metered_baseline_protocol) ... ok
+test_dedicated_route_session_uses_real_loopback_egress (bench.evaluation.test_evaluation.LiveProtocolTests.test_dedicated_route_session_uses_real_loopback_egress) ... ok
+test_egress_loopback_captures_usage_and_reserves_failed_attempts (bench.evaluation.test_evaluation.LiveProtocolTests.test_egress_loopback_captures_usage_and_reserves_failed_attempts) ... ok
+test_live_bounds_whitelist_context_and_nonreusable_allocation (bench.evaluation.test_evaluation.LiveProtocolTests.test_live_bounds_whitelist_context_and_nonreusable_allocation) ... ok
+test_live_preflight_rejects_unapproved_and_missing_pricing (bench.evaluation.test_evaluation.LiveProtocolTests.test_live_preflight_rejects_unapproved_and_missing_pricing) ... ok
+test_private_dispatches_are_sequential_including_auxiliaries (bench.evaluation.test_evaluation.LiveProtocolTests.test_private_dispatches_are_sequential_including_auxiliaries) ... ok
+test_routed_episode_owns_gateway_and_counts_egress (bench.evaluation.test_evaluation.LiveProtocolTests.test_routed_episode_owns_gateway_and_counts_egress) ... ok
+test_interrupted_attempt_journal_is_recovered_before_reporting (bench.evaluation.test_evaluation.PlanTests.test_interrupted_attempt_journal_is_recovered_before_reporting) ... ok
+test_plan_freezes_all_assignments_and_rejects_live_before_execution (bench.evaluation.test_evaluation.PlanTests.test_plan_freezes_all_assignments_and_rejects_live_before_execution) ... ok
+test_real_loopback_tool_stream_and_attempt_cap (bench.evaluation.test_evaluation.ProtocolTests.test_real_loopback_tool_stream_and_attempt_cap) ... ok
+test_missing_episode_failed_expenditure_and_unknown_cost_remain (bench.evaluation.test_evaluation.ReportTests.test_missing_episode_failed_expenditure_and_unknown_cost_remain) ... ok
+test_frozen_tasks_have_independent_negative_and_positive_cases (bench.evaluation.test_evaluation.TaskTests.test_frozen_tasks_have_independent_negative_and_positive_cases) ... ok
+test_cli_reads_json_file_and_emits_json (tests.test_accounting.AccountingTests.test_cli_reads_json_file_and_emits_json) ... ok
+test_complete_matched_actual_evidence_gate (tests.test_accounting.AccountingTests.test_complete_matched_actual_evidence_gate) ... ok
+test_dispatch_deduplication_rejects_conflicts (tests.test_accounting.AccountingTests.test_dispatch_deduplication_rejects_conflicts) ... ok
+test_duplicate_episode_identity_is_rejected (tests.test_accounting.AccountingTests.test_duplicate_episode_identity_is_rejected) ... ok
+test_episode_totals_retain_failed_task_spend (tests.test_accounting.AccountingTests.test_episode_totals_retain_failed_task_spend) ... ok
+test_gate_blocks_unfair_or_incomplete_comparisons (tests.test_accounting.AccountingTests.test_gate_blocks_unfair_or_incomplete_comparisons) ... ok
+test_invalid_episode_arm_and_budget_are_not_eligible (tests.test_accounting.AccountingTests.test_invalid_episode_arm_and_budget_are_not_eligible) ... ok
+test_invalid_usage_or_identity_is_rejected (tests.test_accounting.AccountingTests.test_invalid_usage_or_identity_is_rejected) ... ok
+test_missing_comparison_factors_block_eligibility (tests.test_accounting.AccountingTests.test_missing_comparison_factors_block_eligibility) ... ok
+test_missing_usage_is_incomplete_not_zero (tests.test_accounting.AccountingTests.test_missing_usage_is_incomplete_not_zero) ... ok
+test_no_successful_tasks_blocks_eligibility (tests.test_accounting.AccountingTests.test_no_successful_tasks_blocks_eligibility) ... ok
+test_partial_usage_retains_unambiguous_known_token_lower_bound (tests.test_accounting.AccountingTests.test_partial_usage_retains_unambiguous_known_token_lower_bound) ... ok
+test_reasoning_semantics_and_cached_subset (tests.test_accounting.AccountingTests.test_reasoning_semantics_and_cached_subset) ... ok
+test_report_does_not_echo_arbitrary_content (tests.test_accounting.AccountingTests.test_report_does_not_echo_arbitrary_content) ... ok
+test_retains_per_attempt_records_without_duplicate_spend (tests.test_accounting.AccountingTests.test_retains_per_attempt_records_without_duplicate_spend) ... ok
+test_sums_every_model_dispatch_including_retries (tests.test_accounting.AccountingTests.test_sums_every_model_dispatch_including_retries) ... ok
+
+----------------------------------------------------------------------
+Ran 29 tests in 25.964s
+
+OK

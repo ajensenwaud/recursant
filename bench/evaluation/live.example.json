@@ -1,0 +1,54 @@
+{
+  "approved": false,
+  "approval_reference": "docs/evidence/m3-live-budget-approval.md",
+  "allocation_reference": "PARENT-MUST-RESERVE-A-SUBSET-OF-ALLOCATION-B-AFTER-A-COMPLETES",
+  "allocation_path": "/REPLACE/unique-parent-allocation.jsonl",
+  "request_cap": 96,
+  "paid_cap_usd": 8,
+  "context_limit": 65536,
+  "budget_review": "REPLACE: common pilot constraints reviewed: 8 turns, 4096 output, 180s task deadline; not native capacity",
+  "token_bound_evidence": "REPLACE: review byte-fallback token ceiling and framing margin for all allowed models, verify pricing inventory and provider output enforcement",
+  "source_and_metrics_review": "REPLACE: independent review reference",
+  "isolation_reviewed": false,
+  "router_binary": "/REPLACE/reviewed/native-stream-tool/recursant",
+  "router_sha256": "REPLACE",
+  "baseline_endpoint": "public",
+  "baseline_model": "openai/gpt-4.1",
+  "upstreams": {
+    "private": {
+      "url": "http://gx10:8888/v1",
+      "model": "GLM-5.3-Flash-EXL3",
+      "reasoning_semantics": "unknown",
+      "tokenizer": "REPLACE_WITH_VERIFIED_TOKENIZER_ID",
+      "serving_evidence": "REPLACE_WITH_ACTUAL_CONTEXT_AND_OUTPUT_EVIDENCE"
+    },
+    "public": {
+      "url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "reasoning_semantics": "inclusive",
+      "tokenizer": "REPLACE_WITH_VERIFIED_TOKENIZER_IDS_FOR_4.1_AND_MINI",
+      "serving_evidence": "docs/evidence/m3-public-model-inventory.json"
+    }
+  },
+  "router_config": {
+    "listen": {"host": "127.0.0.1", "port": 1},
+    "private": {"url": "http://127.0.0.1/v1", "model": "GLM-5.3-Flash-EXL3"},
+    "public": {"url": "https://openrouter.ai/api/v1", "model": "openai/gpt-4.1", "api_key_env": "M3_EPISODE_API"},
+    "auth": {"api_key_env": "M3_EPISODE_API"},
+    "aliases": [
+      {"from": "baseline", "endpoint": "public", "model": "openai/gpt-4.1"},
+      {"from": "economy", "endpoint": "public", "model": "openai/gpt-4.1-mini"},
+      {"from": "local", "endpoint": "private", "model": "GLM-5.3-Flash-EXL3"}
+    ],
+    "limits": {"max_body_bytes": 1048576, "max_connections": 16, "request_timeout_seconds": 180},
+    "compliance": {"enabled": true, "public_allowed": true, "patterns": ["ACCOUNT-[0-9]{4,}"]},
+    "context": {
+      "mode": "active", "tenant": "local", "project": "evaluation",
+      "source_key_env": "M3_EPISODE_SOURCE", "auto_alias": "auto", "baseline_alias": "baseline", "ttl_ms": 180000,
+      "candidates": [
+        {"alias": "baseline", "quality_evidence": "REPLACE_WITH_INDEPENDENT_QUALIFICATION", "qualified_tasks": [], "context_limit": 65536, "expected_task_cost": null},
+        {"alias": "economy", "quality_evidence": "REPLACE_WITH_INDEPENDENT_QUALIFICATION", "qualified_tasks": ["format_simple"], "context_limit": 65536, "expected_task_cost": null}
+      ]
+    }
+  }
+}
