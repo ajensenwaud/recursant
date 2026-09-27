@@ -30,6 +30,7 @@ typedef struct {
     struct timespec deadline;
     rc_gateway_ticket ticket;
     char observation[65536];size_t observed;bool observation_overflow;
+    rc_response_observer *stream_observation;
 } request;
 static void stop_server(int sig){(void)sig;stopping=1;}
 static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char *text,const char *type){
@@ -66,7 +67,14 @@ static size_t receive(char *data,size_t size,size_t nmemb,void *ctx){
     pthread_mutex_lock(&r->lock);
     if(r->status<200||r->status>=300){pthread_mutex_unlock(&r->lock);return 0;}
     if(r->ticket.begun&&r->ticket.scope>=0){
-        if(n>sizeof r->observation-r->observed)r->observation_overflow=true;
+        if(r->sse){
+            if(!r->stream_observation&&!r->observation_overflow){
+                r->stream_observation=calloc(1,sizeof *r->stream_observation);
+                if(!r->stream_observation)r->observation_overflow=true;
+            }
+            if(r->stream_observation)rc_response_observer_feed(r->stream_observation,data,n);
+        }
+        else if(n>sizeof r->observation-r->observed)r->observation_overflow=true;
         else if(!r->observation_overflow){memcpy(r->observation+r->observed,data,n);r->observed+=n;}
     }
     while(offset<n&&!r->cancel){
@@ -117,7 +125,8 @@ static void completed(void *ctx,struct MHD_Connection *c,void **con_cls,enum MHD
     pthread_mutex_lock(&r->lock);bool complete=code==MHD_REQUEST_TERMINATED_COMPLETED_OK&&r->started&&r->done&&!r->failed&&!r->cancel&&r->status>=200&&r->status<300&&r->count==0;pthread_mutex_unlock(&r->lock);
     pthread_mutex_lock(&r->lock);r->cancel=true;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);
     if(r->started)pthread_join(r->worker,NULL);
-    rc_gateway_finish(r->runtime,&r->ticket,complete,r->sse,r->observation_overflow?NULL:r->observation,r->observed);
+    rc_gateway_finish(r->runtime,&r->ticket,complete,r->sse,r->observation_overflow?NULL:r->observation,r->observed,r->stream_observation);
+    free(r->stream_observation);
     if(r->downstream_fd>=0)close(r->downstream_fd);
     pthread_mutex_destroy(&r->lock);pthread_cond_destroy(&r->changed);free(r->body);free(r->payload);free(r);*con_cls=NULL;
 }

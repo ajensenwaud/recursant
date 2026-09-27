@@ -1,0 +1,75 @@
+[  4%] Built target recursant_context
+[  8%] Built target recursant_policy
+[ 12%] Built target recursant_config
+[ 16%] Built target recursant_selector
+[ 20%] Built target test_interpreter_alloc
+[ 24%] Built target recursant_interpreter
+[ 28%] Built target test_context
+[ 32%] Built target test_egress
+[ 36%] Built target test_config
+[ 38%] Building C object CMakeFiles/test_response_observer.dir/core/src/context/response_observer.c.o
+[ 42%] Built target test_selector
+[ 46%] Built target recursant-validate
+[ 51%] Built target recursant_auth
+[ 53%] Building C object CMakeFiles/test_response_observer.dir/tests/unit/test_response_observer.c.o
+[ 57%] Built target recursant_attempts
+[ 61%] Built target test_interpreter
+[ 65%] Built target recursant_admission
+[ 67%] Building C object CMakeFiles/recursant.dir/core/src/context/response_observer.c.o
+[ 69%] Linking C executable test_response_observer
+[ 73%] Built target test_attempts
+[ 77%] Built target test_attempts_internal
+[ 81%] Built target attempt_probe
+[ 85%] Built target test_admission
+[ 89%] Built target recursant-tracer
+[ 91%] Linking C executable recursant
+[ 91%] Built target test_response_observer
+[100%] Built target recursant
+Test project /build
+      Start  1: selector_unit
+ 1/18 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: attempts_unit
+ 2/18 Test  #2: attempts_unit ....................   Passed    0.03 sec
+      Start  3: attempts_overflow
+ 3/18 Test  #3: attempts_overflow ................   Passed    0.01 sec
+      Start  4: interpreter_alloc
+ 4/18 Test  #4: interpreter_alloc ................   Passed    0.21 sec
+      Start  5: context_unit
+ 5/18 Test  #5: context_unit .....................   Passed    0.02 sec
+      Start  6: egress_policy
+ 6/18 Test  #6: egress_policy ....................   Passed    0.02 sec
+      Start  7: config_strict
+ 7/18 Test  #7: config_strict ....................   Passed    0.02 sec
+      Start  8: admission_unit
+ 8/18 Test  #8: admission_unit ...................   Passed    0.02 sec
+      Start  9: interpreter_loopback
+ 9/18 Test  #9: interpreter_loopback .............   Passed   11.27 sec
+      Start 10: response_observer_unit
+10/18 Test #10: response_observer_unit ...........   Passed    0.03 sec
+      Start 11: gateway_context_integration
+11/18 Test #11: gateway_context_integration ......   Passed   73.86 sec
+      Start 12: hermes_observer
+12/18 Test #12: hermes_observer ..................   Passed    7.37 sec
+      Start 13: compliance_integration
+13/18 Test #13: compliance_integration ...........   Passed   19.41 sec
+      Start 14: router_integration
+14/18 Test #14: router_integration ...............   Passed   24.03 sec
+      Start 15: transport_integration
+15/18 Test #15: transport_integration ............   Passed    1.52 sec
+      Start 16: admission_integration
+16/18 Test #16: admission_integration ............   Passed    0.40 sec
+      Start 17: trajectory_reference
+17/18 Test #17: trajectory_reference .............   Passed    3.82 sec
+      Start 18: accounting
+18/18 Test #18: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 18
+
+Total Test time (real) = 142.18 sec
+test_companion_opens_tags_exports_to_real_c_interpreter (test_gateway_bridge_live.LiveBridgeTests.test_companion_opens_tags_exports_to_real_c_interpreter) ... ok
+test_foreign_headers_cannot_bypass_registered_branch_pin (test_gateway_bridge_live.LiveBridgeTests.test_foreign_headers_cannot_bypass_registered_branch_pin) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 1.081s
+
+OK

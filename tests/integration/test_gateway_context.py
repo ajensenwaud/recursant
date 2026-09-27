@@ -39,10 +39,21 @@ class ContextSink(test_router.Sink):
             answer.update(copy.deepcopy(envelope.get('root', {})))
             answer['choices'][0].update(copy.deepcopy(envelope.get('choice', {})))
             answer['choices'][0]['message'].update(copy.deepcopy(envelope.get('message', {})))
-        wire = json.dumps(answer).encode()
+        stream_wire = getattr(self.server, 'stream_wire', None) if 'response_format' not in body else None
+        wire = stream_wire if stream_wire is not None else json.dumps(answer).encode()
         self.server.last_response_wire = wire
-        self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers()
-        try: self.wfile.write(wire)
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/event-stream' if stream_wire is not None else 'application/json')
+        if stream_wire is not None and getattr(self.server, 'truncate_transport', False):
+            self.send_header('Content-Length', str(len(wire) + 1))
+        self.end_headers()
+        try:
+            step = getattr(self.server, 'wire_step', len(wire))
+            for start in range(0, len(wire), step):
+                self.wfile.write(wire[start:start + step]); self.wfile.flush()
+            if stream_wire is not None and getattr(self.server, 'stream_hold', None):
+                self.server.stream_sent.set()
+                self.server.stream_hold.wait(3)
         except (BrokenPipeError, ConnectionResetError): pass
 
 class GatewayContextTests(unittest.TestCase):
@@ -57,9 +68,12 @@ class GatewayContextTests(unittest.TestCase):
         hs = {'Content-Type': 'application/json', **(headers or {})}
         if auth: hs['Authorization'] = 'Bearer ' + ('source-only-test-key' if source else 'local-test-key')
         if body is None: body = {'model': 'alias', 'messages': [{'role': 'user', 'content': 'hello'}]}
-        c.request(method, path, body=None if method == 'GET' else json.dumps(body), headers=hs)
-        r = c.getresponse(); result = r.status, r.read(), dict(r.getheaders()); c.close()
-        return result
+        try:
+            c.request(method, path, body=None if method == 'GET' else json.dumps(body), headers=hs)
+            r = c.getresponse()
+            return r.status, r.read(), dict(r.getheaders())
+        finally:
+            c.close()
 
     @staticmethod
     def configure(c, sink, mode='active'):
@@ -120,6 +134,199 @@ class GatewayContextTests(unittest.TestCase):
         self.assertEqual(code, 200, data)
         history.append(json.loads(data)['choices'][0]['message'])
         return data
+
+    @staticmethod
+    def stream_events():
+        return [
+            {'choices': [{'index': 0, 'delta': {'role': 'assistant', 'content': ''}, 'finish_reason': None}]},
+            {'choices': [{'index': 0, 'delta': {'content': 'café 🦀'}, 'finish_reason': None}]},
+            {'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]},
+        ]
+
+    @staticmethod
+    def stream_bytes(events, done=True):
+        return b''.join(b'data: ' + json.dumps(e, ensure_ascii=False).encode() + b'\n\n' for e in events) + (b'data: [DONE]\n\n' if done else b'')
+
+    def test_native_stream_observation_downshifts_without_rewriting_wire(self):
+        wire = self.stream_bytes(self.stream_events())
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+            s.stream_wire = wire; s.wire_step = 1
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+            code, data, _ = self.request(p, headers=self.headers(scope, 1), body={
+                'model': 'auto', 'messages': history, 'max_tokens': 128, 'stream': True})
+            self.assertEqual(code, 200); self.assertEqual(data, wire)
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25)
+            history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'continue'}]
+            sink.stream_wire = None
+            self.turn(p, scope, 2, history)
+            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+
+    def test_native_stream_usage_option_and_tail_are_portable(self):
+        events = self.stream_events() + [{'choices': [], 'usage': {
+            'prompt_tokens': 3, 'completion_tokens': 4, 'total_tokens': 7,
+            'prompt_tokens_details': {'cached_tokens': 1, 'audio_tokens': 0},
+            'completion_tokens_details': {'reasoning_tokens': 1, 'audio_tokens': 0,
+                                          'accepted_prediction_tokens': 0, 'rejected_prediction_tokens': 0}}}]
+        wire = self.stream_bytes(events).replace(b'\n', b'\r\n')
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink; s.stream_wire = wire
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+            code, data, _ = self.request(p, headers=self.headers(scope, 1), body={
+                'model': 'auto', 'messages': history, 'max_tokens': 128, 'stream': True,
+                'stream_options': {'include_usage': True}})
+            self.assertEqual(code, 200); self.assertEqual(data, wire)
+            self.assertEqual(sink.seen[-1][2]['stream_options'], {'include_usage': True})
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25)
+            sink.stream_wire = None
+            history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'continue'}]
+            self.turn(p, scope, 2, history)
+            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
+
+    def test_native_stream_unsafe_responses_stay_pinned(self):
+        valid = self.stream_events()
+        cases = {'valid': self.stream_bytes(valid),
+                 'no_done': self.stream_bytes(valid, done=False),
+                 'no_stop': self.stream_bytes(valid[:-1]),
+                 'partial_done': self.stream_bytes(valid)[:-1],
+                 'post_done': self.stream_bytes(valid) + b'data: {}\n\n',
+                 'error_event': self.stream_bytes(valid[:-1], done=False) + b'event: error\ndata: {}\n\n',
+                 'invalid_utf8': self.stream_bytes(valid).replace('café'.encode(), b'caf\xff'),
+                 'overflow': b':' + b'x' * 65536 + b'\n\n' + self.stream_bytes(valid)}
+        for name, target, extra in [
+            ('root_unknown', 'root', {'future': None}), ('root_empty', 'root', {'': None}),
+            ('opaque', 'root', {'kv_transfer_params': {'state': 'opaque'}}),
+            ('usage_unknown', 'root', {'usage': {'opaque': 'state'}}),
+            ('choice_unknown', 'choice', {'opaque': None}),
+            ('wrong_index', 'choice', {'index': 1}), ('length', 'finish', {'finish_reason': 'length'}),
+            ('tool_finish', 'finish', {'finish_reason': 'tool_calls'}),
+            ('tool_delta', 'delta', {'tool_calls': [{'id': 'call-1'}]}),
+            ('function_delta', 'delta', {'function_call': {'name': 'f'}}),
+            ('reasoning', 'delta', {'reasoning_content': 'private state'}),
+            ('unknown_delta', 'delta', {'unknown': None})]:
+            events = copy.deepcopy(valid)
+            location = {'root': events[0], 'choice': events[0]['choices'][0],
+                        'delta': events[0]['choices'][0]['delta'], 'finish': events[-1]['choices'][0]}[target]
+            location.update(extra); cases[name] = self.stream_bytes(events)
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+        with self.router(edit) as (p, sink):
+            for name, wire in cases.items():
+                with self.subTest(name=name):
+                    code, raw, _ = self.request(p, path='/v1/context/open', source=True,
+                        body={'task_id': name, 'session_id': name, 'branch': 'b'})
+                    self.assertEqual(code, 201); scope = json.loads(raw)
+                    sink.stream_wire = wire
+                    history = [{'role': 'user', 'content': 'start'}]
+                    body = {'model': 'baseline', 'messages': history, 'max_tokens': 128, 'stream': True}
+                    code, raw, _ = self.request(p, headers=self.headers(scope, 1), body=body)
+                    self.assertEqual(code, 200); self.assertEqual(raw, wire)
+                    history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'continue'}]
+                    sink.stream_wire = None
+                    code = self.request(p, headers=self.headers(scope, 2), body={
+                        'model': 'alias', 'messages': history, 'max_tokens': 128})[0]
+                    self.assertEqual(code, 200 if name == 'valid' else 403)
+                    if name != 'valid':
+                        self.assertEqual(self.request(p, headers=self.headers(scope, 3), body={
+                            'model': 'baseline', 'messages': history, 'max_tokens': 128})[0], 200)
+                        history += [{'role': 'assistant', 'content': 'answer'}, {'role': 'user', 'content': 'again'}]
+                        self.assertEqual(self.request(p, headers=self.headers(scope, 4), body={
+                            'model': 'alias', 'messages': history, 'max_tokens': 128})[0], 403)
+
+    def test_native_stream_request_extensions_do_not_gain_portability(self):
+        cases = [{'stream_options': {'include_usage': True, 'unknown': None}},
+                 {'stream_options': {'include_usage': 1}}, {'stream_options': None},
+                 {'stream_options': {}}, {'stream_options': {'include_usage': False}, 'stream': False},
+                 {'tools': []}, {'tools': [{'type': 'function', 'function': {'name': 'f'}}]},
+                 {'reasoning_effort': 'low'}, {'stream': 'true'}, {'unknown': None}]
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink; s.stream_wire = self.stream_bytes(self.stream_events())
+        with self.router(edit) as (p, sink):
+            for i, extra in enumerate(cases):
+                with self.subTest(extra=extra):
+                    code, raw, _ = self.request(p, path='/v1/context/open', source=True,
+                        body={'task_id': str(i), 'session_id': str(i), 'branch': 'b'})
+                    self.assertEqual(code, 201); scope = json.loads(raw)
+                    history = [{'role': 'user', 'content': 'start'}]
+                    self.assertEqual(self.request(p, headers=self.headers(scope, 1), body={
+                        'model': 'baseline', 'messages': history, 'max_tokens': 128, 'stream': True, **extra})[0], 200)
+                    history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'continue'}]
+                    self.assertEqual(self.request(p, headers=self.headers(scope, 2), body={
+                        'model': 'alias', 'messages': history, 'max_tokens': 128})[0], 403)
+
+    def test_native_stream_transport_failure_and_cancel_pin_even_after_done(self):
+        import socket
+        import struct
+        import threading
+        for mode in ('upstream_truncated', 'downstream_cancel'):
+            with self.subTest(mode=mode):
+                def edit(c, s):
+                    self.configure(c, s); s.RequestHandlerClass = ContextSink
+                    s.stream_wire = self.stream_bytes(self.stream_events())
+                    s.truncate_transport = mode == 'upstream_truncated'
+                    s.stream_hold = threading.Event() if mode == 'downstream_cancel' else None
+                    s.stream_sent = threading.Event()
+                with self.router(edit) as (p, sink):
+                    scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+                    body = {'model': 'baseline', 'messages': history, 'max_tokens': 128, 'stream': True}
+                    if mode == 'upstream_truncated':
+                        with self.assertRaises(http.client.IncompleteRead):
+                            self.request(p, headers=self.headers(scope, 1), body=body)
+                    else:
+                        payload = json.dumps(body).encode()
+                        headers = {'Host': 'localhost', 'Authorization': 'Bearer local-test-key',
+                                   'Content-Type': 'application/json', 'Content-Length': str(len(payload)),
+                                   **self.headers(scope, 1)}
+                        with socket.create_connection(('127.0.0.1', p), timeout=3) as client:
+                            client.sendall(b'POST /v1/chat/completions HTTP/1.1\r\n' +
+                                ''.join(k + ': ' + v + '\r\n' for k, v in headers.items()).encode() + b'\r\n' + payload)
+                            received = b''
+                            while b'[DONE]' not in received:
+                                part = client.recv(4096); self.assertTrue(part); received += part
+                            self.assertTrue(sink.stream_sent.wait(1))
+                            self.assertEqual(self.request(p, headers=self.headers(scope, 2), body=body)[0], 409)
+                            # RST gives an unambiguous cancellation, not valid SHUT_WR.
+                            client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
+                        sink.stream_hold.set()
+                    sink.stream_wire = None
+                    history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'continue'}]
+                    for _ in range(100):
+                        code = self.request(p, headers=self.headers(scope, 3), body={
+                            'model': 'alias', 'messages': history, 'max_tokens': 128})[0]
+                        if code != 409: break
+                        time.sleep(.02)
+                    self.assertEqual(code, 403)
+                    self.assertEqual(self.request(p, source=True, path='/v1/context', body=self.event(scope, 1, 1))[0], 409)
+                    self.assertEqual(len(sink.seen), 1)
+
+    def test_native_stream_final_m2_does_not_wait_for_interpretation(self):
+        for opaque in (False, True):
+            with self.subTest(opaque=opaque):
+                events = self.stream_events()
+                if opaque: events[0]['choices'][0]['delta']['reasoning_content'] = 'opaque state'
+                def edit(c, s):
+                    self.configure(c, s); s.RequestHandlerClass = ContextSink
+                    s.stream_wire = self.stream_bytes(events); s.interpreter_delay = 1.0
+                    c['compliance'] = {'enabled': True, 'public_allowed': True}
+                with self.router(edit) as (p, sink):
+                    scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+                    self.assertEqual(self.request(p, headers=self.headers(scope, 1), body={
+                        'model': 'auto', 'messages': history, 'max_tokens': 128, 'stream': True})[0], 200)
+                    self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+                    history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'alice@example.com'}]
+                    sink.stream_wire = None
+                    started = time.monotonic()
+                    code = self.request(p, headers=self.headers(scope, 2), body={
+                        'model': 'auto', 'messages': history, 'max_tokens': 128})[0]
+                    self.assertLess(time.monotonic() - started, .4)
+                    self.assertEqual(code, 403 if opaque else 200)
+                    chats = [r for r in sink.seen if 'response_format' not in r[2]]
+                    self.assertEqual([r[2]['model'] for r in chats], ['frontier'] if opaque else ['frontier', 'physical'])
 
     def test_live_interpreter_downshift_and_changed_action_escalates(self):
         def edit(c, s):
