@@ -55,6 +55,67 @@ class LiveBridgeTests(unittest.TestCase):
                         dict(alias='alias', quality_evidence='fixture-format', qualified_tasks=['format_simple'],
                              context_limit=100000, expected_task_cost=1.0)])
 
+    def test_foreign_headers_cannot_bypass_registered_branch_pin(self):
+        with patch.object(test_router, 'BIN', Path(os.environ['RECURSANT_CONTEXT_BRIDGE_BIN'])), \
+                patch.dict(os.environ, RC_TEST_SOURCE='bridge-fixture-source'):
+            with test_router.RouterTests.router(self, self.configure) as (port, sink):
+                endpoint = 'http://127.0.0.1:' + str(port) + '/v1'
+                bridges = []
+                try:
+                    for suffix in ('a', 'b'):
+                        bridges.append(install_gateway(Context(), enabled=True, endpoint=endpoint,
+                            task_id='task-' + suffix, session_id='session-' + suffix,
+                            branch='main', source_key_env='RC_TEST_SOURCE'))
+                    a, b = bridges
+                    def ids(suffix, api):
+                        return dict(task_id='task-' + suffix, session_id='session-' + suffix,
+                            turn_id='turn', api_request_id=api, api_call_count=1, base_url=endpoint)
+                    def send(request):
+                        request = dict(request)
+                        tags = request.pop('extra_headers')
+                        conn = http.client.HTTPConnection('127.0.0.1', port, timeout=3)
+                        try:
+                            conn.request('POST', '/v1/chat/completions', json.dumps(request),
+                                headers=dict(tags, Authorization='Bearer local-test-key',
+                                             **{'Content-Type': 'application/json'}))
+                            response = conn.getresponse()
+                            response.read()
+                            return response.status
+                        finally:
+                            conn.close()
+                    body = dict(model='baseline', messages=[dict(role='user', content='start')],
+                        tools=[dict(type='function', function=dict(name='fixture', parameters={}))])
+                    self.assertEqual(send(a.request(body, **ids('a', 'pin'))['request']), 200)
+                    self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+                    private = dict(body, model='alias')
+                    self.assertEqual(send(a.request(private, **ids('a', 'honest'))['request']), 403)
+                    foreign = b.request({}, **ids('b', 'foreign'))['request']['extra_headers']
+                    attacked = a.request(dict(private, extra_headers=foreign), **ids('a', 'attack'))['request']
+                    self.assertEqual(send(attacked), 403, 'foreign lifecycle bypassed A branch pin')
+                    tags = attacked['extra_headers']
+                    self.assertEqual(tags['X-Recursant-generation'], a.generation)
+                    self.assertEqual(tags['X-Recursant-task-id'], 'task-a')
+                    self.assertEqual(tags['X-Recursant-session-id'], 'session-a')
+                    self.assertEqual(tags['X-Recursant-branch'], 'main')
+                    # Reject even a non-conflicting destination: explicit fence, not just pin enforcement.
+                    attacked['model'] = 'baseline'
+                    self.assertEqual(send(attacked), 403)
+                    # Same-case and case-variant duplicates must not normalize
+                    # into an accepted A request, even with identical values.
+                    for name in ('X-Recursant-generation', 'x-recursant-generation'):
+                        for first in ('conflicting-original', a.generation):
+                            duplicate = [('X-Recursant-generation', first), (name, a.generation)]
+                            fenced = a.request(dict(body, extra_headers=duplicate),
+                                **ids('a', 'duplicate'))['request']
+                            self.assertEqual(send(fenced), 403)
+                            # Exercise a last-value-wins case-folding transport too.
+                            folded = {k.lower(): v for k, v in fenced['extra_headers'].items()}
+                            self.assertEqual(send(dict(fenced, extra_headers=folded)), 403)
+                    self.assertEqual(len(sink.seen), 1, 'rejected headers reached upstream')
+                finally:
+                    for bridge in bridges:
+                        bridge.close()
+
     def test_companion_opens_tags_exports_to_real_c_interpreter(self):
         with patch.object(test_router, 'BIN', Path(os.environ['RECURSANT_CONTEXT_BRIDGE_BIN'])), \
                 patch.dict(os.environ, RC_TEST_SOURCE='bridge-fixture-source'):

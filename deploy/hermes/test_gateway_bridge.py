@@ -389,6 +389,93 @@ class BridgeTests(unittest.TestCase):
                 self.assertEqual(request['extra_headers'], {'Keep': 'yes'})
         self.assertTrue(f.seen.empty())
 
+    def test_duplicate_header_occurrences_are_fenced_before_conversion(self):
+        from email.message import Message
+        class MultiHeaders(Message):
+            # Model the HTTP multidict protocol where items() is lossy.
+            def multi_items(self):
+                return super().items()
+            def items(self):
+                return list(dict(self.multi_items()).items())
+        f = self.fixture()
+        adapter, _ = self.install(f)
+        f.seen.get(timeout=1)
+        for name in ('X-Recursant-generation', 'x-recursant-generation'):
+            for first in ('conflicting-original', adapter.generation):
+                pairs = [('X-Recursant-generation', first), (name, adapter.generation)]
+                multidict = Message()
+                multiheaders = MultiHeaders()
+                for key, value in pairs:
+                    multidict[key] = value
+                    multiheaders[key] = value
+                for container in (pairs, multidict, multiheaders, iter(pairs)):
+                    with self.subTest(name=name, first=first, container=type(container).__name__):
+                        headers = adapter.request(dict(extra_headers=container),
+                            **self.ids(f))['request']['extra_headers']
+                        self.assertEqual(headers.get('x-recursant-generation'), 'bridge conflict',
+                            'duplicate occurrences were silently normalized')
+                        self.assertEqual(headers['X-Recursant-generation'], adapter.generation)
+                        self.assertEqual(headers['X-Recursant-task-id'], 'task')
+                        self.assertEqual(headers['X-Recursant-session-id'], 'session')
+                        self.assertEqual(headers['X-Recursant-branch'], 'main')
+                        self.assertNotIn('X-Recursant-attempt', headers)
+        self.assertTrue(f.seen.empty())
+
+    def test_header_pair_iterator_is_consumed_once(self):
+        f = self.fixture()
+        adapter, _ = self.install(f)
+        f.seen.get(timeout=1)
+        result = adapter.request(dict(extra_headers=iter([('Keep', 'yes')])),
+            **self.ids(f))['request']['extra_headers']
+        self.assertEqual(result.get('Keep'), 'yes')
+        self.assertEqual(result['X-Recursant-generation'], adapter.generation)
+        self.assertIn('X-Recursant-attempt', result)
+
+    def test_registration_failure_rolls_back_handles_and_stops_worker(self):
+        f = self.fixture()
+        module = self.module()
+        created = []
+        original = module.GatewayBridge
+        def capture(**options):
+            adapter = original(**options)
+            created.append(adapter)
+            self.addCleanup(adapter.close)
+            return adapter
+        class FailingContext:
+            def __init__(self, failure, error):
+                self.failure, self.error = failure, error
+                self.callbacks: list[object] = ['unrelated']
+                self.calls = 0
+                self.disposed = []
+            def register(self, name, callback):
+                step = self.calls
+                self.calls += 1
+                if step == self.failure:
+                    raise self.error('registration fixture')
+                entry = (name, callback)
+                self.callbacks.append(entry)
+                def dispose():
+                    self.callbacks.remove(entry)
+                    self.disposed.append(step)
+                return NS(dispose=dispose)
+            register_middleware = register
+            register_hook = register
+        with patch.dict('os.environ', TEST_SOURCE_KEY='fixture-source'), \
+                patch.object(module, 'GatewayBridge', side_effect=capture):
+            for error in (RuntimeError, KeyboardInterrupt):
+                for step in range(4):
+                    ctx = FailingContext(step, error)
+                    with self.assertRaisesRegex(error, 'registration fixture'):
+                        module.install_gateway(ctx, enabled=True, endpoint=f.url,
+                            task_id='task', session_id='session', branch='main',
+                            source_key_env='TEST_SOURCE_KEY')
+                    f.seen.get(timeout=1)
+                    with self.subTest(step=step, error=error.__name__, check='worker'):
+                        self.assertFalse(created[-1].worker.is_alive(), 'failed install leaked exporter')
+                    with self.subTest(step=step, error=error.__name__, check='registrations'):
+                        self.assertEqual(ctx.callbacks, ['unrelated'])
+                        self.assertEqual(ctx.disposed, list(reversed(range(step))))
+
     def test_disabled_does_not_resolve_secret_open_or_register(self):
         ctx = Context()
         self.assertIsNone(self.module().install_gateway(ctx, endpoint='not-even-a-url',

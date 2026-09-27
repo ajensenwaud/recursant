@@ -36,7 +36,16 @@ one request. Unknown task/session callbacks do not get guessed into this scope.
 
 `/v1/context/open` is authenticated synchronously **at startup**, and its echoed
 scope and server-returned 32-hex generation are validated before hooks are
-registered. A failed open is fatal to installation. There is no lazy open in
+registered. A failed open is fatal to installation. If callback registration
+fails, installation disposes the already-returned Hermes `PluginRegistration`
+handles in reverse order, closes the exporter, and joins its worker before
+re-raising (including cancellation). Unrelated registrations are not touched.
+This uses the supported handle `dispose()` API; legacy contexts returning `None`
+provide no rollback operation. A host that raises after internally registering
+but before returning a handle must unwind that unreturned registration itself.
+Rollback errors are noted on the original exception without logging credentials;
+remaining handles and worker cleanup are still attempted. No caller may dispatch
+an agent after failed installation. There is no lazy open in
 middleware, automatic re-registration, timestamp join, or reassignment of old
 events after a gateway restart. The gateway enforces that its source credential
 is separate from the inference credential. The bridge only reads the explicitly
@@ -53,15 +62,25 @@ redirect handling. Errors do not log raw bodies, exposed text, or credentials.
 
 Valid requests keep the existing four logical IDs and per-middleware invocation
 UUID, adding `X-Recursant-generation` and `X-Recursant-branch`. Model, messages,
-tools, budgets, and original headers are not rewritten.
+tools, and budgets are not rewritten. Non-conflicting original headers are kept.
 
 Known matching task/session requests **retain generation, branch, task and
 session headers even when API count/turn/API metadata is invalid, the exporter
 queue is full, the exporter failed, or `close()` has stopped it**. Incomplete
-correlation does not invent a turn, API ID, or invocation UUID. Conflicting or
-duplicate supplied headers are preserved for gateway rejection, not silently
-repaired. Malformed non-convertible `extra_headers` is an explicit error; this
-companion is not a security boundary for Hermes swallowing plugin exceptions.
+correlation does not invent a turn, API ID, or invocation UUID. Supplied scope
+values are checked against the registration, not adopted as a new lifecycle.
+Header occurrences are inspected before conversion: pair iterables, stdlib
+`Message.items()`, and HTTP multidict `multi_items()` are supported. Duplicate
+names (case-insensitive, even identical values) and conflicting/reserved caller
+attribution take an explicit rejection path. That path revokes any prior join,
+records loss, emits canonical registered scope plus an invalid lowercase
+`x-recursant-generation: bridge conflict` duplicate, and does not issue an
+invocation UUID. The corrected C gateway rejects it with **403**, including when
+a transport case-folds to the last value. This is a wire fence, not a swallowed
+plugin exception, and not a claim that original conflicting occurrences survive.
+A complete valid B scope supplied through A can no longer replace A's pin.
+Malformed non-convertible `extra_headers` remains an explicit error; this
+companion is not a security boundary for Hermes swallowing those exceptions.
 The gateway must independently enforce association and pin authority, including
 missing or malformed headers (see parent finding M3-GATEWAY-003).
 

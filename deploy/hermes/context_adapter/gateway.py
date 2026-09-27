@@ -117,25 +117,51 @@ class GatewayBridge(Adapter):
                 context.get('task_id') != self.scope['task_id'] or
                 context.get('session_id') != self.scope['session_id']):
             return super().request(request, **context) if context.get('base_url') != self.endpoint else None
+        known_scope = {'X-Recursant-generation': self.generation,
+                       'X-Recursant-branch': self.scope['branch'],
+                       'X-Recursant-task-id': self.scope['task_id'],
+                       'X-Recursant-session-id': self.scope['session_id']}
+        raw: Any = request.get('extra_headers') or {}
+        try:
+            # Inspect occurrences before dict() can erase duplicates. HTTP-style
+            # multidicts expose multi_items(); stdlib Message.items() also keeps
+            # every occurrence. Iterable pairs are consumed exactly once.
+            pairs = list(raw.multi_items() if hasattr(raw, 'multi_items') else
+                         raw.items() if hasattr(raw, 'items') else raw)
+            names = [str(k).lower() for k, v in pairs]
+            duplicate = len(names) != len(set(names))
+            supplied = dict(pairs)
+        except (TypeError, ValueError, AttributeError):
+            self._invalidate(identity(context))
+            raise ValueError('cannot annotate malformed request headers') from None
+        expected = {k.lower(): v for k, v in known_scope.items()}
+        if duplicate or any(str(k).lower().startswith('x-recursant-') and
+               (str(k).lower() not in expected or expected[str(k).lower()] != v)
+               for k, v in pairs):
+            self._invalidate(identity(context))
+            self.dropped += 1
+            headers = {k: v for k, v in supplied.items()
+                       if not str(k).lower().startswith('x-recursant-')}
+            headers.update(known_scope)
+            # Explicit wire fence, not an exception Hermes could swallow. Keep
+            # canonical scope and add an invalid duplicate generation. Even a
+            # last-value-wins case-folding transport retains an invalid value.
+            headers['x-recursant-generation'] = 'bridge conflict'
+            return {'request': dict(request, extra_headers=headers),
+                    'source': 'recursant.context.v1', 'reason': 'conflicting caller attribution'}
+        request = dict(request, extra_headers=supplied)
         result: Any = super().request(request, **context)
         if result is None:
             # A malformed call count/turn/API ID must not turn a registered
             # workflow into an unscoped baseline request. No attempt is invented.
-            try:
-                headers = dict(request.get('extra_headers') or {})
-            except (TypeError, ValueError, AttributeError):
-                raise ValueError('cannot annotate malformed request headers') from None
+            headers = supplied.copy()
             result = {'request': dict(request, extra_headers=headers),
                       'source': 'recursant.context.v1',
                       'reason': 'registered scope; incomplete correlation'}
             self.dropped += 1
         headers = result['request']['extra_headers']
-        known_scope = {'X-Recursant-generation': self.generation,
-                       'X-Recursant-branch': self.scope['branch'],
-                       'X-Recursant-task-id': self.scope['task_id'],
-                       'X-Recursant-session-id': self.scope['session_id']}
-        # Preserve every original occurrence. Conflicting/duplicate caller tags
-        # remain invalid for the gateway; never normalize/repair them silently.
+        # Caller scope values here were checked against this registration above;
+        # all conflicting or duplicate occurrences took the explicit fence path.
         present = {str(k).lower() for k in headers}
         for name, value in known_scope.items():
             if name.lower() not in present:
@@ -258,8 +284,26 @@ def install_gateway(ctx, *, enabled=False, **options):
     if not enabled:
         return None
     adapter = GatewayBridge(**options)
-    ctx.register_middleware('llm_request', adapter.request)
-    ctx.register_hook('post_api_request', adapter.response)
-    ctx.register_hook('post_tool_call', adapter.tool)
-    ctx.register_hook('api_request_error', adapter.error)
+    registrations = []
+    try:
+        registrations.append(ctx.register_middleware('llm_request', adapter.request))
+        registrations.append(ctx.register_hook('post_api_request', adapter.response))
+        registrations.append(ctx.register_hook('post_tool_call', adapter.tool))
+        registrations.append(ctx.register_hook('api_request_error', adapter.error))
+    except BaseException as failure:
+        # Supported Hermes registration handles own the inverse operation. Never
+        # remove unrelated callbacks or reach into a manager's private registries.
+        try:
+            for handle in reversed(registrations):
+                if handle is not None:
+                    try:
+                        handle.dispose()
+                    except BaseException:
+                        failure.add_note('context bridge registration rollback failed')
+        finally:
+            adapter.close(timeout=0)
+            # Installation is a startup barrier; normally the worker is idle.
+            # If a host dispatched prematurely, wait out the bounded HTTP IO too.
+            adapter.worker.join()
+        raise
     return adapter
