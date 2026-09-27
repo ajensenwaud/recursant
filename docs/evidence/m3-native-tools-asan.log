@@ -1,0 +1,150 @@
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libcurl;jansson'
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.6s)
+-- Generating done (0.1s)
+-- Build files have been written to: /build
+[  1%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o
+[  3%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[  5%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[  7%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[  9%] Linking C static library librecursant_policy.a
+[ 11%] Linking C static library librecursant_selector.a
+[ 11%] Built target recursant_policy
+[ 13%] Linking C static library librecursant_context.a
+[ 13%] Built target recursant_selector
+[ 15%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o
+[ 16%] Building C object CMakeFiles/recursant_tools.dir/core/src/context/tool_boundary.c.o
+[ 16%] Built target recursant_context
+[ 18%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 20%] Linking C static library librecursant_tools.a
+[ 22%] Linking C static library librecursant_config.a
+[ 22%] Built target recursant_tools
+[ 24%] Linking C static library librecursant_interpreter.a
+[ 26%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o
+[ 26%] Built target recursant_config
+[ 26%] Built target recursant_interpreter
+[ 28%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 30%] Linking C executable test_selector
+[ 32%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 33%] Linking C executable test_egress
+[ 33%] Built target test_selector
+[ 35%] Linking C executable test_context
+[ 35%] Built target test_egress
+[ 37%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 39%] Linking C executable test_interpreter_alloc
+[ 41%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o
+[ 43%] Linking C executable test_interpreter
+[ 43%] Built target test_interpreter_alloc
+[ 43%] Built target test_context
+[ 45%] Building C object CMakeFiles/test_tool_boundary.dir/tests/unit/test_tool_boundary.c.o
+[ 47%] Building C object CMakeFiles/test_response_observer.dir/tests/unit/test_response_observer.c.o
+[ 49%] Building C object CMakeFiles/test_response_observer.dir/core/src/context/response_observer.c.o
+[ 50%] Linking C executable test_config
+[ 52%] Linking C executable test_tool_boundary
+[ 52%] Built target test_interpreter
+[ 54%] Linking C executable test_response_observer
+[ 56%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 56%] Built target test_config
+[ 58%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 58%] Built target test_tool_boundary
+[ 60%] Linking C static library librecursant_auth.a
+[ 62%] Linking C executable recursant-validate
+[ 62%] Built target recursant_auth
+[ 62%] Built target test_response_observer
+[ 64%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 66%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o
+[ 67%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o
+[ 69%] Linking C static library librecursant_admission.a
+[ 69%] Built target recursant_admission
+[ 69%] Built target recursant-validate
+[ 71%] Linking C static library librecursant_attempts.a
+[ 73%] Linking C executable test_attempts_internal
+[ 75%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 77%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 77%] Built target recursant_attempts
+[ 79%] Linking C executable test_admission
+[ 81%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 81%] Built target test_attempts_internal
+[ 83%] Linking C executable recursant-tracer
+[ 83%] Built target test_admission
+[ 84%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o
+[ 86%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o
+[ 88%] Linking C shared library libattempt_probe.so
+[ 88%] Built target recursant-tracer
+[ 90%] Linking C executable test_attempts
+[ 92%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 92%] Built target attempt_probe
+[ 94%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 96%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 96%] Built target test_attempts
+[ 98%] Building C object CMakeFiles/recursant.dir/core/src/context/response_observer.c.o
+[100%] Linking C executable recursant
+[100%] Built target recursant
+Test project /build
+      Start  1: selector_unit
+ 1/20 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: attempts_unit
+ 2/20 Test  #2: attempts_unit ....................   Passed    0.01 sec
+      Start  3: attempts_overflow
+ 3/20 Test  #3: attempts_overflow ................   Passed    0.01 sec
+      Start  4: interpreter_alloc
+ 4/20 Test  #4: interpreter_alloc ................   Passed    0.19 sec
+      Start  5: context_unit
+ 5/20 Test  #5: context_unit .....................   Passed    0.01 sec
+      Start  6: egress_policy
+ 6/20 Test  #6: egress_policy ....................   Passed    0.01 sec
+      Start  7: config_strict
+ 7/20 Test  #7: config_strict ....................   Passed    0.01 sec
+      Start  8: admission_unit
+ 8/20 Test  #8: admission_unit ...................   Passed    0.01 sec
+      Start  9: interpreter_loopback
+ 9/20 Test  #9: interpreter_loopback .............   Passed   11.58 sec
+      Start 10: tool_boundary_unit
+10/20 Test #10: tool_boundary_unit ...............   Passed    0.03 sec
+      Start 11: native_tools_integration
+11/20 Test #11: native_tools_integration .........   Passed   32.82 sec
+      Start 12: response_observer_unit
+12/20 Test #12: response_observer_unit ...........   Passed    0.04 sec
+      Start 13: gateway_context_integration
+13/20 Test #13: gateway_context_integration ......   Passed   74.34 sec
+      Start 14: hermes_observer
+14/20 Test #14: hermes_observer ..................   Passed    7.35 sec
+      Start 15: compliance_integration
+15/20 Test #15: compliance_integration ...........   Passed   19.87 sec
+      Start 16: router_integration
+16/20 Test #16: router_integration ...............   Passed   24.02 sec
+      Start 17: transport_integration
+17/20 Test #17: transport_integration ............   Passed    1.56 sec
+      Start 18: admission_integration
+18/20 Test #18: admission_integration ............   Passed    0.40 sec
+      Start 19: trajectory_reference
+19/20 Test #19: trajectory_reference .............   Passed    3.61 sec
+      Start 20: accounting
+20/20 Test #20: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 20
+
+Total Test time (real) = 176.02 sec
+test_companion_opens_tags_exports_to_real_c_interpreter (test_gateway_bridge_live.LiveBridgeTests.test_companion_opens_tags_exports_to_real_c_interpreter) ... ok
+test_foreign_headers_cannot_bypass_registered_branch_pin (test_gateway_bridge_live.LiveBridgeTests.test_foreign_headers_cannot_bypass_registered_branch_pin) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 1.058s
+
+OK

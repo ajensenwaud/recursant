@@ -245,8 +245,16 @@ class BridgeTests(unittest.TestCase):
         f.seen.get(timeout=1)
         adapter.tool(**ids, tool_call_id='call', status='ok', result='EXECUTOR_NOT_MODEL')
         event = f.seen.get(timeout=1)[2]['event']
+        self.assertEqual(event['kind'], 'tool')
+        self.assertEqual(event['text'], {'tool_result': 'EXECUTOR_NOT_MODEL'})
+        self.assertEqual(event['status'], 'ok')
+        self.assertNotIn('stream_association', event)
+        # The previous loss is retained; a supported callback cannot clear it.
+        self.assertGreater(event['dropped'], 0)
+        adapter.tool(**ids, tool_call_id='call', status='error', result='x' * 2049)
+        event = f.seen.get(timeout=1)[2]['event']
         self.assertEqual(event['kind'], 'invalidation')
-        self.assertNotIn('EXECUTOR_NOT_MODEL', str(event))
+        self.assertNotIn('text', event)
 
     def test_close_drops_queued_text_without_waiting_for_stalled_exporter(self):
         f = self.fixture()

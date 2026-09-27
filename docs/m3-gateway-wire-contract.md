@@ -130,8 +130,8 @@ Plain-text chat with a fully observed `stop` assistant response
 can establish a replayable boundary. Next input must preserve the exact stored
 role/content history including that assistant message, subject only to the
 bounded inert-envelope equivalence below; appended new messages must be plain
-user text. Tools, opaque provider state, truncation, failures or history
-mismatch permanently pin the branch. No source `replayable=true` is accepted.
+user text. Tools outside the separately qualified [nonstream tool slice](m3-nonstream-tool-continuation.md),
+opaque provider state, truncation, failures or history mismatch permanently pin the branch. No source `replayable=true` is accepted.
 An in-flight generation blocks concurrent branch dispatch. Final M2 may force
 private; if that conflicts with an existing pin, block rather than switch.
 
@@ -171,10 +171,10 @@ pins rather than interfering with wire forwarding. See
 normalized-message handoff. No source-ingestion, bridge or attribution contract
 is relaxed by observing a stream.
 
-Native Hermes requests containing `tools`, `reasoning_effort`, assistant
-`tool_calls`, tool-result `tool_call_id` or other extra parameters **still pin**.
-Tool definitions cannot be added to the request allowlist without explicit
-protocol and candidate-capability validation in the next integration slice.
+Native **streaming** Hermes tool requests and `reasoning_effort` still pin.
+The [nonstream tool-continuation slice](m3-nonstream-tool-continuation.md) adds a
+narrow explicit definition/choice/candidate contract and actual source tool-hook
+ingestion. It does not extend the SSE observer or establish native acceptance.
 
 ### Bounded inert GLM envelope compatibility (review pending)
 
@@ -246,7 +246,9 @@ operator evidence identity, <=128 printable ASCII bytes), `qualified_tasks`
 `expected_task_cost` (finite nonnegative numeric total in a common unit). Alias
 indices are unique and baseline must be represented. Auto alias cannot collide
 with any configured alias/physical name. Qualifications are operator declarations,
-not independently validated by the gateway. Costs must account for replay,
+not independently validated by the gateway. Optional tool `capabilities` are
+specified in the nonstream slice; absence is unknown, never implicit support.
+Costs must account for replay,
 retries and interpretation; missing/unknown costs cannot be passed as zero.
 The automatic alias is callable but not yet included in `/v1/models`.
 

@@ -1,0 +1,128 @@
+#include "recursant/tool_boundary.h"
+#include <jansson.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct rc_tool_boundary { json_t *history, *assistant; uint32_t requirements; };
+static bool text(json_t *v, const char *expected) {
+    const char *s=json_string_value(v);
+    return s && strcmp(s,expected)==0;
+}
+static bool plain(json_t *v) {
+    json_t *role=json_object_get(v,"role");
+    return json_is_object(v) && json_object_size(v)==2 &&
+        (text(role,"user") || text(role,"system") || text(role,"assistant")) &&
+        json_is_string(json_object_get(v,"content"));
+}
+static bool calls_valid(json_t *v) {
+    json_t *cs=json_object_get(v,"tool_calls"), *content=json_object_get(v,"content");
+    if (!json_is_object(v) || json_object_size(v)!=(content?3u:2u) ||
+        !text(json_object_get(v,"role"),"assistant") ||
+        (content && !json_is_null(content) && !json_is_string(content)) ||
+        !json_is_array(cs) || !json_array_size(cs) || json_array_size(cs)>RC_TOOL_MAX_CALLS)
+        return false;
+    for (size_t i=0;i<json_array_size(cs);++i) {
+        json_t *c=json_array_get(cs,i), *id=json_object_get(c,"id"), *f=json_object_get(c,"function");
+        if (!json_is_object(c) || json_object_size(c)!=3 || !json_is_string(id) ||
+            !json_string_length(id) || json_string_length(id)>RC_TOOL_MAX_ID_BYTES ||
+            !text(json_object_get(c,"type"),"function") || !json_is_object(f) ||
+            json_object_size(f)!=2 || !json_is_string(json_object_get(f,"name")) ||
+            !json_string_length(json_object_get(f,"name")) ||
+            !json_is_string(json_object_get(f,"arguments"))) return false;
+        for (size_t j=0;j<i;++j)
+            if (json_equal(id,json_object_get(json_array_get(cs,j),"id"))) return false;
+    }
+    return true;
+}
+static rc_tool_status history_valid(rc_tool_boundary *b) {
+    json_t *ids[RC_TOOL_MAX_CALLS];
+    bool done[RC_TOOL_MAX_CALLS]={false};
+    size_t used=0, start=0, pending=0, n=json_array_size(b->history);
+    for (size_t i=0;i<=n;++i) {
+        json_t *m=i==n?b->assistant:json_array_get(b->history,i);
+        if (pending) {
+            if (i==n || !json_is_object(m) || json_object_size(m)!=3 ||
+                !text(json_object_get(m,"role"),"tool") ||
+                !json_is_string(json_object_get(m,"content"))) return RC_TOOL_INVALID;
+            size_t j=start;
+            for (;j<used;++j) if (json_equal(ids[j],json_object_get(m,"tool_call_id"))) break;
+            if (j==used || done[j]) return RC_TOOL_INVALID;
+            done[j]=true; --pending; continue;
+        }
+        if (i<n && plain(m)) continue;
+        if (!calls_valid(m)) return RC_TOOL_INVALID;
+        json_t *cs=json_object_get(m,"tool_calls");
+        size_t count=json_array_size(cs);
+        b->requirements |= RC_TOOL_CAP_HISTORY | RC_TOOL_CAP_FUNCTIONS;
+        if (count>1) b->requirements |= RC_TOOL_CAP_PARALLEL;
+        if (count>RC_TOOL_MAX_CALLS-used) return RC_TOOL_LIMIT;
+        start=used;
+        for (size_t j=0;j<count;++j) {
+            json_t *id=json_object_get(json_array_get(cs,j),"id");
+            for (size_t k=0;k<used;++k) if (json_equal(ids[k],id)) return RC_TOOL_INVALID;
+            ids[used++]=id;
+        }
+        pending=count;
+    }
+    return RC_TOOL_COMPLETE;
+}
+uint32_t rc_tool_boundary_requirements(const rc_tool_boundary *b) {
+    return b ? b->requirements : 0;
+}
+bool rc_tool_boundary_candidate(const rc_tool_boundary *b, uint32_t known, uint32_t supported) {
+    return b && (known & b->requirements)==b->requirements &&
+        (supported & b->requirements)==b->requirements;
+}
+void rc_tool_boundary_free(rc_tool_boundary *b) {
+    if (b) { json_decref(b->history); json_decref(b->assistant); free(b); }
+}
+rc_tool_status rc_tool_boundary_capture(const char *h, size_t hn,
+    const char *a, size_t an, rc_tool_boundary **out) {
+    if (!out) return RC_TOOL_INVALID;
+    *out = NULL;
+    if (!h || !a) return RC_TOOL_INVALID;
+    if (hn > RC_TOOL_MAX_BYTES || an > RC_TOOL_MAX_BYTES) return RC_TOOL_LIMIT;
+    rc_tool_boundary *b = calloc(1, sizeof *b);
+    if (!b) return RC_TOOL_NOMEM;
+    b->history = json_loadb(h, hn, JSON_REJECT_DUPLICATES, NULL);
+    b->assistant = json_loadb(a, an, JSON_REJECT_DUPLICATES, NULL);
+    if (!json_is_array(b->history) || !calls_valid(b->assistant)) {
+        rc_tool_boundary_free(b); return RC_TOOL_INVALID;
+    }
+    if (json_array_size(b->history) + 1 +
+        json_array_size(json_object_get(b->assistant,"tool_calls")) > RC_TOOL_MAX_MESSAGES) {
+        rc_tool_boundary_free(b); return RC_TOOL_LIMIT;
+    }
+    rc_tool_status status=history_valid(b);
+    if (status!=RC_TOOL_COMPLETE) { rc_tool_boundary_free(b); return status; }
+    *out = b; return RC_TOOL_COMPLETE;
+}
+rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *b, const char *m, size_t n) {
+    if (!b || !m) return RC_TOOL_INVALID;
+    if (n > RC_TOOL_MAX_BYTES) return RC_TOOL_LIMIT;
+    json_t *v = json_loadb(m, n, JSON_REJECT_DUPLICATES, NULL);
+    size_t count = json_array_size(b->history);
+    json_t *calls = json_object_get(b->assistant,"tool_calls");
+    size_t nc = json_array_size(calls), total = json_array_size(v);
+    bool seen[RC_TOOL_MAX_CALLS] = {false};
+    bool ok = nc > 0 && nc <= RC_TOOL_MAX_CALLS && json_is_array(v) &&
+        total >= count + 1 && total <= count + 1 + nc;
+    for (size_t i=0; ok && i<count; ++i)
+        ok = json_equal(json_array_get(v,i),json_array_get(b->history,i));
+    if (ok) ok = json_equal(json_array_get(v,count), b->assistant);
+    for (size_t i=count+1; ok && i<total; ++i) {
+        json_t *r = json_array_get(v,i);
+        const char *role = json_string_value(json_object_get(r,"role"));
+        json_t *id = json_object_get(r,"tool_call_id");
+        ok = json_is_object(r) && json_object_size(r)==3 && role &&
+            strcmp(role,"tool")==0 && json_is_string(id) &&
+            json_is_string(json_object_get(r,"content"));
+        size_t j=0;
+        for (; ok && j<nc; ++j)
+            if (json_equal(id,json_object_get(json_array_get(calls,j),"id"))) break;
+        if (!ok || j==nc || seen[j]) { ok=false; break; }
+        seen[j]=true;
+    }
+    json_decref(v);
+    return !ok ? RC_TOOL_INVALID : total==count+1+nc ? RC_TOOL_COMPLETE : RC_TOOL_INCOMPLETE;
+}
