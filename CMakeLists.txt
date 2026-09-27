@@ -111,6 +111,12 @@ if(BUILD_TESTING)
                      ${CMAKE_SOURCE_DIR}/tests/integration -p test_admission.py -v)
     set_tests_properties(admission_integration PROPERTIES
       ENVIRONMENT "RECURSANT_TRACER_BIN=$<TARGET_FILE:recursant-tracer>;PYTHONDONTWRITEBYTECODE=1")
+    add_test(NAME trajectory_reference
+             COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
+                     ${CMAKE_SOURCE_DIR}/tests -p test_trajectory_reference.py -v)
+    set_tests_properties(trajectory_reference PROPERTIES
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
     add_test(NAME accounting
              COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
                      ${CMAKE_SOURCE_DIR}/tests -p test_accounting.py -v)

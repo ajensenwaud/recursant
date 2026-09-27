@@ -1,6 +1,11 @@
 # M3 baseline and token-efficiency acceptance contract
 
-Status: frozen evaluation requirements; no baseline or routed inference run has occurred.
+Status: frozen evaluation requirements; no matched M3 efficiency/quality run has occurred. M1/M2 and vanilla-Hermes smoke evidence exists separately and is not a comparison result.
+
+## M3 implementation amendment
+
+The architecture and staged M3 build are approved. Existing development/Hermes images and C dependencies were verified available in the implementation session. The historical installation blockers below are superseded by that inventory; they do not authorise new installations. The first request-bound integration probe uses an explicitly disclosed, header-only `llm_request` middleware adapter because passive observers cannot bind a wire request. Any future comparative arms must use identical correlation instrumentation, with body/tool/budget invariance verified; it is not accurate to call this adapter observer-only. The probe's narrowed toolset and synthetic provider are integration fixtures, not the vanilla benchmark. Physical HTTP-attempt identity below SDK retries remains unproven. Paid-spend approval and a scoped private-interpreter run remain outstanding; an unanswered approval form grants neither.
+
 
 ## User acceptance
 

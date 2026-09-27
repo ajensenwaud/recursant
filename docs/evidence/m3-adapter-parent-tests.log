@@ -1,0 +1,21 @@
+test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok
+test_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok
+test_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok
+test_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok
+test_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok
+test_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok
+test_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok
+test_lone_surrogate_content_is_dropped_without_logging (test_context_adapter.AdapterTests.test_lone_surrogate_content_is_dropped_without_logging) ... ok
+test_rejected_same_identity_revokes_old_join (test_context_adapter.AdapterTests.test_rejected_same_identity_revokes_old_join) ... ok
+test_request_exact_endpoint_only_headers_unique_invocations (test_context_adapter.AdapterTests.test_request_exact_endpoint_only_headers_unique_invocations) ... ok
+test_text_windows_explicitly_mark_truncation (test_context_adapter.AdapterTests.test_text_windows_explicitly_mark_truncation) ... ok
+test_tool_requires_completed_matching_response_not_arrival_order (test_context_adapter.AdapterTests.test_tool_requires_completed_matching_response_not_arrival_order) ... ok
+test_observer_is_read_only_and_bounded (test_observer.ObserverTest.test_observer_is_read_only_and_bounded) ... ok
+test_acceptance_requires_exact_final_response (test_smoke.AcceptanceTest.test_acceptance_requires_exact_final_response) ... ok
+test_acceptance_requires_real_successful_tool (test_smoke.AcceptanceTest.test_acceptance_requires_real_successful_tool) ... ok
+test_loopback_requires_container_network (test_smoke.AcceptanceTest.test_loopback_requires_container_network) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.044s
+
+OK

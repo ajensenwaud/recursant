@@ -1,0 +1,60 @@
+{
+  "passed": false,
+  "reviewed_sha": "aa6f292479c1233d5d22e1301e26b603116d7eb6",
+  "reviewed_worktree": "/home/aj/projects/recursant-v4-m3-adapter",
+  "security_concerns": [],
+  "logic_errors": [
+    "BLOCKER: deploy/hermes/context_adapter/__init__.py:58 serializes with ensure_ascii=False and UTF-8 encodes before the try block. A normal Python string containing a lone surrogate in exposed content, reasoning_content, or a tool result raises UnicodeEncodeError out of the callback instead of delivering an event or recording its loss. Independently reproduced all three fields: response/content and response/reasoning advance sequence 0->1 with dropped 0->0; tool result advances sequence 1->2 with dropped 0->0. No send occurs. This violates the implemented emission/loss accounting contract; it does not require adversarial Python objects or production ingestion. Safely serialize supported strings, or catch encoding failure and increment dropped without logging raw content. Add regression tests for each exposed text source and subsequent sequence/drop evidence."
+  ],
+  "suggestions": [
+    "Nonblocking: extend the committed runtime probe assertions to check association_scope=middleware_invocation and physical_routing_eligible=false for every response/tool event, alongside the existing unit checks.",
+    "Keep the documented nonroot bind-mount readability prerequisite explicit. Do not broaden host file permissions merely to execute the probe."
+  ],
+  "summary": "Integration blocked by independently reproduced unhandled Unicode serialization and uncounted event loss. The previous stale-state and callback-race fixes are sound within the reviewed narrow contract; 15 tests and both synthetic real-Hermes/real-terminal probes pass, but do not cover this failure.",
+  "scope": {
+    "files": [
+      "deploy/hermes/context_adapter/__init__.py",
+      "deploy/hermes/test_context_adapter.py",
+      "bench/hermes_context_probe.py",
+      "docs/evidence/m3-adapter-tdd.md"
+    ],
+    "association": "outer middleware invocation only",
+    "physical_routing_eligible": false,
+    "not_established": [
+      "physical HTTP attempt uniqueness",
+      "raw stream association",
+      "production authentication or ingestion",
+      "semantic ranking or automatic routing",
+      "real-model quality or savings",
+      "durable delivery or consumer safety",
+      "complete M3-A or M3 acceptance"
+    ]
+  },
+  "verification": {
+    "worktree_clean_before_and_after": true,
+    "diff_check": "git diff --check ee90707..HEAD exited 0",
+    "unit_tests": {
+      "command": "unittest.defaultTestLoader.discover('deploy/hermes', pattern='test_*.py') with TextTestRunner(verbosity=2)",
+      "result": "15 tests passed inside the existing isolated image; no host bytecode or test artifacts written"
+    },
+    "runtime": {
+      "image": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b",
+      "hermes_sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+      "isolation": "--pull never --network none --read-only --user 65534:65534 --cap-drop ALL --security-opt no-new-privileges; ephemeral /tmp tmpfs; fresh HOME/HERMES_HOME; no active profile, installs, inference, or external requests",
+      "initial_attempt": "Documented UID65534 bind-mount command exited 2 before probe execution: Permission denied opening /probe/run.py. Host permissions were not modified.",
+      "successful_alternative": "Transferred exact source bytes through an in-memory tar archive over Docker stdin into container tmpfs, using tarfile data extraction filter and /tmp/probe on sys.path. Ran the unchanged probe in both modes with the same image and restrictions, no host mounts or writes.",
+      "metadata_mode": {"exit_code": 0, "requests": 2, "responses": 2, "tool_events": 1, "adapter_dropped": 0, "content_enabled": false, "headers_exact": true, "terminal_executed": true, "consumer_ready_before_next_dispatch": true},
+      "content_mode": {"exit_code": 0, "requests": 2, "responses": 2, "tool_events": 1, "adapter_dropped": 0, "content_enabled": true, "headers_exact": true, "terminal_executed": true, "consumer_ready_before_next_dispatch": true},
+      "warning": "Existing pinned upstream pm/shell.py invalid-escape SyntaxWarning in both successful runs."
+    },
+    "blocking_reproduction": {
+      "setup": "Construct Adapter('http://local/v1'); enable content; use valid task/session/turn/request identity and count; accept request; use a sendto stub accepting bytes.",
+      "response_cases": "Call response with finish_reason='stop' and SimpleNamespace(content=chr(0xd800)), then repeat on a fresh adapter with reasoning_content=chr(0xd800). Both raise UnicodeEncodeError; sequence becomes 1 and dropped remains 0.",
+      "tool_case": "First emit an attributable response declaring tool call 'call', then tool(tool_call_id='call', status='ok', result=chr(0xd800)). Raises UnicodeEncodeError; sequence becomes 2 and dropped remains 0.",
+      "diagnostic_leak_assessment": "No raw-text diagnostic leak established. Inspected pinned Hermes plugins_dispatch.py: its hook-failure reporter logs the exception with %s, not repr(exc), and reports field names rather than payload values. The blocking finding is callback escape and uncounted loss, not a demonstrated credential/content leak."
+    },
+    "previous_blockers": "Known-identity invalidation precedes request validation/conversion; rejected repeats cannot retain exact state. RLock covers callback decisions, state, event sequencing and sends. Metadata invalidations and explicit truncation flags are present and covered by passing tests."
+  },
+  "writes": ["/home/aj/projects/recursant-v4/docs/evidence/m3-adapter-review.json"],
+  "integration_decision": "Do not integrate this reviewed SHA until the Unicode serialization/loss blocker is fixed and independently reverified. Passing synthetic runtime evidence is not production readiness."
+}

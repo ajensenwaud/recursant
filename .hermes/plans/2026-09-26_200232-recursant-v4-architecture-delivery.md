@@ -14,6 +14,10 @@
 
 ---
 
+## M3 implementation-cut review — 27 September 2026
+
+The [M3 architecture review](../../docs/m3-architecture-review.md) records the implemented M1/M2 starting point and proposed M3-A through M3-E acceptance gates. Approved by Anders for staged implementation, these sequence M3 as causal harness integration, safe C selection/continuity, real private trajectory interpretation, live closed-loop routing, and matched full-task economics. Proposed sequencing change: prove exact live hook correlation before adding OTLP transport dependencies. Preserve the detailed companion's safety contract and the benchmark contract's separate dollar/token/quality gates. Existing transport is libmicrohttpd/libcurl/Jansson/PCRE2; historical discovery and dependency blockers below are not current inventory. No M3 completion or new dependency/spend approval is implied.
+
 ## 1. Ground truth and scope
 
 Source of product requirements: `/home/aj/projects/recursant-v4/AGENTS.md`, read in full.

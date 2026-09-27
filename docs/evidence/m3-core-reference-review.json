@@ -1,0 +1,11 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    "bench/trajectory_reference.py:36,72-83,123-128: malformed case metadata can escape the offline CLI's input-error handling. With a case containing expected=null and an otherwise valid matching response, score_response calls None.items(); AttributeError is caught by neither score_response nor main. Independently reproduced CLI exit 1 with a traceback instead of the intended 'invalid reference input' error. expected=[] and expected='planning' also reproduce the uncaught exception. Validate case/expected shapes before scoring, reject invalid fixtures explicitly, and add malformed-input regression coverage. Do not silently score a broken fixture as a failed model response."
+  ],
+  "suggestions": [
+    "Extend offline input tests to cover top-level case/record container types and malformed case metadata, including runs with no records, so fixture validation does not depend on whether a valid model response was supplied."
+  ],
+  "summary": "Reviewed committed ee90707 C registry/header/tests, confirmed those files have no subsequent diff, and reviewed the offline evaluator, synthetic suite, CMake registration and evidence documentation. No C registry blocker found within its documented caller-authenticated, serialized, bounded and non-durable contract. Added-line security scan found no matches. Independently ran all 7 Python tests successfully and verified the no-record CLI reports 6 assigned cases, 0 attempts, complete=false and release_pass=false; additional malformed-fixture probes exposed the input-handling defect above. C normal/sanitizer results are parent-reported, not independently rerun here. No inference, installations or code edits; only this verdict file was created. Adapter review is out of scope. Synthetic fixtures and advisory scores are not held-out results, semantic proof or savings/release acceptance."
+}

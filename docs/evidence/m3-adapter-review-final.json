@@ -1,0 +1,54 @@
+{
+  "passed": true,
+  "reviewed_sha": "76176c3f44ce8d80b72c05d3b7a8bd951b509ce6",
+  "reviewed_worktree": "/home/aj/projects/recursant-v4-m3-adapter",
+  "security_concerns": [],
+  "logic_errors": [],
+  "suggestions": [],
+  "summary": "The sole prior Unicode emission blocker is resolved: invalid exposed text is dropped without escaping the callback or logging, and the next delivered event reports the sequence gap and cumulative drop. All 16 deploy/hermes tests pass; approval is limited to this adapter fix, not production eligibility or full M3 acceptance.",
+  "scope": {
+    "review_type": "Bounded independent re-review of the Unicode fix and its regression tests; earlier reviewed fixes and runtime evidence are not reopened.",
+    "diff": "76176c3^..76176c3",
+    "association": "outer middleware invocation only",
+    "production_eligible": false,
+    "physical_routing_eligible": false,
+    "full_m3_acceptance": false
+  },
+  "file_hashes_sha256": {
+    "deploy/hermes/context_adapter/__init__.py": "7033238e57af838169a9a4a109a948608d820b367906072a4457b8ced27bbbf2",
+    "deploy/hermes/test_context_adapter.py": "561a937bff47bd7ced5872d80fd24f11b753895552003c84ddc53b0c31ad4e27",
+    "bench/hermes_context_probe.py": "a4c8caa541aefdb1717b87f183aa15915928f07c00dafa56d81ed34bfc1a24b0",
+    "docs/evidence/m3-adapter-tdd.md": "f634206a36661c3c9a39290727a885f6dc5e7a9a7bb8704a195b41f90f3a9620"
+  },
+  "initial_review": {
+    "path": "/home/aj/projects/recursant-v4/docs/evidence/m3-adapter-review.json",
+    "sha256": "15b3a3f9e42222a279e4cb5dc32b4d8ae4e77f4db6947bd4bda315085b2c155d",
+    "preserved": true
+  },
+  "verification": {
+    "worktree_clean_before_and_after_tests": true,
+    "diff_check": {"command": "git diff --check HEAD^ HEAD", "exit_code": 0},
+    "unit_tests": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/hermes -p 'test_*.py' -v",
+      "exit_code": 0,
+      "tests_run": 16,
+      "result": "OK",
+      "elapsed_seconds_reported": 0.035
+    },
+    "unicode_regression": {
+      "test": "AdapterTests.test_lone_surrogate_content_is_dropped_without_logging",
+      "sources_exercised": ["content", "reasoning_content", "tool_result"],
+      "transport": "Real nonblocking AF_UNIX datagrams through registered adapter callbacks",
+      "assertions_verified": [
+        "No callback exception, log, stdout or stderr for lone-surrogate text",
+        "Invalid event produces no datagram, advances sequence once and increments dropped once",
+        "Subsequent valid event is delivered with the sequence gap and dropped=1",
+        "Subsequent request identity is preserved literally and private invalid text is absent"
+      ]
+    },
+    "code_review": "Encoding is inside a narrow UnicodeEncodeError handler under the existing serialized emission lock. The handler increments dropped once and returns before send; valid serialization and the existing socket-error handling are unchanged. No new secrets, shell execution, permissions, network behavior or broad exception suppression were introduced.",
+    "runtime_probes": "Not rerun in this bounded review; parent will run both probes and whole-repository tests. No network/model calls, installs, permission/profile changes or HERMES_YOLO_MODE bypass were used. The evidence document still includes HERMES_YOLO_MODE in its historical command; this review does not endorse or rely on that bypass."
+  },
+  "writes": ["/home/aj/projects/recursant-v4/docs/evidence/m3-adapter-review-final.json"],
+  "integration_decision": "The prior Unicode blocker is cleared for the narrow adapter change. Parent final whole-repository verification and both no-bypass runtime probes remain separate acceptance steps. This verdict does not establish production ingestion, physical request association, routing safety, model quality/savings, or complete M3."
+}

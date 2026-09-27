@@ -1,0 +1,232 @@
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /work/build/m3-dev
+[  7%] Built target recursant_policy
+[ 15%] Built target recursant_context
+[ 30%] Built target recursant_config
+[ 30%] Built target test_egress
+[ 46%] Built target test_context
+[ 46%] Built target recursant_auth
+[ 53%] Built target recursant-validate
+[ 57%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 65%] Built target test_config
+[ 73%] Built target recursant_admission
+[ 76%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 80%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 88%] Built target recursant-tracer
+[ 92%] Linking C executable recursant
+[100%] Built target test_admission
+[100%] Built target recursant
+Test project /work/build/m3-dev
+      Start  1: context_unit
+ 1/11 Test  #1: context_unit .....................   Passed    0.00 sec
+      Start  2: egress_policy
+ 2/11 Test  #2: egress_policy ....................   Passed    0.00 sec
+      Start  3: config_strict
+ 3/11 Test  #3: config_strict ....................   Passed    0.00 sec
+      Start  4: admission_unit
+ 4/11 Test  #4: admission_unit ...................   Passed    0.00 sec
+      Start  5: hermes_observer
+ 5/11 Test  #5: hermes_observer ..................   Passed    0.13 sec
+      Start  6: compliance_integration
+ 6/11 Test  #6: compliance_integration ...........   Passed   19.28 sec
+      Start  7: router_integration
+ 7/11 Test  #7: router_integration ...............   Passed   23.33 sec
+      Start  8: transport_integration
+ 8/11 Test  #8: transport_integration ............   Passed    1.47 sec
+      Start  9: admission_integration
+ 9/11 Test  #9: admission_integration ............   Passed    0.34 sec
+      Start 10: trajectory_reference
+10/11 Test #10: trajectory_reference .............   Passed    3.46 sec
+      Start 11: accounting
+11/11 Test #11: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 11
+
+Total Test time (real) =  48.14 sec
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: /work/build/m3-san
+[  3%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[  7%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[ 11%] Linking C static library librecursant_policy.a
+[ 15%] Linking C static library librecursant_context.a
+[ 15%] Built target recursant_policy
+[ 15%] Built target recursant_context
+[ 19%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[ 23%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 26%] Linking C executable test_egress
+[ 26%] Built target test_egress
+[ 30%] Linking C static library librecursant_config.a
+[ 34%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 34%] Built target recursant_config
+[ 38%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 42%] Linking C executable test_context
+[ 46%] Linking C static library librecursant_auth.a
+[ 46%] Built target test_context
+[ 50%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 50%] Built target recursant_auth
+[ 53%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 57%] Linking C executable recursant-validate
+[ 57%] Built target recursant-validate
+[ 61%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 65%] Linking C executable test_config
+[ 69%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 69%] Built target test_config
+[ 73%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 76%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 80%] Linking C static library librecursant_admission.a
+[ 80%] Built target recursant_admission
+[ 84%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 88%] Linking C executable recursant
+[ 88%] Built target recursant
+[ 92%] Linking C executable recursant-tracer
+[ 96%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 96%] Built target recursant-tracer
+[100%] Linking C executable test_admission
+[100%] Built target test_admission
+Test project /work/build/m3-san
+      Start  1: context_unit
+ 1/11 Test  #1: context_unit .....................   Passed    0.00 sec
+      Start  2: egress_policy
+ 2/11 Test  #2: egress_policy ....................   Passed    0.00 sec
+      Start  3: config_strict
+ 3/11 Test  #3: config_strict ....................   Passed    0.00 sec
+      Start  4: admission_unit
+ 4/11 Test  #4: admission_unit ...................   Passed    0.00 sec
+      Start  5: hermes_observer
+ 5/11 Test  #5: hermes_observer ..................   Passed    0.11 sec
+      Start  6: compliance_integration
+ 6/11 Test  #6: compliance_integration ...........   Passed   19.75 sec
+      Start  7: router_integration
+ 7/11 Test  #7: router_integration ...............   Passed   22.24 sec
+      Start  8: transport_integration
+ 8/11 Test  #8: transport_integration ............   Passed    1.47 sec
+      Start  9: admission_integration
+ 9/11 Test  #9: admission_integration ............   Passed    0.34 sec
+      Start 10: trajectory_reference
+10/11 Test #10: trajectory_reference .............   Passed    3.63 sec
+      Start 11: accounting
+11/11 Test #11: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 11
+
+Total Test time (real) =  47.67 sec
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    RECURSANT_SANITIZE
+
+
+
+CORRECTION: prior RECURSANT_SANITIZE was unused; that run was NOT sanitizer evidence. Correct configured RECURSANT_SANITIZERS=ON follows, with linked-runtime verification.
+-- Configuring done (0.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: /work/build/m3-asan
+[  7%] Built target recursant_policy
+[ 15%] Built target recursant_context
+[ 30%] Built target test_egress
+[ 30%] Built target recursant_config
+[ 38%] Built target test_context
+[ 46%] Built target test_config
+[ 53%] Built target recursant_auth
+[ 61%] Built target recursant-validate
+[ 69%] Built target recursant_admission
+[ 73%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 80%] Built target recursant-tracer
+[ 88%] Built target test_admission
+[ 92%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 96%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[100%] Linking C executable recursant
+[100%] Built target recursant
+	linux-vdso.so.1 (0x0000793fac8b7000)
+	libasan.so.8 => /usr/lib/x86_64-linux-gnu/libasan.so.8 (0x0000793fac142000)
+	libmicrohttpd.so.12 => /usr/lib/x86_64-linux-gnu/libmicrohttpd.so.12 (0x0000793fac107000)
+	libcurl.so.4 => /usr/lib/x86_64-linux-gnu/libcurl.so.4 (0x0000793fac013000)
+	libjansson.so.4 => /usr/lib/x86_64-linux-gnu/libjansson.so.4 (0x0000793fac002000)
+	libpcre2-8.so.0 => /usr/lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x0000793fabf56000)
+	libubsan.so.1 => /usr/lib/x86_64-linux-gnu/libubsan.so.1 (0x0000793fab937000)
+	libc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x0000793fab716000)
+	libm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x0000793fab5f0000)
+	libgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x0000793fab5c2000)
+	libgnutls.so.30 => /usr/lib/x86_64-linux-gnu/libgnutls.so.30 (0x0000793fab3b1000)
+	libnghttp2.so.14 => /usr/lib/x86_64-linux-gnu/libnghttp2.so.14 (0x0000793fab385000)
+	libidn2.so.0 => /usr/lib/x86_64-linux-gnu/libidn2.so.0 (0x0000793fab363000)
+	librtmp.so.1 => /usr/lib/x86_64-linux-gnu/librtmp.so.1 (0x0000793fab343000)
+	libldap.so.2 => /usr/lib/x86_64-linux-gnu/libldap.so.2 (0x0000793fab2e0000)
+	liblber.so.2 => /usr/lib/x86_64-linux-gnu/liblber.so.2 (0x0000793fab2cf000)
+	libssh2.so.1 => /usr/lib/x86_64-linux-gnu/libssh2.so.1 (0x0000793fab282000)
+	libpsl.so.5 => /usr/lib/x86_64-linux-gnu/libpsl.so.5 (0x0000793fab26b000)
+	libssl.so.3 => /usr/lib/x86_64-linux-gnu/libssl.so.3 (0x0000793fab15d000)
+	libcrypto.so.3 => /usr/lib/x86_64-linux-gnu/libcrypto.so.3 (0x0000793faab43000)
+	libgssapi_krb5.so.2 => /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2 (0x0000793faaaeb000)
+	libzstd.so.1 => /usr/lib/x86_64-linux-gnu/libzstd.so.1 (0x0000793faaa28000)
+	libbrotlidec.so.1 => /usr/lib/x86_64-linux-gnu/libbrotlidec.so.1 (0x0000793faaa19000)
+	libz.so.1 => /usr/lib/x86_64-linux-gnu/libz.so.1 (0x0000793faa9f9000)
+	libstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x0000793faa759000)
+	/lib64/ld-linux-x86-64.so.2 (0x0000793fac8b9000)
+	libp11-kit.so.0 => /usr/lib/x86_64-linux-gnu/libp11-kit.so.0 (0x0000793faa57e000)
+	libunistring.so.5 => /usr/lib/x86_64-linux-gnu/libunistring.so.5 (0x0000793faa397000)
+	libtasn1.so.6 => /usr/lib/x86_64-linux-gnu/libtasn1.so.6 (0x0000793faa380000)
+	libhogweed.so.6 => /usr/lib/x86_64-linux-gnu/libhogweed.so.6 (0x0000793faa333000)
+	libnettle.so.8 => /usr/lib/x86_64-linux-gnu/libnettle.so.8 (0x0000793faa2dc000)
+	libgmp.so.10 => /usr/lib/x86_64-linux-gnu/libgmp.so.10 (0x0000793faa256000)
+	libsasl2.so.2 => /usr/lib/x86_64-linux-gnu/libsasl2.so.2 (0x0000793faa23b000)
+	libkrb5.so.3 => /usr/lib/x86_64-linux-gnu/libkrb5.so.3 (0x0000793faa16f000)
+	libk5crypto.so.3 => /usr/lib/x86_64-linux-gnu/libk5crypto.so.3 (0x0000793faa141000)
+	libcom_err.so.2 => /usr/lib/x86_64-linux-gnu/libcom_err.so.2 (0x0000793faa13b000)
+	libkrb5support.so.0 => /usr/lib/x86_64-linux-gnu/libkrb5support.so.0 (0x0000793faa12e000)
+	libbrotlicommon.so.1 => /usr/lib/x86_64-linux-gnu/libbrotlicommon.so.1 (0x0000793faa10b000)
+	libffi.so.8 => /usr/lib/x86_64-linux-gnu/libffi.so.8 (0x0000793faa0fa000)
+	libkeyutils.so.1 => /usr/lib/x86_64-linux-gnu/libkeyutils.so.1 (0x0000793faa0f1000)
+	libresolv.so.2 => /usr/lib/x86_64-linux-gnu/libresolv.so.2 (0x0000793faa0de000)
+	linux-vdso.so.1 (0x0000776071e31000)
+	libasan.so.8 => /usr/lib/x86_64-linux-gnu/libasan.so.8 (0x00007760716e9000)
+	libubsan.so.1 => /usr/lib/x86_64-linux-gnu/libubsan.so.1 (0x00007760710cc000)
+	libc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x0000776070eab000)
+	libm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x0000776070d85000)
+	libgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x0000776070d57000)
+	libstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x0000776070ab5000)
+	/lib64/ld-linux-x86-64.so.2 (0x0000776071e33000)
+Test project /work/build/m3-asan
+      Start  1: context_unit
+ 1/11 Test  #1: context_unit .....................   Passed    0.01 sec
+      Start  2: egress_policy
+ 2/11 Test  #2: egress_policy ....................   Passed    0.01 sec
+      Start  3: config_strict
+ 3/11 Test  #3: config_strict ....................   Passed    0.04 sec
+      Start  4: admission_unit
+ 4/11 Test  #4: admission_unit ...................   Passed    0.01 sec
+      Start  5: hermes_observer
+ 5/11 Test  #5: hermes_observer ..................   Passed    0.12 sec
+      Start  6: compliance_integration
+ 6/11 Test  #6: compliance_integration ...........   Passed   18.86 sec
+      Start  7: router_integration
+ 7/11 Test  #7: router_integration ...............   Passed   24.01 sec
+      Start  8: transport_integration
+ 8/11 Test  #8: transport_integration ............   Passed    1.53 sec
+      Start  9: admission_integration
+ 9/11 Test  #9: admission_integration ............   Passed    0.40 sec
+      Start 10: trajectory_reference
+10/11 Test #10: trajectory_reference .............   Passed    3.58 sec
+      Start 11: accounting
+11/11 Test #11: accounting .......................   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 11
+
+Total Test time (real) =  48.68 sec

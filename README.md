@@ -2,7 +2,7 @@
 
 C inference gateway for explicit hybrid routing and deterministic request-egress controls. Requirements: [AGENTS.md](AGENTS.md).
 
-**Current checkpoint:** Functional M1 and M2 are implemented and tested, including the packaged runtime. Normal and ASan/UBSan runs each pass all seven CTest suites. Earlier real private/public routing and vanilla-Hermes tool smokes passed. The final live M2 check is **blocked by private inference timeouts**, also reproduced without the router; see the [delivery record](docs/evidence/m1-m2-delivery.md). M3 is not implemented and remains subject to architecture review.
+**Current checkpoint:** Functional M1/M2 are implemented and tested, including successful live private/public routing and the packaged sensitive two-turn smoke. The earlier private-inference timeout blocker was subsequently cleared; see [later live evidence](docs/evidence/live-smoke-gx10-20260927.md) and [packaged M2 result](docs/evidence/m2-live-committed.json). M3's [architecture is approved](docs/m3-architecture-review.md); initial context/integration foundations are under development. Intelligent model selection, real trajectory interpretation and savings/quality acceptance are **not delivered**.
 
 ## Production binary
 
@@ -77,6 +77,8 @@ Cancellation distinguishes a receive-side FIN from a reset: valid write-half-clo
 - Accounting evaluator: `python3 -m bench.accounting RECORDS.json`. It reports descriptive arithmetic, not a statistical release pass. Missing usage remains unknown; failed attempts and auxiliary calls must be retained.
 
 ## Evidence
+
+- [M3 foundation checkpoint and remaining gates](docs/evidence/m3-checkpoint.md)
 
 - [M1/M2 delivery and limitations](docs/evidence/m1-m2-delivery.md)
 - [M2 no-leak and fail-closed tests](docs/evidence/compliance-tdd.md)
