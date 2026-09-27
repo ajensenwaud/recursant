@@ -1,0 +1,704 @@
+BUILD interpreter
+Start testing: Sep 27 11:25 UTC
+----------------------------------------------------------
+1/12 Testing: context_unit
+1/12 Test: context_unit
+Command: "/src/build/interpreter/test_context"
+Directory: /src/build/interpreter
+"context_unit" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+context tests passed
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"context_unit" end time: Sep 27 11:25 UTC
+"context_unit" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/12 Testing: egress_policy
+2/12 Test: egress_policy
+Command: "/src/build/interpreter/test_egress"
+Directory: /src/build/interpreter
+"egress_policy" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+PASS egress rejection checks and 24 state combinations
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"egress_policy" end time: Sep 27 11:25 UTC
+"egress_policy" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/12 Testing: config_strict
+3/12 Test: config_strict
+Command: "/src/build/interpreter/test_config"
+Directory: /src/build/interpreter
+"config_strict" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+PASS config strictness suite (10 test groups)
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"config_strict" end time: Sep 27 11:25 UTC
+"config_strict" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/12 Testing: admission_unit
+4/12 Test: admission_unit
+Command: "/src/build/interpreter/test_admission"
+Directory: /src/build/interpreter
+"admission_unit" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+PASS admission unit suite
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"admission_unit" end time: Sep 27 11:25 UTC
+"admission_unit" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/12 Testing: interpreter_loopback
+5/12 Test: interpreter_loopback
+Command: "/usr/bin/python3" "/src/tests/integration/test_interpreter.py" "-v"
+Directory: /src/build/interpreter
+"interpreter_loopback" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+test_delayed_nonblocking_and_copied_input (__main__.HTTP.test_delayed_nonblocking_and_copied_input) ... ok
+test_http_cancel (__main__.HTTP.test_http_cancel) ... ok
+test_http_forbidden_fields (__main__.HTTP.test_http_forbidden_fields) ... ok
+test_http_no_redirect (__main__.HTTP.test_http_no_redirect) ... ok
+test_http_overflow (__main__.HTTP.test_http_overflow) ... ok
+test_http_revision_mismatch (__main__.HTTP.test_http_revision_mismatch) ... ok
+test_http_shutdown (__main__.HTTP.test_http_shutdown) ... ok
+test_http_timeout (__main__.HTTP.test_http_timeout) ... ok
+test_rejections (__main__.Parser.test_rejections) ... ok
+test_schema_edges (__main__.Parser.test_schema_edges) ... ok
+test_valid (__main__.Parser.test_valid) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 7.469s
+
+OK
+<end of output>
+Test time =   7.54 sec
+----------------------------------------------------------
+Test Passed.
+"interpreter_loopback" end time: Sep 27 11:25 UTC
+"interpreter_loopback" time elapsed: 00:00:07
+----------------------------------------------------------
+
+6/12 Testing: hermes_observer
+6/12 Test: hermes_observer
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/deploy/hermes" "-p" "test_*.py" "-v"
+Directory: /src
+"hermes_observer" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok
+test_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok
+test_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok
+test_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok
+test_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok
+test_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok
+test_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok
+test_lone_surrogate_content_is_dropped_without_logging (test_context_adapter.AdapterTests.test_lone_surrogate_content_is_dropped_without_logging) ... ok
+test_rejected_same_identity_revokes_old_join (test_context_adapter.AdapterTests.test_rejected_same_identity_revokes_old_join) ... ok
+test_request_exact_endpoint_only_headers_unique_invocations (test_context_adapter.AdapterTests.test_request_exact_endpoint_only_headers_unique_invocations) ... ok
+test_text_windows_explicitly_mark_truncation (test_context_adapter.AdapterTests.test_text_windows_explicitly_mark_truncation) ... ok
+test_tool_requires_completed_matching_response_not_arrival_order (test_context_adapter.AdapterTests.test_tool_requires_completed_matching_response_not_arrival_order) ... ok
+test_observer_is_read_only_and_bounded (test_observer.ObserverTest.test_observer_is_read_only_and_bounded) ... ok
+test_acceptance_requires_exact_final_response (test_smoke.AcceptanceTest.test_acceptance_requires_exact_final_response) ... ok
+test_acceptance_requires_real_successful_tool (test_smoke.AcceptanceTest.test_acceptance_requires_real_successful_tool) ... ok
+test_loopback_requires_container_network (test_smoke.AcceptanceTest.test_loopback_requires_container_network) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.038s
+
+OK
+<end of output>
+Test time =   0.10 sec
+----------------------------------------------------------
+Test Passed.
+"hermes_observer" end time: Sep 27 11:25 UTC
+"hermes_observer" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/12 Testing: compliance_integration
+7/12 Test: compliance_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_compliance.py" "-v"
+Directory: /src/build/interpreter
+"compliance_integration" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok
+test_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok
+test_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok
+test_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok
+test_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok
+test_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok
+test_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok
+test_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok
+test_09_private_outage_never_falls_back_and_audit_is_safe (test_compliance.ComplianceTests.test_09_private_outage_never_falls_back_and_audit_is_safe) ... ok
+test_10_invalid_and_oversized_regex_startup (test_compliance.ComplianceTests.test_10_invalid_and_oversized_regex_startup) ... ok
+test_11_traversal_budgets_and_numeric_pattern (test_compliance.ComplianceTests.test_11_traversal_budgets_and_numeric_pattern) ... ok
+test_12_final_server_controls_are_scanned (test_compliance.ComplianceTests.test_12_final_server_controls_are_scanned) ... ok
+test_13_private_connection_refused_no_fallback (test_compliance.ComplianceTests.test_13_private_connection_refused_no_fallback) ... ok
+test_14_concurrent_policy_and_clean_tool_history (test_compliance.ComplianceTests.test_14_concurrent_policy_and_clean_tool_history) ... ok
+test_15_provider_restrictions_are_not_silently_dropped (test_compliance.ComplianceTests.test_15_provider_restrictions_are_not_silently_dropped) ... ok
+test_16_already_private_alias_keeps_physical_model (test_compliance.ComplianceTests.test_16_already_private_alias_keeps_physical_model) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 19.163s
+
+OK
+<end of output>
+Test time =  19.25 sec
+----------------------------------------------------------
+Test Passed.
+"compliance_integration" end time: Sep 27 11:25 UTC
+"compliance_integration" time elapsed: 00:00:19
+----------------------------------------------------------
+
+8/12 Testing: router_integration
+8/12 Test: router_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_router*.py" "-v"
+Directory: /src/build/interpreter
+"router_integration" start time: Sep 27 11:25 UTC
+Output:
+----------------------------------------------------------
+test_00_production_binary_exists (test_router.RouterTests.test_00_production_binary_exists) ... ok
+test_01_normal_forwarding (test_router.RouterTests.test_01_normal_forwarding) ... ok
+test_02_auth_and_models (test_router.RouterTests.test_02_auth_and_models) ... ok
+test_03_stream_tools_passthrough (test_router.RouterTests.test_03_stream_tools_passthrough) ... ok
+test_04_failures_and_limits (test_router.RouterTests.test_04_failures_and_limits) ... ok
+test_05_public_destination (test_router.RouterTests.test_05_public_destination) ... ok
+test_06_strict_startup (test_router.RouterTests.test_06_strict_startup) ... ok
+test_07_redirect_failure_no_retry (test_router.RouterTests.test_07_redirect_failure_no_retry) ... ok
+test_08_timeout (test_router.RouterTests.test_08_timeout) ... ok
+test_09_large_stream_queue (test_router.RouterTests.test_09_large_stream_queue) ... ok
+test_10_public_http_requires_explicit_test_mode (test_router.RouterTests.test_10_public_http_requires_explicit_test_mode) ... ok
+test_11_upload_absolute_deadline (test_router.RouterTests.test_11_upload_absolute_deadline) ... ok
+test_12_connection_cap (test_router.RouterTests.test_12_connection_cap) ... ok
+test_13_untrusted_tls_is_rejected (test_router.RouterTests.test_13_untrusted_tls_is_rejected) ... ----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 42104)
+Traceback (most recent call last):
+  File "/usr/lib/python3.14/socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/src/tests/integration/test_router.py", line 234, in handle
+    super().handle()
+    ~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/http/server.py", line 496, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/http/server.py", line 464, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/socket.py", line 725, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+ok
+test_models_failures_are_atomic_and_recover (test_router_allocations.AllocationTests.test_models_failures_are_atomic_and_recover) ... ok
+test_rewrite_failures_never_dispatch_and_recover (test_router_allocations.AllocationTests.test_rewrite_failures_never_dispatch_and_recover) ... ok
+test_cancel_while_upstream_idle (test_router_safety.SafetyTests.test_cancel_while_upstream_idle) ... ok
+test_client_cancel_closes_upstream (test_router_safety.SafetyTests.test_client_cancel_closes_upstream) ... ok
+test_complete_request_write_half_close (test_router_safety.SafetyTests.test_complete_request_write_half_close) ... ok
+test_graceful_idle_fin_is_bounded_by_deadline (test_router_safety.SafetyTests.test_graceful_idle_fin_is_bounded_by_deadline) ... ok
+test_invalid_json_and_request_smuggling_never_dispatch (test_router_safety.SafetyTests.test_invalid_json_and_request_smuggling_never_dispatch) ... ok
+test_redirect_is_not_followed (test_router_safety.SafetyTests.test_redirect_is_not_followed) ... ok
+test_timeout_does_not_retry (test_router_safety.SafetyTests.test_timeout_does_not_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 22.761s
+
+OK
+<end of output>
+Test time =  22.85 sec
+----------------------------------------------------------
+Test Passed.
+"router_integration" end time: Sep 27 11:26 UTC
+"router_integration" time elapsed: 00:00:22
+----------------------------------------------------------
+
+9/12 Testing: transport_integration
+9/12 Test: transport_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_transport.py" "-v"
+Directory: /src/build/interpreter
+"transport_integration" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream) ... ok
+test_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream) ... ok
+test_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models) ... ok
+test_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream) ... ok
+test_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured) ... ok
+test_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order) ... ok
+test_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.394s
+
+OK
+<end of output>
+Test time =   1.47 sec
+----------------------------------------------------------
+Test Passed.
+"transport_integration" end time: Sep 27 11:26 UTC
+"transport_integration" time elapsed: 00:00:01
+----------------------------------------------------------
+
+10/12 Testing: admission_integration
+10/12 Test: admission_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_admission.py" "-v"
+Directory: /src/build/interpreter
+"admission_integration" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_missing_secret_fails_startup (test_admission.AdmissionTests.test_missing_secret_fails_startup) ... ok
+test_oversized_body_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_oversized_body_sends_zero_upstream_bytes) ... ok
+test_scheme_case_insensitive_token_exact (test_admission.AdmissionTests.test_scheme_case_insensitive_token_exact) ... ok
+test_unauthenticated_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_unauthenticated_sends_zero_upstream_bytes) ... ok
+test_valid_token_roundtrips (test_admission.AdmissionTests.test_valid_token_roundtrips) ... ok
+test_wrong_token_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_wrong_token_sends_zero_upstream_bytes) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.267s
+
+OK
+<end of output>
+Test time =   0.34 sec
+----------------------------------------------------------
+Test Passed.
+"admission_integration" end time: Sep 27 11:26 UTC
+"admission_integration" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/12 Testing: trajectory_reference
+11/12 Test: trajectory_reference
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests" "-p" "test_trajectory_reference.py" "-v"
+Directory: /src
+"trajectory_reference" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_case_and_record_containers_and_records_are_validated (test_trajectory_reference.FixtureValidationTests.test_case_and_record_containers_and_records_are_validated) ... ok
+test_cli_malformed_fixtures_have_fixed_safe_error (test_trajectory_reference.FixtureValidationTests.test_cli_malformed_fixtures_have_fixed_safe_error) ... ok
+test_invalid_expected_rejected_independent_of_response (test_trajectory_reference.FixtureValidationTests.test_invalid_expected_rejected_independent_of_response) ... ok
+test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid (test_trajectory_reference.FixtureValidationTests.test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid) ... ok
+test_malformed_metadata_rejected_before_any_scoring (test_trajectory_reference.FixtureValidationTests.test_malformed_metadata_rejected_before_any_scoring) ... ok
+test_accepts_scoped_typed_state (test_trajectory_reference.InterpretationTests.test_accepts_scoped_typed_state) ... ok
+test_cli_reports_missing_records_without_inference (test_trajectory_reference.InterpretationTests.test_cli_reports_missing_records_without_inference) ... ok
+test_evaluator_retains_missing_cases_and_rejects_duplicates (test_trajectory_reference.InterpretationTests.test_evaluator_retains_missing_cases_and_rejects_duplicates) ... ok
+test_rejects_untrusted_or_stale_state (test_trajectory_reference.InterpretationTests.test_rejects_untrusted_or_stale_state) ... ok
+test_request_excludes_evaluation_labels_and_bounds_generation (test_trajectory_reference.InterpretationTests.test_request_excludes_evaluation_labels_and_bounds_generation) ... ok
+test_response_score_is_strict_and_does_not_echo_raw_text (test_trajectory_reference.InterpretationTests.test_response_score_is_strict_and_does_not_echo_raw_text) ... ok
+test_revision_must_be_a_bounded_nonempty_string (test_trajectory_reference.InterpretationTests.test_revision_must_be_a_bounded_nonempty_string) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 3.455s
+
+OK
+<end of output>
+Test time =   3.51 sec
+----------------------------------------------------------
+Test Passed.
+"trajectory_reference" end time: Sep 27 11:26 UTC
+"trajectory_reference" time elapsed: 00:00:03
+----------------------------------------------------------
+
+12/12 Testing: accounting
+12/12 Test: accounting
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests" "-p" "test_accounting.py" "-v"
+Directory: /src
+"accounting" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_cli_reads_json_file_and_emits_json (test_accounting.AccountingTests.test_cli_reads_json_file_and_emits_json) ... ok
+test_complete_matched_actual_evidence_gate (test_accounting.AccountingTests.test_complete_matched_actual_evidence_gate) ... ok
+test_dispatch_deduplication_rejects_conflicts (test_accounting.AccountingTests.test_dispatch_deduplication_rejects_conflicts) ... ok
+test_duplicate_episode_identity_is_rejected (test_accounting.AccountingTests.test_duplicate_episode_identity_is_rejected) ... ok
+test_episode_totals_retain_failed_task_spend (test_accounting.AccountingTests.test_episode_totals_retain_failed_task_spend) ... ok
+test_gate_blocks_unfair_or_incomplete_comparisons (test_accounting.AccountingTests.test_gate_blocks_unfair_or_incomplete_comparisons) ... ok
+test_invalid_episode_arm_and_budget_are_not_eligible (test_accounting.AccountingTests.test_invalid_episode_arm_and_budget_are_not_eligible) ... ok
+test_invalid_usage_or_identity_is_rejected (test_accounting.AccountingTests.test_invalid_usage_or_identity_is_rejected) ... ok
+test_missing_comparison_factors_block_eligibility (test_accounting.AccountingTests.test_missing_comparison_factors_block_eligibility) ... ok
+test_missing_usage_is_incomplete_not_zero (test_accounting.AccountingTests.test_missing_usage_is_incomplete_not_zero) ... ok
+test_no_successful_tasks_blocks_eligibility (test_accounting.AccountingTests.test_no_successful_tasks_blocks_eligibility) ... ok
+test_partial_usage_retains_unambiguous_known_token_lower_bound (test_accounting.AccountingTests.test_partial_usage_retains_unambiguous_known_token_lower_bound) ... ok
+test_reasoning_semantics_and_cached_subset (test_accounting.AccountingTests.test_reasoning_semantics_and_cached_subset) ... ok
+test_report_does_not_echo_arbitrary_content (test_accounting.AccountingTests.test_report_does_not_echo_arbitrary_content) ... ok
+test_retains_per_attempt_records_without_duplicate_spend (test_accounting.AccountingTests.test_retains_per_attempt_records_without_duplicate_spend) ... ok
+test_sums_every_model_dispatch_including_retries (test_accounting.AccountingTests.test_sums_every_model_dispatch_including_retries) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.051s
+
+OK
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"accounting" end time: Sep 27 11:26 UTC
+"accounting" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 27 11:26 UTC
+
+
+BUILD interpreter-asan
+Start testing: Sep 27 11:26 UTC
+----------------------------------------------------------
+1/12 Testing: context_unit
+1/12 Test: context_unit
+Command: "/src/build/interpreter-asan/test_context"
+Directory: /src/build/interpreter-asan
+"context_unit" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+context tests passed
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"context_unit" end time: Sep 27 11:26 UTC
+"context_unit" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/12 Testing: egress_policy
+2/12 Test: egress_policy
+Command: "/src/build/interpreter-asan/test_egress"
+Directory: /src/build/interpreter-asan
+"egress_policy" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+PASS egress rejection checks and 24 state combinations
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"egress_policy" end time: Sep 27 11:26 UTC
+"egress_policy" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/12 Testing: config_strict
+3/12 Test: config_strict
+Command: "/src/build/interpreter-asan/test_config"
+Directory: /src/build/interpreter-asan
+"config_strict" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+PASS config strictness suite (10 test groups)
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"config_strict" end time: Sep 27 11:26 UTC
+"config_strict" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/12 Testing: admission_unit
+4/12 Test: admission_unit
+Command: "/src/build/interpreter-asan/test_admission"
+Directory: /src/build/interpreter-asan
+"admission_unit" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+PASS admission unit suite
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"admission_unit" end time: Sep 27 11:26 UTC
+"admission_unit" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/12 Testing: interpreter_loopback
+5/12 Test: interpreter_loopback
+Command: "/usr/bin/python3" "/src/tests/integration/test_interpreter.py" "-v"
+Directory: /src/build/interpreter-asan
+"interpreter_loopback" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_delayed_nonblocking_and_copied_input (__main__.HTTP.test_delayed_nonblocking_and_copied_input) ... ok
+test_http_cancel (__main__.HTTP.test_http_cancel) ... ok
+test_http_forbidden_fields (__main__.HTTP.test_http_forbidden_fields) ... ok
+test_http_no_redirect (__main__.HTTP.test_http_no_redirect) ... ok
+test_http_overflow (__main__.HTTP.test_http_overflow) ... ok
+test_http_revision_mismatch (__main__.HTTP.test_http_revision_mismatch) ... ok
+test_http_shutdown (__main__.HTTP.test_http_shutdown) ... ok
+test_http_timeout (__main__.HTTP.test_http_timeout) ... ok
+test_rejections (__main__.Parser.test_rejections) ... ok
+test_schema_edges (__main__.Parser.test_schema_edges) ... ok
+test_valid (__main__.Parser.test_valid) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 8.059s
+
+OK
+<end of output>
+Test time =   8.13 sec
+----------------------------------------------------------
+Test Passed.
+"interpreter_loopback" end time: Sep 27 11:26 UTC
+"interpreter_loopback" time elapsed: 00:00:08
+----------------------------------------------------------
+
+6/12 Testing: hermes_observer
+6/12 Test: hermes_observer
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/deploy/hermes" "-p" "test_*.py" "-v"
+Directory: /src
+"hermes_observer" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok
+test_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok
+test_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok
+test_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok
+test_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok
+test_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok
+test_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok
+test_lone_surrogate_content_is_dropped_without_logging (test_context_adapter.AdapterTests.test_lone_surrogate_content_is_dropped_without_logging) ... ok
+test_rejected_same_identity_revokes_old_join (test_context_adapter.AdapterTests.test_rejected_same_identity_revokes_old_join) ... ok
+test_request_exact_endpoint_only_headers_unique_invocations (test_context_adapter.AdapterTests.test_request_exact_endpoint_only_headers_unique_invocations) ... ok
+test_text_windows_explicitly_mark_truncation (test_context_adapter.AdapterTests.test_text_windows_explicitly_mark_truncation) ... ok
+test_tool_requires_completed_matching_response_not_arrival_order (test_context_adapter.AdapterTests.test_tool_requires_completed_matching_response_not_arrival_order) ... ok
+test_observer_is_read_only_and_bounded (test_observer.ObserverTest.test_observer_is_read_only_and_bounded) ... ok
+test_acceptance_requires_exact_final_response (test_smoke.AcceptanceTest.test_acceptance_requires_exact_final_response) ... ok
+test_acceptance_requires_real_successful_tool (test_smoke.AcceptanceTest.test_acceptance_requires_real_successful_tool) ... ok
+test_loopback_requires_container_network (test_smoke.AcceptanceTest.test_loopback_requires_container_network) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.037s
+
+OK
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"hermes_observer" end time: Sep 27 11:26 UTC
+"hermes_observer" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/12 Testing: compliance_integration
+7/12 Test: compliance_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_compliance.py" "-v"
+Directory: /src/build/interpreter-asan
+"compliance_integration" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok
+test_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok
+test_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok
+test_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok
+test_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok
+test_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok
+test_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok
+test_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok
+test_09_private_outage_never_falls_back_and_audit_is_safe (test_compliance.ComplianceTests.test_09_private_outage_never_falls_back_and_audit_is_safe) ... ok
+test_10_invalid_and_oversized_regex_startup (test_compliance.ComplianceTests.test_10_invalid_and_oversized_regex_startup) ... ok
+test_11_traversal_budgets_and_numeric_pattern (test_compliance.ComplianceTests.test_11_traversal_budgets_and_numeric_pattern) ... ok
+test_12_final_server_controls_are_scanned (test_compliance.ComplianceTests.test_12_final_server_controls_are_scanned) ... ok
+test_13_private_connection_refused_no_fallback (test_compliance.ComplianceTests.test_13_private_connection_refused_no_fallback) ... ok
+test_14_concurrent_policy_and_clean_tool_history (test_compliance.ComplianceTests.test_14_concurrent_policy_and_clean_tool_history) ... ok
+test_15_provider_restrictions_are_not_silently_dropped (test_compliance.ComplianceTests.test_15_provider_restrictions_are_not_silently_dropped) ... ok
+test_16_already_private_alias_keeps_physical_model (test_compliance.ComplianceTests.test_16_already_private_alias_keeps_physical_model) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 19.796s
+
+OK
+<end of output>
+Test time =  19.88 sec
+----------------------------------------------------------
+Test Passed.
+"compliance_integration" end time: Sep 27 11:26 UTC
+"compliance_integration" time elapsed: 00:00:19
+----------------------------------------------------------
+
+8/12 Testing: router_integration
+8/12 Test: router_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_router*.py" "-v"
+Directory: /src/build/interpreter-asan
+"router_integration" start time: Sep 27 11:26 UTC
+Output:
+----------------------------------------------------------
+test_00_production_binary_exists (test_router.RouterTests.test_00_production_binary_exists) ... ok
+test_01_normal_forwarding (test_router.RouterTests.test_01_normal_forwarding) ... ok
+test_02_auth_and_models (test_router.RouterTests.test_02_auth_and_models) ... ok
+test_03_stream_tools_passthrough (test_router.RouterTests.test_03_stream_tools_passthrough) ... ok
+test_04_failures_and_limits (test_router.RouterTests.test_04_failures_and_limits) ... ok
+test_05_public_destination (test_router.RouterTests.test_05_public_destination) ... ok
+test_06_strict_startup (test_router.RouterTests.test_06_strict_startup) ... ok
+test_07_redirect_failure_no_retry (test_router.RouterTests.test_07_redirect_failure_no_retry) ... ok
+test_08_timeout (test_router.RouterTests.test_08_timeout) ... ok
+test_09_large_stream_queue (test_router.RouterTests.test_09_large_stream_queue) ... ok
+test_10_public_http_requires_explicit_test_mode (test_router.RouterTests.test_10_public_http_requires_explicit_test_mode) ... ok
+test_11_upload_absolute_deadline (test_router.RouterTests.test_11_upload_absolute_deadline) ... ok
+test_12_connection_cap (test_router.RouterTests.test_12_connection_cap) ... ok
+test_13_untrusted_tls_is_rejected (test_router.RouterTests.test_13_untrusted_tls_is_rejected) ... ok
+test_models_failures_are_atomic_and_recover (test_router_allocations.AllocationTests.test_models_failures_are_atomic_and_recover) ... ok
+test_rewrite_failures_never_dispatch_and_recover (test_router_allocations.AllocationTests.test_rewrite_failures_never_dispatch_and_recover) ... ok
+test_cancel_while_upstream_idle (test_router_safety.SafetyTests.test_cancel_while_upstream_idle) ... ok
+test_client_cancel_closes_upstream (test_router_safety.SafetyTests.test_client_cancel_closes_upstream) ... ok
+test_complete_request_write_half_close (test_router_safety.SafetyTests.test_complete_request_write_half_close) ... ok
+test_graceful_idle_fin_is_bounded_by_deadline (test_router_safety.SafetyTests.test_graceful_idle_fin_is_bounded_by_deadline) ... ok
+test_invalid_json_and_request_smuggling_never_dispatch (test_router_safety.SafetyTests.test_invalid_json_and_request_smuggling_never_dispatch) ... ok
+test_redirect_is_not_followed (test_router_safety.SafetyTests.test_redirect_is_not_followed) ... ok
+test_timeout_does_not_retry (test_router_safety.SafetyTests.test_timeout_does_not_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 24.033s
+
+OK
+<end of output>
+Test time =  24.13 sec
+----------------------------------------------------------
+Test Passed.
+"router_integration" end time: Sep 27 11:27 UTC
+"router_integration" time elapsed: 00:00:24
+----------------------------------------------------------
+
+9/12 Testing: transport_integration
+9/12 Test: transport_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_transport.py" "-v"
+Directory: /src/build/interpreter-asan
+"transport_integration" start time: Sep 27 11:27 UTC
+Output:
+----------------------------------------------------------
+test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream) ... ok
+test_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream) ... ok
+test_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models) ... ok
+test_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream) ... ok
+test_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured) ... ok
+test_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order) ... ok
+test_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.448s
+
+OK
+<end of output>
+Test time =   1.52 sec
+----------------------------------------------------------
+Test Passed.
+"transport_integration" end time: Sep 27 11:27 UTC
+"transport_integration" time elapsed: 00:00:01
+----------------------------------------------------------
+
+10/12 Testing: admission_integration
+10/12 Test: admission_integration
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests/integration" "-p" "test_admission.py" "-v"
+Directory: /src/build/interpreter-asan
+"admission_integration" start time: Sep 27 11:27 UTC
+Output:
+----------------------------------------------------------
+test_missing_secret_fails_startup (test_admission.AdmissionTests.test_missing_secret_fails_startup) ... ok
+test_oversized_body_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_oversized_body_sends_zero_upstream_bytes) ... ok
+test_scheme_case_insensitive_token_exact (test_admission.AdmissionTests.test_scheme_case_insensitive_token_exact) ... ok
+test_unauthenticated_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_unauthenticated_sends_zero_upstream_bytes) ... ok
+test_valid_token_roundtrips (test_admission.AdmissionTests.test_valid_token_roundtrips) ... ok
+test_wrong_token_sends_zero_upstream_bytes (test_admission.AdmissionTests.test_wrong_token_sends_zero_upstream_bytes) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.322s
+
+OK
+<end of output>
+Test time =   0.41 sec
+----------------------------------------------------------
+Test Passed.
+"admission_integration" end time: Sep 27 11:27 UTC
+"admission_integration" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/12 Testing: trajectory_reference
+11/12 Test: trajectory_reference
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests" "-p" "test_trajectory_reference.py" "-v"
+Directory: /src
+"trajectory_reference" start time: Sep 27 11:27 UTC
+Output:
+----------------------------------------------------------
+test_case_and_record_containers_and_records_are_validated (test_trajectory_reference.FixtureValidationTests.test_case_and_record_containers_and_records_are_validated) ... ok
+test_cli_malformed_fixtures_have_fixed_safe_error (test_trajectory_reference.FixtureValidationTests.test_cli_malformed_fixtures_have_fixed_safe_error) ... ok
+test_invalid_expected_rejected_independent_of_response (test_trajectory_reference.FixtureValidationTests.test_invalid_expected_rejected_independent_of_response) ... ok
+test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid (test_trajectory_reference.FixtureValidationTests.test_literal_ids_revisions_boundaries_and_minimal_segments_remain_valid) ... ok
+test_malformed_metadata_rejected_before_any_scoring (test_trajectory_reference.FixtureValidationTests.test_malformed_metadata_rejected_before_any_scoring) ... ok
+test_accepts_scoped_typed_state (test_trajectory_reference.InterpretationTests.test_accepts_scoped_typed_state) ... ok
+test_cli_reports_missing_records_without_inference (test_trajectory_reference.InterpretationTests.test_cli_reports_missing_records_without_inference) ... ok
+test_evaluator_retains_missing_cases_and_rejects_duplicates (test_trajectory_reference.InterpretationTests.test_evaluator_retains_missing_cases_and_rejects_duplicates) ... ok
+test_rejects_untrusted_or_stale_state (test_trajectory_reference.InterpretationTests.test_rejects_untrusted_or_stale_state) ... ok
+test_request_excludes_evaluation_labels_and_bounds_generation (test_trajectory_reference.InterpretationTests.test_request_excludes_evaluation_labels_and_bounds_generation) ... ok
+test_response_score_is_strict_and_does_not_echo_raw_text (test_trajectory_reference.InterpretationTests.test_response_score_is_strict_and_does_not_echo_raw_text) ... ok
+test_revision_must_be_a_bounded_nonempty_string (test_trajectory_reference.InterpretationTests.test_revision_must_be_a_bounded_nonempty_string) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 3.574s
+
+OK
+<end of output>
+Test time =   3.63 sec
+----------------------------------------------------------
+Test Passed.
+"trajectory_reference" end time: Sep 27 11:27 UTC
+"trajectory_reference" time elapsed: 00:00:03
+----------------------------------------------------------
+
+12/12 Testing: accounting
+12/12 Test: accounting
+Command: "/usr/bin/python3" "-m" "unittest" "discover" "-s" "/src/tests" "-p" "test_accounting.py" "-v"
+Directory: /src
+"accounting" start time: Sep 27 11:27 UTC
+Output:
+----------------------------------------------------------
+test_cli_reads_json_file_and_emits_json (test_accounting.AccountingTests.test_cli_reads_json_file_and_emits_json) ... ok
+test_complete_matched_actual_evidence_gate (test_accounting.AccountingTests.test_complete_matched_actual_evidence_gate) ... ok
+test_dispatch_deduplication_rejects_conflicts (test_accounting.AccountingTests.test_dispatch_deduplication_rejects_conflicts) ... ok
+test_duplicate_episode_identity_is_rejected (test_accounting.AccountingTests.test_duplicate_episode_identity_is_rejected) ... ok
+test_episode_totals_retain_failed_task_spend (test_accounting.AccountingTests.test_episode_totals_retain_failed_task_spend) ... ok
+test_gate_blocks_unfair_or_incomplete_comparisons (test_accounting.AccountingTests.test_gate_blocks_unfair_or_incomplete_comparisons) ... ok
+test_invalid_episode_arm_and_budget_are_not_eligible (test_accounting.AccountingTests.test_invalid_episode_arm_and_budget_are_not_eligible) ... ok
+test_invalid_usage_or_identity_is_rejected (test_accounting.AccountingTests.test_invalid_usage_or_identity_is_rejected) ... ok
+test_missing_comparison_factors_block_eligibility (test_accounting.AccountingTests.test_missing_comparison_factors_block_eligibility) ... ok
+test_missing_usage_is_incomplete_not_zero (test_accounting.AccountingTests.test_missing_usage_is_incomplete_not_zero) ... ok
+test_no_successful_tasks_blocks_eligibility (test_accounting.AccountingTests.test_no_successful_tasks_blocks_eligibility) ... ok
+test_partial_usage_retains_unambiguous_known_token_lower_bound (test_accounting.AccountingTests.test_partial_usage_retains_unambiguous_known_token_lower_bound) ... ok
+test_reasoning_semantics_and_cached_subset (test_accounting.AccountingTests.test_reasoning_semantics_and_cached_subset) ... ok
+test_report_does_not_echo_arbitrary_content (test_accounting.AccountingTests.test_report_does_not_echo_arbitrary_content) ... ok
+test_retains_per_attempt_records_without_duplicate_spend (test_accounting.AccountingTests.test_retains_per_attempt_records_without_duplicate_spend) ... ok
+test_sums_every_model_dispatch_including_retries (test_accounting.AccountingTests.test_sums_every_model_dispatch_including_retries) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.059s
+
+OK
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"accounting" end time: Sep 27 11:27 UTC
+"accounting" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 27 11:27 UTC

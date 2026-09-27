@@ -43,6 +43,17 @@ target_compile_options(recursant-validate PRIVATE -Wall -Wextra -Wpedantic -Werr
 
 find_package(Threads REQUIRED)
 find_package(PkgConfig QUIET)
+pkg_check_modules(INTERPRETER_DEPS IMPORTED_TARGET libcurl jansson)
+if(INTERPRETER_DEPS_FOUND)
+  add_library(recursant_interpreter STATIC core/src/context/interpreter.c)
+  target_include_directories(recursant_interpreter PUBLIC core/include)
+  target_link_libraries(recursant_interpreter PUBLIC Threads::Threads PkgConfig::INTERPRETER_DEPS)
+  target_compile_options(recursant_interpreter PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  if(RECURSANT_SANITIZERS)
+    target_compile_options(recursant_interpreter PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(recursant_interpreter PUBLIC -fsanitize=address,undefined)
+  endif()
+endif()
 pkg_check_modules(ROUTER_DEPS IMPORTED_TARGET libmicrohttpd libcurl jansson libpcre2-8)
 if(ROUTER_DEPS_FOUND)
   add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c)
@@ -115,6 +126,15 @@ if(BUILD_TESTING)
 
   find_package(Python3 COMPONENTS Interpreter)
   if(Python3_FOUND)
+    if(INTERPRETER_DEPS_FOUND)
+      add_executable(test_interpreter tests/unit/test_interpreter.c)
+      target_link_libraries(test_interpreter PRIVATE recursant_interpreter recursant_context)
+      target_compile_options(test_interpreter PRIVATE -Wall -Wextra -Wpedantic -Werror)
+      add_test(NAME interpreter_loopback COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_SOURCE_DIR}/tests/integration/test_interpreter.py -v)
+      set_tests_properties(interpreter_loopback PROPERTIES TIMEOUT 45
+        ENVIRONMENT "INTERPRETER_BIN=$<TARGET_FILE:test_interpreter>;PYTHONDONTWRITEBYTECODE=1")
+    endif()
     if(ROUTER_DEPS_FOUND)
       add_test(NAME hermes_observer
                COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
