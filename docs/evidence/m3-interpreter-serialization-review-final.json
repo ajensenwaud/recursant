@@ -1,0 +1,220 @@
+{
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "reviewed_sha": "37bd9185ae705db7ce335265cc93b7b4cbc3178b",
+  "base_sha": "838329ee42dd2dac91841d743095aacfdb009841",
+  "resolved_findings": [
+    {
+      "id": "M3-INTERPRETER-002",
+      "status": "resolved",
+      "detail": "Both nested input and outer request serialize fail-closed under transient and persistent Jansson allocation failures; independent differential reproduction fails base and passes reviewed fix."
+    }
+  ],
+  "scope": {
+    "repository": "/home/aj/projects/recursant-v4-m3-interpreter-worker",
+    "boundary": "Narrow fix review of checked serialization plus final worker normal/sanitizer regression bar, not a repeat of prior complete reviews.",
+    "excluded": [
+      "Live or public endpoints",
+      "Model quality or server schema enforcement",
+      "Gateway integration",
+      "System/libcurl allocation failures",
+      "ThreadSanitizer",
+      "Production DNS/TLS cancellation guarantees"
+    ],
+    "network": "No live calls, pulls, installs or inference. Only isolated container loopback tests."
+  },
+  "environment": {
+    "image": "recursant-v4-dev:local",
+    "image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+    "docker_flags": "--rm --pull never --network none --user 1000:1000",
+    "source_mount": "read-only",
+    "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1"
+  },
+  "inspection": {
+    "production_delta": "Only checked_dumps helper and two call substitutions. Removing helper and reversing substitutions reproduces base interpreter.c byte-for-byte. Endpoint, deadlines, prompt, schema, strict response validator, transport and scheduling unchanged.",
+    "serialization": "Measured bounded json_dumpb sink avoids json_dumps buffer-growth failures. Rejects zero/SIZE_MAX size, allocation failure and incomplete second traversal; terminates only complete result. No new parser or global allocator mutation in production.",
+    "ownership": "All tested transient/persistent paths leave zero tracked Jansson allocations; helper frees failed output using Jansson release function. Existing default-allocator contract unchanged.",
+    "regression_test": "Checked repository regression assertions include outer+inner semantic equality, transient and persistent sweep, allocation accounting; independently rerun rather than accepting supplied logs."
+  },
+  "testresults": {
+    "suites": {
+      "normal": {
+        "exit_code": 0,
+        "focused_ctest_passed": 2,
+        "loopback_cases_passed": 14,
+        "full_ctest_passed": 13,
+        "full_ctest_total": 13,
+        "sanitizer_diagnostics": false,
+        "log": "docs/evidence/m3-interpreter-serialization-independent-normal.log"
+      },
+      "asan": {
+        "exit_code": 0,
+        "focused_ctest_passed": 2,
+        "loopback_cases_passed": 14,
+        "full_ctest_passed": 13,
+        "full_ctest_total": 13,
+        "sanitizer_diagnostics": false,
+        "log": "docs/evidence/m3-interpreter-serialization-independent-asan.log"
+      }
+    },
+    "independent_sanitized_fault_injection": {
+      "exit_code": 0,
+      "trials": 3362,
+      "null_results": 3350,
+      "non_null_results": 12,
+      "bad_count": 0,
+      "bad_examples": [],
+      "stderr": "structured=0 count=1 allocation_sites=66 modes=2 live=0\nstructured=0 count=8 allocation_sites=157 modes=2 live=0\nstructured=0 count=16 allocation_sites=262 modes=2 live=0\nstructured=1 count=1 allocation_sites=286 modes=2 live=0\nstructured=1 count=8 allocation_sites=391 modes=2 live=0\nstructured=1 count=16 allocation_sites=513 modes=2 live=0\n",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-e",
+        "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1",
+        "-e",
+        "UBSAN_OPTIONS=halt_on_error=1",
+        "-v",
+        "/home/aj/projects/recursant-v4-m3-interpreter-worker:/src:ro",
+        "-v",
+        "/tmp/m3-independent-serialization-probe.c:/probe.c:ro",
+        "recursant-v4-dev:local",
+        "sh",
+        "-c",
+        "cc -std=c11 -Wall -Wextra -Werror -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie -I/src/core/include /probe.c -o /tmp/probe $(pkg-config --cflags --libs libcurl jansson) -pthread && /tmp/probe"
+      ]
+    },
+    "base_fault_injection": {
+      "exit_code": 0,
+      "trials": 3256,
+      "null_results": 3238,
+      "non_null_results": 18,
+      "bad_count": 6,
+      "bad_examples": [
+        {
+          "line_prefix": "{\"structured\":0,\"count\":1,\"site\":23,\"mode\":0,\"body\":{\"model\":\"independent-\\\"model\\\\\",\"stream\":false,",
+          "error": "AssertionError"
+        },
+        {
+          "line_prefix": "{\"structured\":0,\"count\":8,\"site\":100,\"mode\":0,\"body\":{\"model\":\"independent-\\\"model\\\\\",\"stream\":false",
+          "error": "AssertionError"
+        },
+        {
+          "line_prefix": "{\"structured\":0,\"count\":16,\"site\":189,\"mode\":0,\"body\":{\"model\":\"independent-\\\"model\\\\\",\"stream\":fals",
+          "error": "AssertionError"
+        },
+        {
+          "line_prefix": "{\"structured\":1,\"count\":1,\"site\":23,\"mode\":0,\"body\":{\"model\":\"independent-\\\"model\\\\\",\"stream\":false,",
+          "error": "AssertionError"
+        }
+      ],
+      "stderr": "structured=0 count=1 allocation_sites=68 modes=2 live=0\nstructured=0 count=8 allocation_sites=162 modes=2 live=0\nstructured=0 count=16 allocation_sites=261 modes=2 live=0\nstructured=1 count=1 allocation_sites=267 modes=2 live=0\nstructured=1 count=8 allocation_sites=374 modes=2 live=0\nstructured=1 count=16 allocation_sites=490 modes=2 live=0\n",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-e",
+        "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1",
+        "-e",
+        "UBSAN_OPTIONS=halt_on_error=1",
+        "-v",
+        "/tmp/m3-independent-base:/src:ro",
+        "-v",
+        "/tmp/m3-independent-serialization-probe.c:/probe.c:ro",
+        "recursant-v4-dev:local",
+        "sh",
+        "-c",
+        "cc -std=c11 -Wall -Wextra -Werror -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie -I/src/core/include /probe.c -o /tmp/probe $(pkg-config --cflags --libs libcurl jansson) -pthread && /tmp/probe"
+      ]
+    },
+    "base_anomalies": [
+      {
+        "version": "base",
+        "structured": 0,
+        "count": 1,
+        "site": 23,
+        "mode": 0
+      },
+      {
+        "version": "base",
+        "structured": 0,
+        "count": 8,
+        "site": 100,
+        "mode": 0
+      },
+      {
+        "version": "base",
+        "structured": 0,
+        "count": 16,
+        "site": 189,
+        "mode": 0
+      },
+      {
+        "version": "base",
+        "structured": 1,
+        "count": 1,
+        "site": 23,
+        "mode": 0
+      },
+      {
+        "version": "base",
+        "structured": 1,
+        "count": 8,
+        "site": 100,
+        "mode": 0
+      },
+      {
+        "version": "base",
+        "structured": 1,
+        "count": 16,
+        "site": 189,
+        "mode": 0
+      }
+    ],
+    "fixed_injected_cases": 3350,
+    "fixed_post_sweep_controls": 12,
+    "fixtures": "structured on/off x evidence counts 1,8,16; UINT64_MAX; escaped IDs and model; all four source labels; UTF-8 including non-BMP; maximum 1024-byte evidence text on 8/16 fixtures.",
+    "oracle": "Separate host Python json parser with duplicate-key rejection checks outer and inner semantic equality after construction, and fixed non-failing outputs equal base non-failing outputs. C asserts zero outstanding allocations each iteration. Probe exit alone is not an integrity result (base exits 0 but oracle rejects six outputs).",
+    "diagnostics": "No ASan/UBSan/LSan diagnostics in independent fixed/base probes or final sanitized suite."
+  },
+  "hashset": {
+    "algorithm": "sha256",
+    "worker": {
+      "CMakeLists.txt": "4dc16d2b728e646cd146d744a5a2a7d0a615b645fba5fef7e60e82d8208b566e",
+      "core/src/context/interpreter.c": "bc4d11e5de59497b2cfab3a11c8095e75dc95407f9c22e0f60dff54285228b91",
+      "core/include/recursant/interpreter.h": "c3bcf9953739d5d75ab92c3c960ae19e29153e5bfc365001e85100644a85be6c",
+      "tests/unit/test_interpreter_alloc.c": "c17533a46246d32cc7082135535e57ddef69e02c3f895da4ec5aff28c8a22c34",
+      "tests/unit/test_interpreter.c": "b9f1f2b466eabf92a12499c31db8d4a04d91161b8f6f6f52d7b940d2236eec8b",
+      "tests/integration/test_interpreter.py": "13acf42f59c33997c1a1e2c20dcb3481ed20c2a78e19eedc7b18d34d02c77512"
+    },
+    "main": {
+      "docs/evidence/m3-interpreter-review-final.json": "7fe1cd2125e279823c27a5e96220ab07bdbafe6179eabf976b2ce9f79eed7725",
+      "docs/evidence/m3-interpreter-serialization-independent-normal.log": "b5e120c1dc86e7d672dfaaa01e9ae373f957e1b11f544730e52484af6e410548",
+      "docs/evidence/m3-interpreter-serialization-independent-asan.log": "40e7eafebf1b59cd6a3169b7069694f77c7f29839473ab911dbf4c59bb6942d2"
+    },
+    "probe": "6884398c07467cebe25c107ccdc2b97b87ae9e6324545d2574c0896b4dc480cd"
+  },
+  "reproduction": {
+    "probe_source": "#define _POSIX_C_SOURCE 200809L\n#include <stdlib.h>\n#include <stdio.h>\n#include <assert.h>\n#include <string.h>\nstatic size_t calls, site, outstanding;\nstatic int sticky;\nstatic void *inject(size_t n) {\n    ++calls;\n    if(site && (calls==site || (sticky && calls>=site))) return NULL;\n    void *p=malloc(n); if(p) ++outstanding; return p;\n}\nstatic void release(void *p) { if(p) { assert(outstanding); --outstanding; free(p); } }\n#define free release\n#include \"/src/core/src/context/interpreter.c\"\n#undef free\nint main(void) {\n    size_t counts[]={1,8,16};\n    for(int structured=0;structured<2;structured++) for(size_t c=0;c<3;c++) {\n        rc_interpreter w={.tokens=4096,.structured_output=structured};\n        strcpy(w.model,\"independent-\\\"model\\\\\");\n        rc_interpreter_input in={.revision=UINT64_MAX,.evidence_count=counts[c]};\n        const char *sources[]={\"executor\",\"exposed_plan\",\"model_claim\",\"coverage_notice\"};\n        for(size_t j=0;j<in.evidence_count;j++) {\n            snprintf(in.evidence[j].id,sizeof(in.evidence[j].id),\"ind-%zu-\\\"\\\\\\n\\xc3\\xa9\",j);\n            strcpy(in.evidence[j].source,sources[j%4]);\n            if(c==0) strcpy(in.evidence[j].text,\"independent \\\"quotes\\\" \\\\ tab\\t newline\\n UTF8 \\xf0\\x9f\\x98\\x80\");\n            else { for(size_t k=0;k<sizeof(in.evidence[j].text)-1;k++) in.evidence[j].text[k]=\"\\\"\\\\\\n\\t abc\"[k%8]; }\n        }\n        site=calls=0; json_set_alloc_funcs(inject,release);\n        char *s=request_body(&w,&in); assert(s);\n        size_t total=calls;\n        printf(\"{\\\"structured\\\":%d,\\\"count\\\":%zu,\\\"site\\\":0,\\\"mode\\\":0,\\\"body\\\":%s}\\n\",structured,in.evidence_count,s);\n        release(s); assert(!outstanding);\n        for(sticky=0;sticky<2;sticky++) for(size_t i=1;i<=total+1;i++) {\n            site=i; calls=0;\n            s=request_body(&w,&in);\n            printf(\"{\\\"structured\\\":%d,\\\"count\\\":%zu,\\\"site\\\":%zu,\\\"mode\\\":%d,\\\"body\\\":%s}\\n\",structured,in.evidence_count,i,sticky,s?s:\"null\");\n            release(s); assert(!outstanding);\n        }\n        fprintf(stderr,\"structured=%d count=%zu allocation_sites=%zu modes=2 live=%zu\\n\",structured,in.evidence_count,total,outstanding);\n    }\n    json_set_alloc_funcs(malloc,free);\n    return 0;\n}\n",
+    "temporary_outputs": [
+      "/tmp/m3-independent-fixed.jsonl",
+      "/tmp/m3-independent-base.jsonl"
+    ],
+    "suite_command": "docker run --rm --pull never --network none --user 1000:1000 -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 -v <worker>:/src:ro -w /src recursant-v4-dev:local sh -c \"cmake -S . -B /tmp/build -DCMAKE_BUILD_TYPE=Debug [ -DRECURSANT_SANITIZERS=ON ] && cmake --build /tmp/build -j4 && ctest --test-dir /tmp/build -R interpreter -V && ctest --test-dir /tmp/build --output-on-failure\""
+  },
+  "worker_worktree_status": "clean",
+  "issues_encountered": []
+}

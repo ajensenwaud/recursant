@@ -1,0 +1,12 @@
+{
+  "passed": false,
+  "finding_id": "M3-GATEWAY-004",
+  "scope": "Real-provider envelope compatibility gap in otherwise conservative prototype; not a security bypass",
+  "snapshot": "/tmp/recursant-m3-gateway-review-swjdx99t",
+  "shape_source": "docs/evidence/m3-reference-gx10-structured.json",
+  "probe": "docs/evidence/m3-gateway-envelope-probe.py",
+  "observed": {"expected_model": "physical", "actual_model": "frontier", "regression_exit": 1},
+  "summary": "Known ordinary GLM metadata and null optional message fields permanently pin a plain-text scope, preventing the intended downshift even with valid ready interpretation.",
+  "required": "A separately reviewed compatibility slice must recognize narrowly defined inert response metadata/null optional fields and normalize the replayable assistant message consistently with supported Hermes behavior. Unknown, opaque, non-null continuation/tool/reasoning state remains pinned. Do not simply allow every extra field or strip substantive state.",
+  "limits": "The probe reuses stored metadata shape, not actual provider content or inference. The saved reference records omit reasoning text, so this does not establish full live GLM/Hermes portability. No new model calls or provider settings changes."
+}

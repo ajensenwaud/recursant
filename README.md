@@ -2,7 +2,7 @@
 
 C inference gateway for explicit hybrid routing and deterministic request-egress controls. Requirements: [AGENTS.md](AGENTS.md).
 
-**Current checkpoint:** Functional M1/M2 are implemented and tested, including successful live private/public routing and the packaged sensitive two-turn smoke. The earlier private-inference timeout blocker was subsequently cleared; see [later live evidence](docs/evidence/live-smoke-gx10-20260927.md) and [packaged M2 result](docs/evidence/m2-live-committed.json). M3's [architecture is approved](docs/m3-architecture-review.md); initial context/integration foundations are under development. Intelligent model selection, real trajectory interpretation and savings/quality acceptance are **not delivered**.
+**Current checkpoint:** Functional M1/M2 remain implemented and tested, including [live private/public routing](docs/evidence/live-smoke-gx10-20260927.md). Reviewed opt-in M3 gateway wiring now joins scoped ingestion, asynchronous interpretation and safe selection; the combined checkout passes **17/17 normal and 17/17 ASan/UBSan suites**. Local GLM reference interpretation uses **4,096 output tokens and 180-second timeouts**. **M3 is not complete:** the Hermes bridge has review fixes in progress, native streaming/tool flows remain conservatively pinned, and full-task quality and dollar savings are unproved. See the [continuation checkpoint](docs/evidence/m3-continuation-checkpoint.md) for evidence, limitations and the consumed live-test allowance. Scripted-provider qualification/cost fixtures are not measured economics.
 
 ## Production binary
 

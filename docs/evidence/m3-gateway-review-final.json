@@ -1,0 +1,231 @@
+{
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "scope": "Independent approval of M3-GATEWAY-001/002/003 fixes plus regressions only; NOT full M3 acceptance.",
+  "reviewed_at_utc": "2026-09-27T14:32:46.602541+00:00",
+  "base_commit": "219a6bf20c78c280a4581ebba324be5f3e8531b6",
+  "reviewed_commit": "f1eaa784879e0d2352564d27b91c69fef768dba1",
+  "reviewed_tree": "d1a35f32776d4b47f6289f650e5f98a69503a6a4",
+  "worktree": "/home/aj/projects/recursant-v4-m3-gateway-integration",
+  "worktree_clean_before_and_after": true,
+  "hashset": {
+    "CMakeLists.txt": "7deb1a46bdc46be6883398eec0914de5ea30311d96998e26ab3f8986f7ad1598",
+    "core/include/recursant/admission.h": "9b1c9a2b7491c9a005f10c1bbe85159e2baf33955b276b831025c78b1f798eb9",
+    "core/include/recursant/attempts.h": "f522c63560af7e51d5847b903ced982b8ee68c050af1f580dbc810f1376c4bf3",
+    "core/include/recursant/auth.h": "5ad0e4cf27d2f2eb4040c1ad5c2286d063050a4a46dd6d6883c4e1bbd95118e2",
+    "core/include/recursant/classifier.h": "fc1009fafffd5e4c2e9be6f1325bf908a252269dd5883c72518643431aa980a6",
+    "core/include/recursant/config.h": "f3014e98df428ac59e70a80c8868fca3eb83c13b9035e4bd35317e130744071f",
+    "core/include/recursant/context.h": "760a70a4a5d7a8fb2d7682c85987b9626fb830f87f88de0d89199cea54c826ec",
+    "core/include/recursant/egress.h": "d8021979787e516892d891132cf2f19468412ba50451c1e57931f39929b8e330",
+    "core/include/recursant/gateway_context.h": "dc197267ade01e34c498357789702fdaeb7379241a14a4538fa0b99a18544cbf",
+    "core/include/recursant/interpreter.h": "c3bcf9953739d5d75ab92c3c960ae19e29153e5bfc365001e85100644a85be6c",
+    "core/include/recursant/runtime.h": "f9f05085f3d9e96cd9dc3dc4b6b2ec6b4fbabd6c9f1abe02941177d5830b19ea",
+    "core/include/recursant/selector.h": "dcc0838618a449cd4c22075102c4bc7793e4577ac50db60621e7b2b6ef3a98e4",
+    "core/src/admin/validate.c": "34f47803cf348ef7fa4972e67a1941fa77a29057f83aa095e7d7efb6b0245997",
+    "core/src/auth/auth.c": "4ccd0438a5d87344db94540070ecafe5bfaa20aa4fe51dbc529b918f8fe33ef5",
+    "core/src/compliance/classifier.c": "4b723de7c6da52c2349bc9da80a4600a5342e8866250d046ea99bb0fe2c65056",
+    "core/src/compliance/egress.c": "1b52fb2d985cacad0bc491b79c97601d701cf97d5146f5cfb7e19a12de681d15",
+    "core/src/config/config.c": "4969ce9ef4d01c490feea7c246f57f2b5a405ebe0727eba10d55d4794e6c215d",
+    "core/src/context/attempts.c": "3c0db498ed0ef36ede5f9c72c082544266aeca562d1db5512fee3caa18af0be9",
+    "core/src/context/context.c": "9897d2b2d9d4a4c7a50492141a280de0a134711d471e32f1ffa42a1ef4b03cb5",
+    "core/src/context/gateway_context.c": "6e9b3900c861b444734d3bacc32402b6fe01542e72d7ac0832767b3f9d59e517",
+    "core/src/context/interpreter.c": "bc4d11e5de59497b2cfab3a11c8095e75dc95407f9c22e0f60dff54285228b91",
+    "core/src/context/selector.c": "1addc26b9415aa99bd1dcd8c0af43b75eee1b195964c24bd4f64ba095a0a0783",
+    "core/src/http/admission.c": "010937f92cc586bcf9332dbbf6ad8dbe45fc34d7e3933c54b0cbec23dbdd588e",
+    "core/src/http/router.c": "c140d467c796bae12144b1a692aa22957dec42a7434d9d4ff2f83df063bc8cae",
+    "core/src/http/tracer.c": "03cba397e3d79c6ab7de10a13088114706cc4fc759f682dde1c882965ec005a5",
+    "core/src/runtime.c": "63701d736ef4c8330b996302c1d887bd3a5495f0a49b6ef8a1f4e384886dd948",
+    "docs/m3-architecture-review.md": "af25fb11833ba29c189ae7f74b3735961c34546be3673e8f1ed30f42ca31e3da",
+    "docs/m3-gateway-wire-contract.md": "46edec2f0b94ad6627acca4b2599916613c90c9dc9b58bb1b3bc26edc891f931",
+    "tests/fixtures/attempt_probe.c": "32e96657a19404e8f47615303aafd46640c9b9a01ea5083feb3cb6a21ab97d76",
+    "tests/integration/test_admission.py": "7e39ee154e1a7799cd2e235f37c47850661600ce970ec873cc2d3946cf2858d6",
+    "tests/integration/test_compliance.py": "f54c8e211dcfa5d011fb6719a0733e3613d5a6a13b8ac3b26b41a2c6198c4f25",
+    "tests/integration/test_gateway_context.py": "c04b340557138d7be8144e833710c63adfd9c4eb95f474b2f046b33f11e230b7",
+    "tests/integration/test_interpreter.py": "13acf42f59c33997c1a1e2c20dcb3481ed20c2a78e19eedc7b18d34d02c77512",
+    "tests/integration/test_router.py": "5ea2592083fb66741088bda04776dc47b20d8cf6001976b0c10efb401514fbdb",
+    "tests/integration/test_router_allocations.py": "8959af054f339a0ad96f63da6fd8b94775b1b7d2f303fe18c7fb51a559806304",
+    "tests/integration/test_router_safety.py": "6917f942754f45ff48a460a0bccffd8f0925674fe04c379bd7c42c4d1e555ce1",
+    "tests/integration/test_transport.py": "f2da5ea0f657b3a35e22e8bddefc6e2f19f82b15c41d081a8eddc65d973feda3",
+    "tests/test_accounting.py": "dcd0f382df88ecab5d88078df4237e54640dc1e8750324ae021ef6a780179b59",
+    "tests/test_trajectory_reference.py": "ee943deb6b65f984d91f64c091ea151a07cd435bb882d0ae0c4c1fa1203c145a",
+    "tests/unit/json_faults.c": "0065ec94032d28095267d0bb1d9697415e563709e3a0c46f1ec58ec01b4d3e2b",
+    "tests/unit/test_admission.c": "476331f9f5fb8b07993c68ff58c5ec2831735905668188642c7726a0b0217d8f",
+    "tests/unit/test_attempts.c": "48f0812f6409c07365bdc99854aa6a5720f1a500a89f4e0fcb8f94316b7db5e4",
+    "tests/unit/test_attempts_internal.c": "b4859c6604d46099131f1a7be836adae512d1bee4cffb9e49635b448d333d684",
+    "tests/unit/test_config.c": "4e55a3841ad68aec3d5618a3ffccd3bcefd5036d005389ded7d87b1eea1347dc",
+    "tests/unit/test_context.c": "acd229c24a70bde9933bdc9efb4cbf7e81cbd677d7d3ce44b5d57114acb44bd8",
+    "tests/unit/test_egress.c": "3435f995073b32f56fa4613b9bc1b20978b2397e63c4da156b87d28933569b80",
+    "tests/unit/test_interpreter.c": "b9f1f2b466eabf92a12499c31db8d4a04d91161b8f6f6f52d7b940d2236eec8b",
+    "tests/unit/test_interpreter_alloc.c": "c17533a46246d32cc7082135535e57ddef69e02c3f895da4ec5aff28c8a22c34",
+    "tests/unit/test_selector.c": "4f42da449fd2855b6b2c99829a9302ce327b8fd1d559d415c7e36df2354595b0"
+  },
+  "environment": {
+    "image": "recursant-v4-dev:local",
+    "image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+    "docker_flags": [
+      "--rm",
+      "--pull never",
+      "--network none",
+      "--user 1000:1000"
+    ],
+    "source_mount": "/src:ro",
+    "build_root": "/tmp/m3-gateway-final-review",
+    "no_published_ports": true,
+    "providers": "scripted loopback HTTP only",
+    "sanitizers": "RECURSANT_SANITIZERS=ON; ldd confirms libasan.so.8 and libubsan.so.1"
+  },
+  "testresults": {
+    "normal": {
+      "build_exit": 0,
+      "ctest_suites": 17,
+      "ctest_failures": 0,
+      "ctest_skipped": 0,
+      "ctest_seconds": "81",
+      "separate_gateway_http_unittests": 28,
+      "independent_probe_scenarios": 26,
+      "independent_probe_exit": 0,
+      "probe_stderr_bytes": 0,
+      "original_review_probes": {
+        "explicit_tool_exchange": {
+          "explicit_status": 200,
+          "tool_reply": {
+            "choices": [
+              {
+                "index": 0,
+                "finish_reason": "tool_calls",
+                "message": {
+                  "role": "assistant",
+                  "content": null,
+                  "tool_calls": [
+                    {
+                      "id": "call-1",
+                      "type": "function",
+                      "function": {
+                        "name": "f",
+                        "arguments": "{}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "subsequent_auto_model": "frontier"
+        },
+        "shadow_candidate_veto": {
+          "unassociated_status": 200,
+          "associated_status": 200,
+          "physical_dispatches": 2
+        },
+        "shadow_source_placement": {
+          "first_model": "frontier",
+          "second_model": "physical"
+        },
+        "client_reset": {
+          "next_status": 200,
+          "next_model": "frontier"
+        }
+      },
+      "original_missing_scope_probe": {
+        "provider": "synthetic loopback",
+        "owner": "physical",
+        "next_status": 403,
+        "next_model": "physical"
+      },
+      "log": "docs/evidence/m3-gateway-review-final-normal.log",
+      "junit": "docs/evidence/m3-gateway-review-final-normal.xml",
+      "own_results": "docs/evidence/m3-gateway-review-final-probes-normal.json"
+    },
+    "asan": {
+      "build_exit": 0,
+      "ctest_suites": 17,
+      "ctest_failures": 0,
+      "ctest_skipped": 0,
+      "ctest_seconds": "86",
+      "separate_gateway_http_unittests": 28,
+      "independent_probe_scenarios": 26,
+      "independent_probe_exit": 0,
+      "probe_stderr_bytes": 0,
+      "original_review_probes": {
+        "explicit_tool_exchange": {
+          "explicit_status": 200,
+          "tool_reply": {
+            "choices": [
+              {
+                "index": 0,
+                "finish_reason": "tool_calls",
+                "message": {
+                  "role": "assistant",
+                  "content": null,
+                  "tool_calls": [
+                    {
+                      "id": "call-1",
+                      "type": "function",
+                      "function": {
+                        "name": "f",
+                        "arguments": "{}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "subsequent_auto_model": "frontier"
+        },
+        "shadow_candidate_veto": {
+          "unassociated_status": 200,
+          "associated_status": 200,
+          "physical_dispatches": 2
+        },
+        "shadow_source_placement": {
+          "first_model": "frontier",
+          "second_model": "physical"
+        },
+        "client_reset": {
+          "next_status": 200,
+          "next_model": "frontier"
+        }
+      },
+      "original_missing_scope_probe": {
+        "provider": "synthetic loopback",
+        "owner": "physical",
+        "next_status": 403,
+        "next_model": "physical"
+      },
+      "log": "docs/evidence/m3-gateway-review-final-asan.log",
+      "junit": "docs/evidence/m3-gateway-review-final-asan.xml",
+      "own_results": "docs/evidence/m3-gateway-review-final-probes-asan.json"
+    }
+  },
+  "fix_verdicts": [
+    {
+      "id": "M3-GATEWAY-001",
+      "passed": true,
+      "evidence": "Scoped explicit aliases now undergo scope validation, inflight exclusion, history and last-row updates, pin and final M2 enforcement. Permitted explicit alternate private destination remains unchanged; conflicting explicit requests reject without dispatch. Full mixed explicit/auto history consumes old advice; delayed older interpreter completion cannot revive it. Explicit tool reply pins frontier in original exploit."
+    },
+    {
+      "id": "M3-GATEWAY-002",
+      "passed": true,
+      "evidence": "Tiny-context-limit shadow proposal failure returns 200 baseline for both associated and unassociated requests. Mandatory source-derived privacy persists beyond advice TTL, and conflicts with pinned public owner still reject. Explicit public privacy conflicts reject without retargeting."
+    },
+    {
+      "id": "M3-GATEWAY-003",
+      "passed": true,
+      "evidence": "Generation-only, branch-only and both-tag loss reject 403 in auto and three explicit aliases, in active and shadow, repeatedly after TTL expiry. Unknown/mismatched scope or task/session and partial registered identity reject without physical dispatch. Proper scope retains alternate private pinned owner. Unrelated/no-identity automatic and explicit baselines still work. Existing suite additionally covers multiple registered branches."
+    }
+  ],
+  "independent_probe_script": "docs/evidence/m3-gateway-review-final-probes.py",
+  "independent_probe_sha256": "c6397907d15cd05308552e01325578871658f947fa8a3e1c43d5c97dd5497a1a",
+  "repeat_delay_coverage": "Three repetitions each of active/shadow lost-scope matrices; mixed explicit/auto with immediate and 450ms delayed interpreter; four inflight mode pairs repeated three times, with post-completion recovery. Both normal and ASAN/UBSAN.",
+  "limitations": [
+    "Approval is limited to the stated commit/hashset and fixes, not full M3 acceptance or release readiness.",
+    "Acknowledged stream/tools/reasoning and recorded GLM-envelope metadata compatibility gaps remain separate; conservative pinning is not complete native harness support.",
+    "No live model inference, installs, external network, service/profile modifications or code changes; fixture responses prove protocol behavior, not semantic quality, qualification, economics or savings.",
+    "Worker allocation fix 37bd918 was separately approved and parent-verified; this review does not replace that allocation-fault campaign.",
+    "Completely removed or wholly replaced diagnostic identity is indistinguishable from unrelated traffic; no guessed scope association is introduced.",
+    "No exhaustive fuzzing, allocation-failure campaign or production stress certification."
+  ],
+  "issues_encountered": []
+}

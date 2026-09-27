@@ -1,0 +1,13 @@
+{
+  "passed": false,
+  "scope": "Parent adversarial HTTP regression against frozen gateway snapshot; synthetic provider only",
+  "finding_id": "M3-GATEWAY-003",
+  "severity": "high",
+  "summary": "Losing generation/branch headers while retaining registered task/session/invocation metadata bypasses a mandatory model pin.",
+  "snapshot": "/tmp/recursant-m3-gateway-review-swjdx99t",
+  "gateway_context_sha256": "01ddf41b4ab0f0a925fc66cae6d30383e495ef12146af2aed9020898514a7a40",
+  "script": "docs/evidence/m3-gateway-missing-scope-probe.py",
+  "observed": {"owner": "physical", "next_status": 200, "next_model": "frontier", "regression_exit": 1},
+  "required": "An already-associated workflow cannot evade scope authority when mandatory scope tags disappear. Reject ambiguous/missing scope or retain the authoritative owner; preserve truly unassociated baseline requests without guessing a join. Exercise generation-only loss, both-tag loss, and explicit/auto mode paths.",
+  "limits": "No real inference, production networking, live Hermes profile changes, installations or paid calls. This is protocol continuity evidence, not model quality or dollar savings."
+}

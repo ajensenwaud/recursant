@@ -1,0 +1,144 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "id": "M3-GATEWAY-001",
+      "severity": "high",
+      "title": "Explicit requests with a registered scope bypass authoritative branch continuity",
+      "locations": [
+        "core/src/context/gateway_context.c:247-253",
+        "core/src/context/gateway_context.c:293-297",
+        "core/src/context/gateway_context.c:306-313"
+      ],
+      "finding": "Scope resolution, inflight checks, replay history and pin tracking run only when automatic is true. An explicit alias request carrying valid generation/branch/invocation headers is recorded with scope=-1. Its observed tool response cannot pin the registered branch, cannot advance last_row, and does not invalidate old automatic advice. Subsequent auto requests can omit that exchange and reuse the previous replayable history and snapshot.",
+      "reproduction": "Obtain format_simple advice after auto turn 1; send explicit baseline turn 2 with the same scope and a distinct invocation; scripted backend returns a tool_calls response. Submit auto turn 3 using turn-1 history plus a new user message and omit the tool exchange. Both normal and ASan builds dispatch turn 3 to cheaper physical instead of retaining frontier/blocking.",
+      "observed": {
+        "explicit_status": 200,
+        "tool_reply": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "tool_calls",
+              "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [
+                  {
+                    "id": "call-1",
+                    "type": "function",
+                    "function": {
+                      "name": "f",
+                      "arguments": "{}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "subsequent_auto_model": "physical"
+      },
+      "expected": "All associated physical requests must update/invalidate authoritative branch state regardless of whether selection is explicit. Preserve explicit alias semantics without allowing explicit requests to bypass inflight exclusion, scope validation or continuity evidence. A conservative rejection/pin on mixing modes is acceptable."
+    },
+    {
+      "id": "M3-GATEWAY-002",
+      "severity": "medium",
+      "title": "Shadow selector veto changes actual request acceptance",
+      "locations": [
+        "core/src/context/gateway_context.c:262-277",
+        "docs/m3-architecture-review.md:63"
+      ],
+      "finding": "rc_select failure returns 403 before the g->active check. Shadow is therefore not proposal-only: candidate-registry context limits can block the baseline dispatch even though M2 permits it and no interpretation exists.",
+      "reproduction": "Configure mode=shadow and baseline candidate context_limit=1. A plain auto request without association dispatches baseline and returns 200; the identical body with freshly registered scope headers is 403 with no upstream dispatch. Reproduced in normal and ASan builds.",
+      "observed": {
+        "unassociated_status": 200,
+        "associated_status": 403,
+        "physical_dispatches": 1
+      },
+      "expected": "In shadow, record an invalid/blocked proposal without applying the optional selector veto to actual dispatch. Keep mandatory final M2 and real authoritative continuity enforcement."
+    }
+  ],
+  "suggestions": [
+    {
+      "locations": [
+        "core/src/context/gateway_context.c:201-213",
+        "core/src/context/gateway_context.c:280-283"
+      ],
+      "note": "Shadow also changes a clean subsequent request from frontier to physical after sensitive source evidence. This is conservative, not an exposure, but contradicts an unqualified proposal-only shadow claim. Reconcile/document the M2-derived authority exception rather than weakening privacy enforcement.",
+      "observed": {
+        "first_model": "frontier",
+        "second_model": "physical"
+      }
+    },
+    {
+      "locations": [
+        "core/src/http/router.c:151-163"
+      ],
+      "note": "GET /v1/models lists configured explicit aliases but omits the configured auto_alias; clarify discovery expectations or add coverage."
+    },
+    {
+      "locations": [
+        "core/src/context/gateway_context.c:79-84",
+        "core/src/context/gateway_context.c:259-262"
+      ],
+      "note": "Qualification is operator-configured task bits plus a nonempty evidence label; economics are static expected_task_cost quotes, not measured cache residency/replay/interpreter accounting. Current user-message semantics are not independently validated against an old format_simple prediction. Do not present these fixtures as validated quality or cheapest-total-task proof."
+    }
+  ],
+  "summary": "Do not land this frozen snapshot unchanged: existing normal and sanitizer suites pass, but independent HTTP probes reproduce a continuity bypass through scoped explicit aliases and an active shadow-selector veto. This is not full M3 acceptance.",
+  "snapshot": "/tmp/recursant-m3-gateway-review-swjdx99t",
+  "base": "9cb10db8572bd637b42448c410c052dc7684ed54",
+  "hashes": {
+    "CMakeLists.txt": "89fe2ebc41d4d35172a1382978a2259c9c64db81a43c56238728cb713d48e61a",
+    "core/include/recursant/runtime.h": "f9f05085f3d9e96cd9dc3dc4b6b2ec6b4fbabd6c9f1abe02941177d5830b19ea",
+    "core/src/http/router.c": "c140d467c796bae12144b1a692aa22957dec42a7434d9d4ff2f83df063bc8cae",
+    "core/src/runtime.c": "63701d736ef4c8330b996302c1d887bd3a5495f0a49b6ef8a1f4e384886dd948",
+    "core/include/recursant/gateway_context.h": "dc197267ade01e34c498357789702fdaeb7379241a14a4538fa0b99a18544cbf",
+    "core/src/context/gateway_context.c": "01ddf41b4ab0f0a925fc66cae6d30383e495ef12146af2aed9020898514a7a40",
+    "docs/m3-gateway-wire-contract.md": "e9fe9386e4256df0b01ea4730f062bdae00c65a82924836aeee75abe17774949",
+    "tests/integration/test_gateway_context.py": "e8797cfcd7ae9a0e970fb03a0d71d0992ffcbc144372a185819c6cde1bdf7bf8"
+  },
+  "hashes_match_parent_manifest": true,
+  "verification": {
+    "environment": "Existing recursant-v4-dev:local image 2b5edaf312e5; docker --pull never --network none --user 1000:1000; snapshot mounted /src:ro; independent writable build mounts; no published ports.",
+    "normal": {
+      "configure_build_exit": 0,
+      "ctest_passed": 16,
+      "ctest_failed": 0,
+      "seconds": 71.93,
+      "gateway_http_unittests": 18,
+      "log": "docs/evidence/m3-gateway-review-normal.log"
+    },
+    "asan_ubsan": {
+      "configure_build_exit": 0,
+      "ctest_passed": 16,
+      "ctest_failed": 0,
+      "seconds": 74.73,
+      "log": "docs/evidence/m3-gateway-review-asan.log"
+    },
+    "independent_probes": {
+      "normal_exit": 0,
+      "asan_exit": 0,
+      "same_results": true,
+      "script": "docs/evidence/m3-gateway-review-probes.py",
+      "results": "docs/evidence/m3-gateway-review-probes.json",
+      "note": "Script captures adversarial observations rather than asserting the currently incorrect results are correct; verdict above evaluates them."
+    },
+    "client_cancellation": {
+      "probe": "TCP RST while scoped upstream is delayed; next request after teardown succeeds on original frontier owner, not a stranded inflight 409",
+      "observed": {
+        "next_status": 200,
+        "next_model": "frontier"
+      }
+    },
+    "positive_review": "Separate source/inference bearers and fixed server-owned tenant/project; strict source/config schemas; boot-scoped generation; duplicate invocation/header ambiguity and loss fail closed; accepted revision/sequence replay fencing; rejected newer-source advice revocation; private-only interpreter; concrete candidate M2 rechecks plus final M2; delayed interpretation does not block dispatch; disabled/no-context regression tests pass.",
+    "compatibility": "Read base 9cb10db runtime.c/router.c via git show. Unknown runtime keys were already rejected at baseline; their continued rejection is not a new regression. Existing router/compliance passthrough regression suites pass. Baseline binary was not separately rebuilt."
+  },
+  "limitations": [
+    "Review applies only to these frozen file hashes, not an author final commit or subsequent changes.",
+    "No real inference, model installation, public networking, Hermes profile changes, service changes or source-code modifications.",
+    "All integration/backend/interpreter replies are scripted loopback HTTP. This proves actual C listener/transport behavior, not native Hermes closed-loop causality, semantic accuracy, held-out qualification, cache economics, dollar savings or full M3.",
+    "Acknowledged worker OOM serialization issue M3-INTERPRETER-002 is excluded as a separate fix in progress; sanitizer success here is not allocation-fault injection coverage.",
+    "Single configured principal only, not multi-tenant isolation certification. No fuzzing, sustained production load, complete allocation-failure campaign or exhaustive cancellation timing proof."
+  ]
+}
