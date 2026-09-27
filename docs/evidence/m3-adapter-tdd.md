@@ -1,5 +1,44 @@
 # M3-A narrow request-bound adapter evidence
 
+## Unicode emission fix (after aa6f292)
+
+Root cause: `emit` advanced its sequence, then encoded JSON outside its failure
+boundary. Authorized exposed lone-surrogate text raised `UnicodeEncodeError`
+instead of recording a lost event. The narrow fix catches only that encoding
+error, increments `dropped` once, and returns without sending or logging text.
+No replacement/normalization or JSON ASCII escaping is used to conceal invalid
+source text. Other programmer/JSON type errors are not broadly suppressed;
+the callback event allowlists continue to contain JSON-compatible types.
+Existing callback serialization and metadata invalidations are unchanged.
+
+Executed strict RED, then the minimal implementation, then GREEN:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy.hermes.test_context_adapter.AdapterTests.test_lone_surrogate_content_is_dropped_without_logging -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/hermes -p 'test_*.py' -v
+```
+
+- RED: the new test failed in all three subcases (`content`,
+  `reasoning_content`, `tool_result`) with the reported `UnicodeEncodeError`
+  at `emit`'s UTF-8 encoding. This was the expected defect, not a setup failure.
+- GREEN: the targeted test passed; discovery passed **16 tests**.
+- The regression uses real nonblocking AF_UNIX datagrams and registered hooks,
+  not a substituted `emit`. It verifies no exception/log/stdout/stderr, no
+  datagram for invalid content, one sequence advance and one drop, then a
+  well-formed event with the visible sequence gap and `dropped=1`. The next
+  request ID is checked literally as `next:literal:request`.
+- Both real-Hermes synthetic probe modes below were rerun with owning
+  **UID:GID 1000:1000** (no file permission broadening). Each exited 0 with
+  `requests=2`, `responses=2`, `tool_events=1`, `headers_exact=true`,
+  `terminal_executed=true`, `consumer_ready_before_next_dispatch=true`, and
+  `adapter_dropped=0`. Content authorization was false/true respectively.
+- The existing upstream `pm/shell.py` SyntaxWarning appeared in both probes.
+  No image pull/build/install, public call, raw host artifact, or personal
+  profile access occurred. The probe proves the existing synthetic happy path;
+  the new actual-datagram regression proves Unicode loss accounting.
+- `git diff --check` passed. Independent review remains with the parent;
+  `docs/evidence/m3-adapter-review.json` was not modified.
+
 ## Review fixes (after eb79b56)
 
 Reviewed stale attribution, callback serialization, revocation delivery, and
@@ -146,15 +185,15 @@ verified.
 
 ## Reproducible isolated runtime command
 
-Run from the worktree root. Code files/directories must be readable/traversable
-by UID 65534 (`chmod a+r` files, `chmod a+rx` adapter directory).
+Run from the worktree root as the owner of the scoped code files. Use the owning
+UID:GID so private mode-0600 files remain readable without broadening permissions.
 
 ```sh
 for mode in metadata content; do
   args=()
   if [ "$mode" = content ]; then args=(--content); fi
   docker run --rm --pull never --network none --read-only \
-    --user 65534:65534 --cap-drop ALL --security-opt no-new-privileges \
+    --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
     --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --workdir /tmp \
     -e HOME=/tmp/probe-home -e HERMES_HOME=/tmp/probe-hermes \
     -e PYTHONDONTWRITEBYTECODE=1 -e TERMINAL_ENV=local -e HERMES_YOLO_MODE=1 \

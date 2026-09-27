@@ -153,6 +153,60 @@ class AdapterTests(unittest.TestCase):
             self.assertFalse(events[-1]['routing_eligible'])
             self.assertNotIn('text', events[-1])
 
+    def test_lone_surrogate_content_is_dropped_without_logging(self):
+        import contextlib
+        import io
+        import json
+        import socket
+        import tempfile
+        from types import SimpleNamespace as NS
+        for source in ('content', 'reasoning_content', 'tool_result'):
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as tmp:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as receiver:
+                    receiver.bind(tmp + '/sink')
+                    receiver.setblocking(False)
+                    ctx = Context()
+                    adapter = self.adapter(ctx=ctx, enabled=True, endpoint='http://local/v1')
+                    self.addCleanup(adapter.close)
+                    adapter.configure_sink(tmp + '/sink')
+                    adapter.content_enabled = True
+                    ids = self.identity()
+                    ctx.middleware['llm_request'](request={}, **ids)
+                    # A delivered baseline makes the next missing sequence observable.
+                    adapter.emit({'kind': 'diagnostic'})
+                    baseline = json.loads(receiver.recv(32768))
+                    if source == 'tool_result':
+                        ctx.hooks['post_api_request'](**ids, assistant_message=NS(
+                            content='valid', tool_calls=[NS(id='call')]))
+                        baseline = json.loads(receiver.recv(32768))
+                    bad = 'PRIVATE_INVALID_TEXT' + chr(0xd800)
+                    stdout = io.StringIO(); stderr = io.StringIO()
+                    with self.assertNoLogs(), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                        if source == 'tool_result':
+                            ctx.hooks['post_tool_call'](**ids, tool_call_id='call', status='ok', result=bad)
+                        else:
+                            ctx.hooks['post_api_request'](**ids, assistant_message=NS(**{source: bad}))
+                    self.assertEqual(stdout.getvalue(), '')
+                    self.assertEqual(stderr.getvalue(), '')
+                    self.assertEqual(adapter.sequence, baseline['sequence'] + 1)
+                    self.assertEqual(adapter.dropped, 1)
+                    with self.assertRaises(BlockingIOError):
+                        receiver.recv(32768)
+                    # Fresh literal ID avoids duplicate-response invalidation events.
+                    later = dict(ids, api_request_id='next:literal:request')
+                    ctx.middleware['llm_request'](request={}, **later)
+                    ctx.hooks['post_api_request'](**later, assistant_message=NS(content='valid'))
+                    payload = receiver.recv(32768)
+                    event = json.loads(payload)
+                    self.assertEqual(event['sequence'], baseline['sequence'] + 2)
+                    self.assertEqual(event['dropped'], 1)
+                    self.assertEqual(event['api_request_id'], 'next:literal:request')
+                    self.assertEqual(event['text'], {'assistant_plan': 'valid'})
+                    self.assertNotIn(b'PRIVATE_INVALID_TEXT', payload)
+                    self.assertNotIn(b'\\ud800', payload)
+                    self.assertEqual(adapter.dropped, 1)
+                    adapter.close()
+
     def test_error_and_header_collision_cannot_claim_exact(self):
         from types import SimpleNamespace as NS
         ctx = Context(); events = []

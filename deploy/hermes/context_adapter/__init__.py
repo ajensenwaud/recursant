@@ -55,7 +55,12 @@ class Adapter:
         self.sequence += 1
         event.update(sequence=self.sequence, dropped=self.dropped, upstream_gaps='unknown',
                      schema='recursant.context.v1')
-        payload = json.dumps(event, ensure_ascii=False, separators=(',', ':')).encode()
+        try:
+            payload = json.dumps(event, ensure_ascii=False, separators=(',', ':')).encode()
+        except UnicodeEncodeError:
+            # Invalid exposed text is lost evidence, never repaired or logged.
+            self.dropped += 1
+            return
         try:
             if self.socket is None or len(payload) > 24576:
                 self.dropped += 1
