@@ -1,5 +1,91 @@
 # M3-A narrow request-bound adapter evidence
 
+## Review fixes (after eb79b56)
+
+Reviewed stale attribution, callback serialization, revocation delivery, and
+unmarked truncation were reproduced and fixed in separate RED/GREEN slices.
+Only the adapter, its contract tests, and this evidence file changed.
+
+Root causes: request validation/header conversion could return or raise before
+revoking a stored attempt; dictionary read/decision/write and event sequencing
+were unsynchronized; error/repeat invalidation was only local state; text windows
+had no completeness marker.
+
+Executed RED commands from the worktree root (each before its implementation):
+
+```sh
+python3 -m unittest deploy.hermes.test_context_adapter.AdapterTests.test_rejected_same_identity_revokes_old_join -v
+python3 -m unittest deploy.hermes.test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence -v
+python3 -m unittest deploy.hermes.test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission -v
+python3 -m unittest deploy.hermes.test_context_adapter.AdapterTests.test_text_windows_explicitly_mark_truncation -v
+```
+
+| Slice | Observed RED | Observed GREEN (full discovery suite) |
+|---|---|---|
+| Rejected same identity | 6 stale exact-eligibility failures; TypeError/ValueError from malformed headers | 12 tests OK |
+| Metadata-only revocation | 7 subcases retained last response instead of invalidation | 13 tests OK |
+| Concurrent callback serialization | All 5 contender kinds bypassed serialization | 14 tests OK |
+| Explicit text window markers | `None != {'assistant_plan': False, 'reasoning': False}` | 15 tests OK |
+
+Green command after each slice (`-q` was used for the 13- and 14-test greens;
+final 15-test verification used `-v`):
+
+```sh
+python3 -m unittest discover -s deploy/hermes -p 'test_*.py' -v
+python3 -m unittest discover -s deploy/hermes -p 'test_*.py' -q
+```
+
+Final `git diff --check` passed and the added-line security scan returned no
+findings. Independent re-review remains with the parent; this fix subagent did
+not spawn another model call and does not claim independent approval.
+
+The invalidation slice intentionally changed the duplicate-response loss test:
+a closed sink now loses **two** events (revocation plus ineligible response),
+not one. The test checks `dropped=2` and `sequence=3` after the original delivered
+response. This was the only intermediate regression; the updated assertion
+reflects the new required event, not suppressed loss.
+
+Current behavior:
+
+- A known identity is invalidated **before** request validation/conversion.
+  Invalid counters, malformed headers, reserved-header collisions, and a reused
+  tuple at a different endpoint cannot reuse the old exact token. Wrong-endpoint
+  response/error callbacks also revoke known identity metadata; response content
+  is never exported from the wrong endpoint.
+- `kind=invalidation` carries identity, the revoked attempt, ambiguous association,
+  and false logical/physical eligibility, but no text. Repeat/error/rejected
+  same-identity callbacks notify consumers of previously issued evidence.
+- One per-adapter reentrant lock covers callbacks, sequence/drop mutation, sink
+  lifecycle, and the actual send. Nested response/error/emit paths remain valid.
+  The concurrency test pauses an owner request at identity extraction, observes
+  a contender's lock-acquisition attempt, then releases it. Request, response,
+  error, tool, and direct emit contenders cannot complete early. Event handshakes
+  (not sleeps) determine ordering; timeouts only guard against hung tests.
+- Content remains opt-in. `text_truncated` maps each exported text field to a
+  boolean; 0/2048/2049-character boundaries cover response, reasoning, and tool
+  result windows. False means this adapter did not truncate that field, **not**
+  that upstream context or reasoning is complete.
+
+The exact isolated Docker loop below was rerun after these fixes. Both modes
+exited **0**, each reporting `requests=2`, `responses=2`, `tool_events=1`,
+`headers_exact=true`, `terminal_executed=true`,
+`consumer_ready_before_next_dispatch=true`, and `adapter_dropped=0`.
+Metadata mode reported `content_enabled=false`; content mode reported `true`.
+The existing upstream `pm/shell.py` SyntaxWarning appeared in both runs.
+No image pull/build, dependency installation, external network/model call,
+personal profile access, selection policy, or C modification occurred.
+
+Limits: serialization waits only on another local critical section; AF_UNIX sends
+remain nonblocking and there are no workers, receiver acknowledgments, network
+waits, or retry sleeps. State and emitted content remain bounded as below; this
+is not a hard real-time callback latency guarantee or an adversarial Python
+object sandbox. Configuration is established before callbacks. The deterministic
+thread test is not a multi-agent load/SLO proof. A lost last invalidation cannot
+be detected until later sequence/drop evidence (or consumer freshness expiry):
+**no durable delivery or durable consumer safety is claimed**. Consumers must
+revoke by identity/attempt and abstain on incomplete feeds. All evidence remains
+outer middleware-invocation scoped, with `physical_routing_eligible=False`.
+
 ## Result and scope
 
 PASS for the **narrow causal integration slice**, not the complete M3-A gate or M3.
@@ -49,7 +135,7 @@ Final offline command, from repository root:
 python3 -m unittest discover -s deploy/hermes -p 'test_*.py' -v
 ```
 
-Actual result: **11 tests, OK** (7 new adapter tests plus 4 existing observer/smoke
+Original result: **11 tests, OK** (7 new adapter tests plus 4 existing observer/smoke
 regressions). No C files changed; no C build/sanitizer result is claimed here.
 `git diff --cached --check` passes. Static added-line scan found no shell=True,
 os.system, eval/exec, or pickle use; its one credential-literal match is the
@@ -127,7 +213,8 @@ and optional bounded strings only. The normalized `assistant_message.content`
 and `.reasoning_content` are the only response text sources. Raw provider
 responses, request bodies, tool arguments, arbitrary extra hook fields, encrypted
 reasoning details and credentials are not serialized. Text is truncated to 2048
-characters per field; tool-call associations are capped at 32 per response.
+characters per field, with explicit per-field `text_truncated` flags;
+tool-call associations are capped at 32 per response.
 This allowlist is **not** a claim of PII redaction inside authorized text.
 
 State retains at most 256 logical identities for the adapter's lifetime, with no
@@ -169,9 +256,10 @@ Important limits:
    retries, drops and reordering cannot be repaired by arrival order. Only
    completed normalized response text is supported; encrypted/other reasoning
    representations are deliberately excluded. No token-live semantic feed claim.
-3. Interleaved parallel branch isolation and reordered/missing callback fallback
-   are covered by unit fixtures. Actual simultaneous multi-agent callback safety,
-   distributed branch/auth authority, load/backpressure and full retry matrix are
+3. Interleaved parallel branch isolation, reordered/missing callback fallback,
+   and local callback serialization are covered by unit fixtures (including the
+   review-fix deterministic threaded test above). Actual multi-agent load/SLOs,
+   distributed branch/auth authority, backpressure and the full retry matrix are
    **not established** by this single-agent runtime proof.
 4. Delivery was proven before subsequent inference with a diagnostic pre-request
    consumer drain. The adapter itself does not await a receiver. Production async

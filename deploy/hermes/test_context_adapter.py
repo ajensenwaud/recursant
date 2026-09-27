@@ -141,7 +141,9 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(event['upstream_gaps'], 'unknown')
             receiver.close()
             post(**ids, assistant_message=NS(content='lost'))
-            self.assertEqual(adapter.dropped, 1)
+            # Duplicate response emits revocation plus ineligible response.
+            self.assertEqual(adapter.dropped, 2)
+            self.assertEqual(adapter.sequence, 3)
             self.assertFalse(adapter.socket.getblocking())
             for i in range(300):
                 req(request={}, **dict(ids, api_request_id=str(i)))
@@ -187,6 +189,143 @@ class AdapterTests(unittest.TestCase):
         ctx.hooks['post_api_request'](**ids, assistant_message=NS(content='replay'))
         self.assertFalse(events[-1]['routing_eligible'])
         self.assertNotIn('text', events[-1])
+
+    def test_rejected_same_identity_revokes_old_join(self):
+        from types import SimpleNamespace as NS
+        cases = [({}, {'api_call_count': value}) for value in (-1, True, '1', None, 10**12)]
+        cases += [({'extra_headers': value}, {}) for value in (42, ['bad'], {'x-recursant-attempt': 'spoof'})]
+        cases += [({}, {'base_url': 'http://other/v1'})]
+        for request, overrides in cases:
+            with self.subTest(request=request, overrides=overrides):
+                adapter = self.adapter(ctx=Context(), enabled=True, endpoint='http://local/v1')
+                events = []; adapter.emit = events.append; adapter.content_enabled = True
+                ids = self.identity()
+                adapter.request({}, **ids)
+                self.assertIsNone(adapter.request(request, **dict(ids, **overrides)))
+                adapter.response(**ids, assistant_message=NS(content='OLD'))
+                self.assertFalse(events[-1]['routing_eligible'])
+                self.assertNotIn('text', events[-1])
+
+    def test_invalidation_is_metadata_only_and_revokes_issued_evidence(self):
+        from types import SimpleNamespace as NS
+        for trigger in ('error', 'repeat', 'invalid_count', 'malformed', 'wrong_request_endpoint',
+                        'wrong_response_endpoint', 'wrong_error_endpoint'):
+            with self.subTest(trigger=trigger):
+                adapter = self.adapter(ctx=Context(), enabled=True, endpoint='http://local/v1')
+                events = []; adapter.emit = events.append; adapter.content_enabled = True
+                ids = self.identity()
+                token = adapter.request({}, **ids)['request']['extra_headers']['X-Recursant-attempt']
+                adapter.response(**ids, assistant_message=NS(content='plan', tool_calls=[NS(id='call')]))
+                if trigger == 'error':
+                    adapter.error(**ids)
+                elif trigger == 'repeat':
+                    adapter.request({}, **ids)
+                elif trigger == 'invalid_count':
+                    adapter.request({}, **dict(ids, api_call_count=None))
+                elif trigger == 'malformed':
+                    adapter.request({'extra_headers': 42}, **ids)
+                elif trigger == 'wrong_request_endpoint':
+                    adapter.request({}, **dict(ids, base_url='http://other/v1'))
+                elif trigger == 'wrong_response_endpoint':
+                    adapter.response(**dict(ids, base_url='http://other/v1'), assistant_message=NS(content='NEVER'))
+                else:
+                    adapter.error(**dict(ids, base_url='http://other/v1'))
+                event = events[-1]
+                self.assertEqual(event['kind'], 'invalidation')
+                self.assertEqual(event['attempt'], token)
+                self.assertEqual(tuple(event[k] for k in ('task_id', 'session_id', 'turn_id', 'api_request_id')),
+                                 ('task', 'session', 'turn', 'opaque:not:parsed'))
+                self.assertFalse(event['routing_eligible'])
+                self.assertIs(event['physical_routing_eligible'], False)
+                self.assertNotIn('text', event)
+                self.assertNotIn('NEVER', str(events))
+                adapter.tool(**ids, tool_call_id='call', result='NEVER')
+                self.assertFalse(events[-1]['routing_eligible'])
+                self.assertNotIn('text', events[-1])
+
+    def test_callbacks_serialize_state_and_emission(self):
+        import threading
+        from unittest.mock import patch
+        from types import SimpleNamespace as NS
+        module = importlib.import_module('deploy.hermes.context_adapter')
+        for callback in ('request', 'response', 'error', 'tool', 'emit'):
+            with self.subTest(callback=callback):
+                adapter = self.adapter(ctx=Context(), enabled=True, endpoint='http://local/v1')
+                adapter.content_enabled = True
+                paused = threading.Event(); release = threading.Event()
+                contender_observed = threading.Event(); finished = threading.Event()
+                failures = []; events = []
+                # Observe an attempted lock acquisition without relying on sleeps.
+                class ObservedLock:
+                    def __init__(self):
+                        self.lock = threading.RLock()
+                    def __enter__(self):
+                        if threading.current_thread().name == 'contender':
+                            contender_observed.set()
+                        self.lock.acquire()
+                    def __exit__(self, *args):
+                        self.lock.release()
+                adapter._lock = ObservedLock()
+                original = module.identity
+                def gated_identity(payload):
+                    if threading.current_thread().name == 'owner':
+                        paused.set()
+                        if not release.wait(3):
+                            raise AssertionError('owner not released')
+                    return original(payload)
+                class Sink:
+                    def sendto(self, payload, path):
+                        import json
+                        events.append(json.loads(payload))
+                adapter.socket = Sink(); adapter.sink_path = 'unused'
+                def run(owner=False):
+                    try:
+                        if owner or callback == 'request':
+                            adapter.request({}, **self.identity())
+                        elif callback == 'emit':
+                            adapter.emit({'kind': 'diagnostic'})
+                        else:
+                            getattr(adapter, callback)(**self.identity(), assistant_message=NS(content='plan'),
+                                                       tool_call_id='call', result='result')
+                    except BaseException as exc:
+                        failures.append(exc)
+                    finally:
+                        if not owner:
+                            finished.set(); contender_observed.set()
+                with patch.object(module, 'identity', gated_identity):
+                    owner = threading.Thread(target=run, args=(True,), name='owner')
+                    contender = threading.Thread(target=run, name='contender')
+                    owner.start()
+                    try:
+                        self.assertTrue(paused.wait(3))
+                        contender.start()
+                        self.assertTrue(contender_observed.wait(3))
+                        self.assertFalse(finished.is_set(), 'callback bypassed serialization')
+                    finally:
+                        release.set(); owner.join(3)
+                        if contender.ident is not None:
+                            contender.join(3)
+                self.assertFalse(owner.is_alive()); self.assertFalse(contender.is_alive())
+                self.assertEqual(failures, [])
+                self.assertEqual([e['sequence'] for e in events], list(range(1, len(events) + 1)))
+                adapter.response(**self.identity(), assistant_message=NS(content='later'))
+                if callback in ('request', 'error', 'response'):
+                    self.assertFalse(events[-1]['routing_eligible'])
+                    self.assertNotIn('text', events[-1])
+
+    def test_text_windows_explicitly_mark_truncation(self):
+        from types import SimpleNamespace as NS
+        for size in (0, 2048, 2049):
+            adapter = self.adapter(ctx=Context(), enabled=True, endpoint='http://local/v1')
+            events = []; adapter.emit = events.append; adapter.content_enabled = True
+            adapter.request({}, **self.identity())
+            adapter.response(**self.identity(), assistant_message=NS(content='x' * size,
+                             reasoning_content='r' * size, tool_calls=[NS(id='call')]))
+            self.assertEqual(events[-1].get('text_truncated'),
+                             {'assistant_plan': size > 2048, 'reasoning': size > 2048})
+            adapter.tool(**self.identity(), tool_call_id='call', result='t' * size)
+            self.assertEqual(events[-1].get('text_truncated'), {'tool_result': size > 2048})
+            self.assertEqual(len(events[-1]['text']['tool_result']), min(size, 2048))
 
     def test_disabled_registers_nothing(self):
         ctx = Context()
