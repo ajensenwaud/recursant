@@ -18,6 +18,11 @@ target_link_libraries(recursant-validate PRIVATE recursant_config)
 target_compile_options(recursant-validate PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 find_package(Threads REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ROUTER_DEPS REQUIRED IMPORTED_TARGET libmicrohttpd libcurl jansson)
+add_executable(recursant core/src/http/router.c core/src/runtime.c)
+target_link_libraries(recursant PRIVATE recursant_config Threads::Threads PkgConfig::ROUTER_DEPS)
+target_compile_options(recursant PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_executable(recursant-tracer core/src/http/tracer.c)
 target_link_libraries(recursant-tracer PRIVATE Threads::Threads)
 target_compile_options(recursant-tracer PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -45,8 +50,22 @@ if(BUILD_TESTING)
 
   find_package(Python3 COMPONENTS Interpreter)
   if(Python3_FOUND)
+    add_test(NAME router_integration
+             COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
+                     ${CMAKE_SOURCE_DIR}/tests/integration -p "test_router*.py" -v)
+    set_tests_properties(router_integration PROPERTIES
+      ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1"
+      TIMEOUT 180)
     add_test(NAME transport_integration
              COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
                      ${CMAKE_SOURCE_DIR}/tests/integration -p test_transport.py -v)
+    set_tests_properties(transport_integration PROPERTIES
+      ENVIRONMENT "RECURSANT_TRACER_BIN=$<TARGET_FILE:recursant-tracer>;PYTHONDONTWRITEBYTECODE=1")
+    add_test(NAME accounting
+             COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
+                     ${CMAKE_SOURCE_DIR}/tests -p test_accounting.py -v)
+    set_tests_properties(accounting PROPERTIES
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
   endif()
 endif()

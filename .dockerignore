@@ -1,0 +1,8 @@
+# Build context is an allowlist. Secrets, history and raw evidence never enter it.
+*
+!CMakeLists.txt
+!core/
+!core/**
+!deploy/
+!deploy/Dockerfile
+!deploy/Dockerfile.dev

@@ -1,0 +1,73 @@
+{
+  "kind": "synthetic_live_routing_smoke_not_efficiency_benchmark",
+  "public_model": "qwen/qwen3.8-27b:free",
+  "verified_public_pricing": {
+    "prompt": "0",
+    "completion": "0"
+  },
+  "attempts": [
+    {
+      "model_requested": "GLM-5.3-Flash-EXL3",
+      "ok": true,
+      "elapsed_seconds": 1.897,
+      "model_returned": "GLM-5.3-Flash-EXL3",
+      "usage": {
+        "prompt_tokens": 173,
+        "total_tokens": 219,
+        "completion_tokens": 46,
+        "prompt_tokens_details": null
+      },
+      "arm": "direct_private",
+      "turn": 1
+    },
+    {
+      "model_requested": "GLM-5.3-Flash-EXL3",
+      "ok": true,
+      "elapsed_seconds": 1.149,
+      "model_returned": "GLM-5.3-Flash-EXL3",
+      "usage": {
+        "prompt_tokens": 226,
+        "total_tokens": 231,
+        "completion_tokens": 5,
+        "prompt_tokens_details": null
+      },
+      "arm": "direct_private",
+      "turn": 2
+    },
+    {
+      "model_requested": "local",
+      "ok": true,
+      "elapsed_seconds": 1.599,
+      "model_returned": "GLM-5.3-Flash-EXL3",
+      "usage": {
+        "prompt_tokens": 173,
+        "total_tokens": 209,
+        "completion_tokens": 36,
+        "prompt_tokens_details": null
+      },
+      "arm": "routed_private",
+      "turn": 1
+    },
+    {
+      "model_requested": "local",
+      "ok": true,
+      "elapsed_seconds": 1.143,
+      "model_returned": "GLM-5.3-Flash-EXL3",
+      "usage": {
+        "prompt_tokens": 216,
+        "total_tokens": 221,
+        "completion_tokens": 5,
+        "prompt_tokens_details": null
+      },
+      "arm": "routed_private",
+      "turn": 2
+    },
+    {
+      "model_requested": "qwen/qwen3.8-27b:free",
+      "ok": false,
+      "error_type": "HTTPError",
+      "http_status": 429,
+      "elapsed_seconds": 0.481
+    }
+  ]
+}

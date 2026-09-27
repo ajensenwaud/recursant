@@ -1,0 +1,8 @@
+FROM ubuntu@sha256:da6fc2be547864451aa253836dd926da33623312df4a9a243e35dc877c378a78
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential cmake pkg-config libcurl4-openssl-dev libmicrohttpd-dev \
+    libjansson-dev libpcre2-dev python3 ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+ENV PYTHONDONTWRITEBYTECODE=1
+CMD ["bash"]

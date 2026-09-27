@@ -1,0 +1,9 @@
+{
+  "kind": "synthetic_live_routing_smoke_not_efficiency_benchmark",
+  "public_model": "qwen/qwen3.8-27b:free",
+  "verified_public_pricing": {
+    "prompt": "0",
+    "completion": "0"
+  },
+  "attempts": []
+}

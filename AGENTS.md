@@ -22,14 +22,20 @@ Engineers want lower AI cost, predictable bills, and practical controls. Current
 - Routing observability via web sockets to the application layer
 - Postgres for configuration and any persistence
 - Support Docker as well as bare-metal deployment (development and testing is on a Docker container)
+- Observability: Agent obervability traces / telemetry (chain-of-thought) are compiled and aggregated using OpenTelemetry through Grafana. 
 
 ## Core components to build
 1. Core inference router: the model router itself (across hybrid workloads)
 2. Compliance engine: rules engine for things like PII classification and enforcement
-3. Context engine: context layer for integrating to agents and harnesses via A2A or similar
+3. Context engine: context layer for making the router agent/harness-aware using direct feedback as well as real-time feedback of the agent's intent by reading OpenTelemetry
 4. Self-improvment engine (optional): SLM or Jev-like agentic layer that assesses past routing decisions and optimises the context engine
 
 Layer 2. is fully deterministic and can override any decisions made by layer 3 or 4. We need full compliance of workloads (think APRA CPS230).
+
+### Context engine deep-dive
+- The context engine retrieves ths full intent and context from the agents and harnesses that use the gateway, through direct connectivity to the agent and through OTel telemetry
+- The router should maintain a full picture of what the agent is doing and uses that picture to use the right model. For instance, if the agent is mid-turn/mid-workflow, we shouldn't suddenly route to a different model as that would route to a new model and impact context window and caching 
+- Before building the context engine you need to research how it is actually going to work and come up with an architecture that I can review
 
 ## Build sequence and scope
 - M1: Core inference router including hybrid routing. Definition of done: Can route across public and private workloads
