@@ -1,0 +1,4 @@
+tests/unit/test_selector.c:1:10: fatal error: recursant/selector.h: No such file or directory
+    1 | #include "recursant/selector.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.

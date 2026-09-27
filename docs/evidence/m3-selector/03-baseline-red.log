@@ -1,0 +1,148 @@
+[ 50%] Built target recursant_selector
+[ 75%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+/src/tests/unit/test_selector.c: In function 'conservative_baseline':
+/src/tests/unit/test_selector.c:28:5: error: unknown type name 'rc_candidate_quote'; did you mean 'rc_candidate'?
+   28 |     rc_candidate_quote quotes[]={{true,10}, {true,1}};
+      |     ^~~~~~~~~~~~~~~~~~
+      |     rc_candidate
+/src/tests/unit/test_selector.c:28:5: error: braces around scalar initializer [-Werror]
+/src/tests/unit/test_selector.c:28:5: note: (near initialization for 'quotes[0]')
+/src/tests/unit/test_selector.c:28:40: error: excess elements in scalar initializer [-Werror]
+   28 |     rc_candidate_quote quotes[]={{true,10}, {true,1}};
+      |                                        ^~
+/src/tests/unit/test_selector.c:28:40: note: (near initialization for 'quotes[0]')
+/src/tests/unit/test_selector.c:28:5: error: braces around scalar initializer [-Werror]
+   28 |     rc_candidate_quote quotes[]={{true,10}, {true,1}};
+      |     ^~~~~~~~~~~~~~~~~~
+/src/tests/unit/test_selector.c:28:5: note: (near initialization for 'quotes[1]')
+/src/tests/unit/test_selector.c:28:51: error: excess elements in scalar initializer [-Werror]
+   28 |     rc_candidate_quote quotes[]={{true,10}, {true,1}};
+      |                                                   ^
+/src/tests/unit/test_selector.c:28:51: note: (near initialization for 'quotes[1]')
+/src/tests/unit/test_selector.c:29:5: error: unknown type name 'rc_selection_request'
+   29 |     rc_selection_request q={.registry_version=8, .baseline_alias=7,
+      |     ^~~~~~~~~~~~~~~~~~~~
+/src/tests/unit/test_selector.c:29:29: error: field name not in record or union initializer
+   29 |     rc_selection_request q={.registry_version=8, .baseline_alias=7,
+      |                             ^
+/src/tests/unit/test_selector.c:29:29: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:29:50: error: field name not in record or union initializer
+   29 |     rc_selection_request q={.registry_version=8, .baseline_alias=7,
+      |                                                  ^
+/src/tests/unit/test_selector.c:29:50: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:29:66: error: excess elements in scalar initializer [-Werror]
+   29 |     rc_selection_request q={.registry_version=8, .baseline_alias=7,
+      |                                                                  ^
+/src/tests/unit/test_selector.c:29:66: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:30:9: error: field name not in record or union initializer
+   30 |         .continuity=RC_CONTINUITY_REPLAYABLE, .now=10, .context_tokens=10};
+      |         ^
+/src/tests/unit/test_selector.c:30:9: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:30:21: error: 'RC_CONTINUITY_REPLAYABLE' undeclared (first use in this function)
+   30 |         .continuity=RC_CONTINUITY_REPLAYABLE, .now=10, .context_tokens=10};
+      |                     ^~~~~~~~~~~~~~~~~~~~~~~~
+/src/tests/unit/test_selector.c:30:21: note: each undeclared identifier is reported only once for each function it appears in
+/src/tests/unit/test_selector.c:30:21: error: excess elements in scalar initializer [-Werror]
+/src/tests/unit/test_selector.c:30:21: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:30:47: error: field name not in record or union initializer
+   30 |         .continuity=RC_CONTINUITY_REPLAYABLE, .now=10, .context_tokens=10};
+      |                                               ^
+/src/tests/unit/test_selector.c:30:47: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:30:52: error: excess elements in scalar initializer [-Werror]
+   30 |         .continuity=RC_CONTINUITY_REPLAYABLE, .now=10, .context_tokens=10};
+      |                                                    ^~
+/src/tests/unit/test_selector.c:30:52: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:30:56: error: field name not in record or union initializer
+   30 |         .continuity=RC_CONTINUITY_REPLAYABLE, .now=10, .context_tokens=10};
+      |                                                        ^
+/src/tests/unit/test_selector.c:30:56: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:30:72: error: excess elements in scalar initializer [-Werror]
+   30 |         .continuity=RC_CONTINUITY_REPLAYABLE, .now=10, .context_tokens=10};
+      |                                                                        ^~
+/src/tests/unit/test_selector.c:30:72: note: (near initialization for 'q')
+/src/tests/unit/test_selector.c:31:5: error: unknown type name 'rc_selection'
+   31 |     rc_selection out={0};
+      |     ^~~~~~~~~~~~
+/src/tests/unit/test_selector.c:32:11: error: implicit declaration of function 'rc_select' [-Wimplicit-function-declaration]
+   32 |     CHECK(rc_select(r,quotes,2,&q,&out)==RC_SELECT_OK);
+      |           ^~~~~~~~~
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:32:42: error: 'RC_SELECT_OK' undeclared (first use in this function)
+   32 |     CHECK(rc_select(r,quotes,2,&q,&out)==RC_SELECT_OK);
+      |                                          ^~~~~~~~~~~~
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:33:14: error: request for member 'alias_index' in something not a structure or union
+   33 |     CHECK(out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+      |              ^
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:33:36: error: request for member 'reason' in something not a structure or union
+   33 |     CHECK(out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+      |                                    ^
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:33:45: error: 'RC_SELECT_BASELINE' undeclared (first use in this function)
+   33 |     CHECK(out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+      |                                             ^~~~~~~~~~~~~~~~~~
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:35:61: error: request for member 'alias_index' in something not a structure or union
+   35 |     CHECK(rc_select(r,quotes,2,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+      |                                                             ^
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:36:6: error: request for member 'context_usable' in something not a structure or union
+   36 |     q.context_usable=true; q.context_observed_at=5; q.context_expires_at=10;
+      |      ^
+/src/tests/unit/test_selector.c:36:29: error: request for member 'context_observed_at' in something not a structure or union
+   36 |     q.context_usable=true; q.context_observed_at=5; q.context_expires_at=10;
+      |                             ^
+/src/tests/unit/test_selector.c:36:54: error: request for member 'context_expires_at' in something not a structure or union
+   36 |     q.context_usable=true; q.context_observed_at=5; q.context_expires_at=10;
+      |                                                      ^
+/src/tests/unit/test_selector.c:37:61: error: request for member 'alias_index' in something not a structure or union
+   37 |     CHECK(rc_select(r,quotes,2,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+      |                                                             ^
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:38:6: error: request for member 'context_expires_at' in something not a structure or union
+   38 |     q.context_expires_at=20; q.context_observed_at=11;
+      |      ^
+/src/tests/unit/test_selector.c:38:31: error: request for member 'context_observed_at' in something not a structure or union
+   38 |     q.context_expires_at=20; q.context_observed_at=11;
+      |                               ^
+/src/tests/unit/test_selector.c:39:61: error: request for member 'alias_index' in something not a structure or union
+   39 |     CHECK(rc_select(r,quotes,2,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+      |                                                             ^
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:40:14: error: request for member 'permitted' in something not a structure or union
+   40 |     quotes[0].permitted=false;
+      |              ^
+/src/tests/unit/test_selector.c:41:42: error: 'RC_SELECT_BLOCKED' undeclared (first use in this function)
+   41 |     CHECK(rc_select(r,quotes,2,&q,&out)==RC_SELECT_BLOCKED);
+      |                                          ^~~~~~~~~~~~~~~~~
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+/src/tests/unit/test_selector.c:42:14: error: request for member 'alias_index' in something not a structure or union
+   42 |     CHECK(out.alias_index==7); /* failures leave output untouched */
+      |              ^
+/src/tests/unit/test_selector.c:5:29: note: in definition of macro 'CHECK'
+    5 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
+      |                             ^
+cc1: all warnings being treated as errors
+gmake[3]: *** [CMakeFiles/test_selector.dir/build.make:79: CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:1341: CMakeFiles/test_selector.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:1348: CMakeFiles/test_selector.dir/rule] Error 2
+gmake: *** [Makefile:615: test_selector] Error 2

@@ -1,0 +1,17 @@
+[  6%] Built target recursant_selector
+[ 13%] Built target recursant_policy
+[ 20%] Built target recursant_context
+[ 26%] Built target recursant_config
+[ 30%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 36%] Built target test_egress
+[ 43%] Built target test_context
+[ 50%] Built target recursant_auth
+[ 56%] Built target recursant-validate
+[ 70%] Built target recursant
+[ 80%] Linking C executable test_selector
+[ 80%] Built target test_config
+[ 86%] Built target recursant_admission
+[100%] Built target recursant-tracer
+[100%] Built target test_admission
+[100%] Built target test_selector
+deterministic_hysteresis:171: rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==3

@@ -1,0 +1,17 @@
+[  6%] Built target recursant_context
+[ 13%] Built target recursant_config
+[ 20%] Built target recursant_selector
+[ 26%] Built target recursant_policy
+[ 33%] Built target test_context
+[ 46%] Built target recursant
+[ 53%] Built target recursant_auth
+[ 60%] Built target recursant-validate
+[ 63%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 70%] Built target test_config
+[ 76%] Built target test_egress
+[ 83%] Built target recursant_admission
+[ 96%] Built target recursant-tracer
+[ 96%] Built target test_admission
+[100%] Linking C executable test_selector
+[100%] Built target test_selector
+continuity_authority:100: out.alias_index==9 && out.reason==RC_SELECT_PIN

@@ -1,0 +1,40 @@
+{
+  "kind": "implementer_static_scan_not_independent_review",
+  "base": "e2e240e5a67885c8a7be34c03c8cf44421f0a577",
+  "findings": {
+    "credential_assignment": [],
+    "shell_injection": [],
+    "eval_exec": [],
+    "unsafe_deserialization": [],
+    "unbounded_c_copy": []
+  },
+  "review_status": "pending_parent_independent_review",
+  "code_sha256": {
+    "CMakeLists.txt": "82e869c7df87686eee44b088d193962f068ed96f9aca569614002fd411f3cba7",
+    "core/include/recursant/selector.h": "dcc0838618a449cd4c22075102c4bc7793e4577ac50db60621e7b2b6ef3a98e4",
+    "core/src/context/selector.c": "1addc26b9415aa99bd1dcd8c0af43b75eee1b195964c24bd4f64ba095a0a0783",
+    "tests/unit/test_selector.c": "4f42da449fd2855b6b2c99829a9302ce327b8fd1d559d415c7e36df2354595b0"
+  },
+  "ctest": {
+    "normal.xml": {
+      "name": "Linux-cc",
+      "tests": "12",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "78c4f47f4679",
+      "time": "48",
+      "timestamp": "2026-09-27T11:25:11"
+    },
+    "sanitizer.xml": {
+      "name": "Linux-cc",
+      "tests": "12",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "6bca97d27986",
+      "time": "49",
+      "timestamp": "2026-09-27T11:26:04"
+    }
+  }
+}

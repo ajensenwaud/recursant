@@ -1,0 +1,35 @@
+[  6%] Built target recursant_context
+[ 13%] Built target recursant_policy
+[ 20%] Built target recursant_config
+[ 26%] Built target recursant_selector
+[ 33%] Built target test_egress
+[ 40%] Built target recursant-validate
+[ 46%] Built target test_context
+[ 53%] Built target recursant_auth
+[ 56%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 70%] Built target recursant
+[ 76%] Built target recursant_admission
+[ 83%] Built target test_config
+/src/tests/unit/test_selector.c: In function 'main':
+/src/tests/unit/test_selector.c:183:128: error: implicit declaration of function 'invalid_indeterministic_hysteresis'; did you mean 'deterministic_hysteresis'? [-Wimplicit-function-declaration]
+  183 | int main(void) { registry_bounds(); conservative_baseline(); qualified_ranking(); hard_requirements(); continuity_authority(); invalid_indeterministic_hysteresis(); puts(); deterministic_hysteresis(); puts("selector tests passed"); return 0; }
+      |                                                                                                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                                                                                                                deterministic_hysteresis
+/src/tests/unit/test_selector.c:183:166: error: too few arguments to function 'puts'; expected 1, have 0
+  183 | int main(void) { registry_bounds(); conservative_baseline(); qualified_ranking(); hard_requirements(); continuity_authority(); invalid_indeterministic_hysteresis(); puts(); deterministic_hysteresis(); puts("selector tests passed"); return 0; }
+      |                                                                                                                                                                      ^~~~
+In file included from /src/tests/unit/test_selector.c:2:
+/usr/include/stdio.h:718:12: note: declared here
+  718 | extern int puts (const char *__s);
+      |            ^~~~
+/src/tests/unit/test_selector.c: At top level:
+/src/tests/unit/test_selector.c:119:13: error: 'invalid_inputs' defined but not used [-Werror=unused-function]
+  119 | static void invalid_inputs(void) {
+      |             ^~~~~~~~~~~~~~
+cc1: all warnings being treated as errors
+gmake[2]: *** [CMakeFiles/test_selector.dir/build.make:79: CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:1341: CMakeFiles/test_selector.dir/all] Error 2
+gmake[1]: *** Waiting for unfinished jobs....
+[ 96%] Built target recursant-tracer
+[ 96%] Built target test_admission
+gmake: *** [Makefile:101: all] Error 2

@@ -5,6 +5,10 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 option(RECURSANT_SANITIZERS "Enable address and undefined-behaviour checks" OFF)
 
+add_library(recursant_selector STATIC core/src/context/selector.c)
+target_include_directories(recursant_selector PUBLIC core/include)
+target_compile_options(recursant_selector PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
 add_library(recursant_context STATIC core/src/context/context.c)
 target_include_directories(recursant_context PUBLIC core/include)
 target_compile_options(recursant_context PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -47,6 +51,8 @@ target_link_libraries(recursant-tracer PRIVATE Threads::Threads recursant_admiss
 target_compile_options(recursant-tracer PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 if(RECURSANT_SANITIZERS)
+  target_compile_options(recursant_selector PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+  target_link_options(recursant_selector PUBLIC -fsanitize=address,undefined)
   target_compile_options(recursant_context PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
   target_link_options(recursant_context PUBLIC -fsanitize=address,undefined)
   target_compile_options(recursant_policy PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
@@ -59,6 +65,11 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(test_selector tests/unit/test_selector.c)
+  target_link_libraries(test_selector PRIVATE recursant_selector)
+  target_compile_options(test_selector PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  add_test(NAME selector_unit COMMAND test_selector)
+
   add_executable(test_context tests/unit/test_context.c)
   target_link_libraries(test_context PRIVATE recursant_context)
   target_compile_options(test_context PRIVATE -Wall -Wextra -Wpedantic -Werror)

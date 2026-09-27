@@ -1,0 +1,5 @@
+[ 50%] Built target recursant_selector
+[ 75%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[100%] Linking C executable test_selector
+[100%] Built target test_selector
+qualified_ranking:55: out.alias_index==3 && out.reason==RC_SELECT_CHEAPEST

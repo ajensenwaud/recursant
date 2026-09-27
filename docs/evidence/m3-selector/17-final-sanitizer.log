@@ -1,0 +1,142 @@
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.5s)
+-- Generating done (0.1s)
+-- Build files have been written to: /src/build/selector-sanitizer
+[  3%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o
+[ 10%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[ 10%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[ 13%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[ 16%] Linking C static library librecursant_policy.a
+[ 20%] Linking C static library librecursant_context.a
+[ 23%] Linking C static library librecursant_selector.a
+[ 23%] Built target recursant_context
+[ 26%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 26%] Built target recursant_selector
+[ 26%] Built target recursant_policy
+[ 30%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 33%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 36%] Linking C static library librecursant_config.a
+[ 40%] Linking C executable test_context
+[ 40%] Built target recursant_config
+[ 43%] Linking C executable test_egress
+[ 46%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 46%] Built target test_context
+[ 50%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 53%] Linking C executable test_selector
+[ 56%] Linking C executable recursant-validate
+[ 60%] Linking C static library librecursant_auth.a
+[ 60%] Built target test_selector
+[ 60%] Built target test_egress
+[ 63%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 66%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 66%] Built target recursant-validate
+[ 66%] Built target recursant_auth
+[ 70%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 73%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 76%] Linking C executable test_config
+[ 76%] Built target test_config
+[ 80%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 83%] Linking C static library librecursant_admission.a
+[ 86%] Linking C executable recursant
+[ 86%] Built target recursant_admission
+[ 93%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 93%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 96%] Linking C executable test_admission
+[ 96%] Built target recursant
+[ 96%] Built target test_admission
+[100%] Linking C executable recursant-tracer
+[100%] Built target recursant-tracer
+	linux-vdso.so.1 (0x00007315001b0000)
+	libasan.so.8 => /usr/lib/x86_64-linux-gnu/libasan.so.8 (0x00007314ffa6d000)
+	libubsan.so.1 => /usr/lib/x86_64-linux-gnu/libubsan.so.1 (0x00007314ff450000)
+	libc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x00007314ff22f000)
+	libm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x00007314ff109000)
+	libgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007314ff0db000)
+	libstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007314fee39000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007315001b2000)
+	linux-vdso.so.1 (0x00007f97ecbff000)
+	libasan.so.8 => /usr/lib/x86_64-linux-gnu/libasan.so.8 (0x00007f97ec48a000)
+	libmicrohttpd.so.12 => /usr/lib/x86_64-linux-gnu/libmicrohttpd.so.12 (0x00007f97ec44f000)
+	libcurl.so.4 => /usr/lib/x86_64-linux-gnu/libcurl.so.4 (0x00007f97ec35b000)
+	libjansson.so.4 => /usr/lib/x86_64-linux-gnu/libjansson.so.4 (0x00007f97ec34a000)
+	libpcre2-8.so.0 => /usr/lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007f97ec29e000)
+	libubsan.so.1 => /usr/lib/x86_64-linux-gnu/libubsan.so.1 (0x00007f97ebc7f000)
+	libc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x00007f97eba5e000)
+	libm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x00007f97eb938000)
+	libgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f97eb90a000)
+	libgnutls.so.30 => /usr/lib/x86_64-linux-gnu/libgnutls.so.30 (0x00007f97eb6f9000)
+	libnghttp2.so.14 => /usr/lib/x86_64-linux-gnu/libnghttp2.so.14 (0x00007f97eb6cd000)
+	libidn2.so.0 => /usr/lib/x86_64-linux-gnu/libidn2.so.0 (0x00007f97eb6ab000)
+	librtmp.so.1 => /usr/lib/x86_64-linux-gnu/librtmp.so.1 (0x00007f97eb68b000)
+	libldap.so.2 => /usr/lib/x86_64-linux-gnu/libldap.so.2 (0x00007f97eb628000)
+	liblber.so.2 => /usr/lib/x86_64-linux-gnu/liblber.so.2 (0x00007f97eb617000)
+	libssh2.so.1 => /usr/lib/x86_64-linux-gnu/libssh2.so.1 (0x00007f97eb5ca000)
+	libpsl.so.5 => /usr/lib/x86_64-linux-gnu/libpsl.so.5 (0x00007f97eb5b3000)
+	libssl.so.3 => /usr/lib/x86_64-linux-gnu/libssl.so.3 (0x00007f97eb4a5000)
+	libcrypto.so.3 => /usr/lib/x86_64-linux-gnu/libcrypto.so.3 (0x00007f97eae8b000)
+	libgssapi_krb5.so.2 => /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2 (0x00007f97eae33000)
+	libzstd.so.1 => /usr/lib/x86_64-linux-gnu/libzstd.so.1 (0x00007f97ead70000)
+	libbrotlidec.so.1 => /usr/lib/x86_64-linux-gnu/libbrotlidec.so.1 (0x00007f97ead61000)
+	libz.so.1 => /usr/lib/x86_64-linux-gnu/libz.so.1 (0x00007f97ead41000)
+	libstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f97eaaa1000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f97ecc01000)
+	libp11-kit.so.0 => /usr/lib/x86_64-linux-gnu/libp11-kit.so.0 (0x00007f97ea8c6000)
+	libunistring.so.5 => /usr/lib/x86_64-linux-gnu/libunistring.so.5 (0x00007f97ea6df000)
+	libtasn1.so.6 => /usr/lib/x86_64-linux-gnu/libtasn1.so.6 (0x00007f97ea6c8000)
+	libhogweed.so.6 => /usr/lib/x86_64-linux-gnu/libhogweed.so.6 (0x00007f97ea67b000)
+	libnettle.so.8 => /usr/lib/x86_64-linux-gnu/libnettle.so.8 (0x00007f97ea624000)
+	libgmp.so.10 => /usr/lib/x86_64-linux-gnu/libgmp.so.10 (0x00007f97ea59e000)
+	libsasl2.so.2 => /usr/lib/x86_64-linux-gnu/libsasl2.so.2 (0x00007f97ea583000)
+	libkrb5.so.3 => /usr/lib/x86_64-linux-gnu/libkrb5.so.3 (0x00007f97ea4b7000)
+	libk5crypto.so.3 => /usr/lib/x86_64-linux-gnu/libk5crypto.so.3 (0x00007f97ea489000)
+	libcom_err.so.2 => /usr/lib/x86_64-linux-gnu/libcom_err.so.2 (0x00007f97ea483000)
+	libkrb5support.so.0 => /usr/lib/x86_64-linux-gnu/libkrb5support.so.0 (0x00007f97ea476000)
+	libbrotlicommon.so.1 => /usr/lib/x86_64-linux-gnu/libbrotlicommon.so.1 (0x00007f97ea453000)
+	libffi.so.8 => /usr/lib/x86_64-linux-gnu/libffi.so.8 (0x00007f97ea442000)
+	libkeyutils.so.1 => /usr/lib/x86_64-linux-gnu/libkeyutils.so.1 (0x00007f97ea439000)
+	libresolv.so.2 => /usr/lib/x86_64-linux-gnu/libresolv.so.2 (0x00007f97ea426000)
+Test project /src/build/selector-sanitizer
+      Start  1: selector_unit
+ 1/12 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: context_unit
+ 2/12 Test  #2: context_unit .....................   Passed    0.01 sec
+      Start  3: egress_policy
+ 3/12 Test  #3: egress_policy ....................   Passed    0.01 sec
+      Start  4: config_strict
+ 4/12 Test  #4: config_strict ....................   Passed    0.01 sec
+      Start  5: admission_unit
+ 5/12 Test  #5: admission_unit ...................   Passed    0.01 sec
+      Start  6: hermes_observer
+ 6/12 Test  #6: hermes_observer ..................   Passed    0.11 sec
+      Start  7: compliance_integration
+ 7/12 Test  #7: compliance_integration ...........   Passed   19.86 sec
+      Start  8: router_integration
+ 8/12 Test  #8: router_integration ...............   Passed   24.04 sec
+      Start  9: transport_integration
+ 9/12 Test  #9: transport_integration ............   Passed    1.57 sec
+      Start 10: admission_integration
+10/12 Test #10: admission_integration ............   Passed    0.40 sec
+      Start 11: trajectory_reference
+11/12 Test #11: trajectory_reference .............   Passed    3.47 sec
+      Start 12: accounting
+12/12 Test #12: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =  49.61 sec
+safety matrix: 4608 cases passed
+selector tests passed

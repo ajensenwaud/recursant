@@ -1,0 +1,18 @@
+[  6%] Built target recursant_context
+[ 13%] Built target recursant_config
+[ 20%] Built target recursant_policy
+[ 26%] Built target recursant_selector
+[ 33%] Built target test_context
+[ 40%] Built target recursant_auth
+[ 46%] Built target recursant-validate
+[ 60%] Built target recursant
+[ 63%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 70%] Built target test_config
+[ 76%] Built target recursant_admission
+[ 83%] Built target test_egress
+[ 96%] Built target recursant-tracer
+[ 96%] Built target test_admission
+[100%] Linking C executable test_selector
+[100%] Built target test_selector
+safety matrix: 4608 cases passed
+selector tests passed

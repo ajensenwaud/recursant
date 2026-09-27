@@ -1,0 +1,47 @@
+[  3%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o
+[ 10%] Built target recursant_context
+[ 16%] Built target recursant_policy
+[ 23%] Built target recursant_config
+[ 26%] Linking C static library librecursant_selector.a
+[ 33%] Built target test_egress
+[ 40%] Built target test_context
+[ 46%] Built target recursant_auth
+[ 53%] Built target recursant-validate
+[ 60%] Built target test_config
+[ 73%] Built target recursant
+[ 73%] Built target recursant_selector
+[ 80%] Built target recursant_admission
+[ 83%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 90%] Built target test_admission
+[ 96%] Built target recursant-tracer
+[100%] Linking C executable test_selector
+[100%] Built target test_selector
+Test project /src/build/selector-normal
+      Start  1: selector_unit
+ 1/12 Test  #1: selector_unit ....................   Passed    0.00 sec
+      Start  2: context_unit
+ 2/12 Test  #2: context_unit .....................   Passed    0.00 sec
+      Start  3: egress_policy
+ 3/12 Test  #3: egress_policy ....................   Passed    0.00 sec
+      Start  4: config_strict
+ 4/12 Test  #4: config_strict ....................   Passed    0.00 sec
+      Start  5: admission_unit
+ 5/12 Test  #5: admission_unit ...................   Passed    0.02 sec
+      Start  6: hermes_observer
+ 6/12 Test  #6: hermes_observer ..................   Passed    0.12 sec
+      Start  7: compliance_integration
+ 7/12 Test  #7: compliance_integration ...........   Passed   19.26 sec
+      Start  8: router_integration
+ 8/12 Test  #8: router_integration ...............   Passed   23.69 sec
+      Start  9: transport_integration
+ 9/12 Test  #9: transport_integration ............   Passed    1.53 sec
+      Start 10: admission_integration
+10/12 Test #10: admission_integration ............   Passed    0.36 sec
+      Start 11: trajectory_reference
+11/12 Test #11: trajectory_reference .............   Passed    3.61 sec
+      Start 12: accounting
+12/12 Test #12: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =  48.77 sec
