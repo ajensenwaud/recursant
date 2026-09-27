@@ -1,0 +1,105 @@
+{
+  "kind": "live_private_reference_not_release_benchmark",
+  "model": "GLM-5.3-Flash-EXL3",
+  "condition": "output limit increased only; original prompt and scoring preserved",
+  "max_tokens": 4096,
+  "timeout_seconds": 60,
+  "records": [
+    {
+      "case_id": "synthetic-negated-success",
+      "status": "response_received",
+      "request_sha256": "6145137dcf8895a4522984435bc1f1f000c0d87238283a142384a8e7f4799a1b",
+      "elapsed_seconds": 48.276492692064494,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 5135
+        }
+      },
+      "response": {
+        "id": "chatcmpl-845bf27db1839394",
+        "object": "chat.completion",
+        "created": 1790507435,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "```json\n{\n  \"schema_version\": \"trajectory.v1\",\n  \"input_revision\": \"negation-v1\",\n  \"evidence_refs\": [\"n1\", \"n2\"],\n  \"phase\": \"diagnosing\",\n  \"next_action\": \"root_cause_analysis\",\n  \"difficulty_band\": \"hard\",\n  \"progress_state\": \"advancing\",\n  \"coverage\": \"partial\"\n}\n```",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 295,
+          "total_tokens": 1487,
+          "completion_tokens": 1192,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-changed-plan",
+      "status": "transport_failure",
+      "request_sha256": "77b5c82d03c44ea27ef8ca8f8a332333cf6dc0910d14911dbdcf7683121f58d6",
+      "elapsed_seconds": 60.009929864201695,
+      "curl_exit": 28,
+      "http_status": "000"
+    }
+  ],
+  "evaluation": {
+    "kind": "reference_interpretation_not_release_benchmark",
+    "assigned_cases": 6,
+    "recorded_attempts": 2,
+    "missing_cases": [
+      "synthetic-claim-is-not-verification",
+      "synthetic-format-after-verification",
+      "synthetic-incomplete-window",
+      "synthetic-injection-in-tool-result"
+    ],
+    "complete": false,
+    "schema_valid_cases": 0,
+    "label_matched_cases": 0,
+    "attempts": [
+      {
+        "case_id": "synthetic-negated-success",
+        "schema_valid": false,
+        "labels_match": false,
+        "field_matches": {},
+        "usage": {
+          "prompt_tokens": 295,
+          "completion_tokens": 1192,
+          "total_tokens": 1487
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-changed-plan",
+        "schema_valid": false,
+        "labels_match": false,
+        "field_matches": {},
+        "usage": null,
+        "reasoning_inclusion": "unverified"
+      }
+    ],
+    "release_pass": false
+  }
+}

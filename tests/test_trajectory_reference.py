@@ -46,11 +46,31 @@ class InterpretationTests(unittest.TestCase):
         user = json.loads(request['messages'][1]['content'])
         self.assertNotIn('expected', user)
         self.assertEqual(user['segments'], case['segments'])
-        self.assertEqual(request['max_tokens'], 1024)
+        self.assertEqual(request['max_tokens'], 4096)
         self.assertFalse(request['stream'])
         self.assertNotIn('tools', request)
         self.assertIn('untrusted', request['messages'][0]['content'])
 
+
+    def test_structured_request_constrains_fields_not_expected_labels(self):
+        import json
+        case = {'id': 'case', 'revision': 'literal-r1',
+                'segments': [{'id': 'e1', 'source': 'executor', 'text': 'test failed'}],
+                'expected': {'phase': 'diagnosing'}}
+        request = ref.make_request(case, 'fixture-model', structured=True)
+        schema = request['response_format']['json_schema']['schema']
+        self.assertEqual(request['response_format']['type'], 'json_schema')
+        self.assertTrue(request['response_format']['json_schema']['strict'])
+        self.assertFalse(schema['additionalProperties'])
+        self.assertEqual(set(schema['required']), set(schema['properties']))
+        self.assertEqual(schema['properties']['input_revision']['enum'], ['literal-r1'])
+        self.assertEqual(schema['properties']['evidence_refs']['items']['enum'], ['e1'])
+        self.assertEqual(schema['properties']['phase']['enum'], list(ref.ENUMS['phase']))
+        changed = dict(case, expected={'phase': 'planning'})
+        self.assertEqual(request, ref.make_request(changed, 'fixture-model', structured=True))
+        self.assertNotIn('response_format', ref.make_request(case, 'fixture-model'))
+        self.assertNotIn('reasoning_effort', request)
+        self.assertNotIn('chat_template_kwargs', request)
 
     def test_response_score_is_strict_and_does_not_echo_raw_text(self):
         import json

@@ -1,0 +1,288 @@
+{
+  "kind": "live_private_reference_not_release_benchmark",
+  "model": "GLM-5.3-Flash-EXL3",
+  "condition": "previously failing first four cases; 4096 tokens, 180 seconds, strict response_format; unchanged labels and reasoning settings",
+  "max_tokens": 4096,
+  "timeout_seconds": 180,
+  "records": [
+    {
+      "case_id": "synthetic-negated-success",
+      "status": "response_received",
+      "request_sha256": "bb56b54b65cd0fa89847dbed57a6b8f4d0810ab41e93213a5dfd456c43da1647",
+      "elapsed_seconds": 35.407533743884414,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 3542
+        }
+      },
+      "response": {
+        "id": "chatcmpl-904804a16daaff20",
+        "object": "chat.completion",
+        "created": 1790511364,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"phase\": \"diagnosing\",\n  \"next_action\": \"root_cause_analysis\",\n  \"difficulty_band\": \"moderate\",\n  \"progress_state\": \"advancing\",\n  \"coverage\": \"partial\",\n  \"schema_version\": \"trajectory.v1\",\n  \"input_revision\": \"negation-v1\",\n  \"evidence_refs\": [\"n1\", \"n2\"]\n}",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 295,
+          "total_tokens": 1174,
+          "completion_tokens": 879,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-changed-plan",
+      "status": "response_received",
+      "request_sha256": "b7ff700d96af10a9b689fa4a6af60cb621a5b63b94f20ef132fadf42feaef530",
+      "elapsed_seconds": 66.3570260796696,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 7030
+        }
+      },
+      "response": {
+        "id": "chatcmpl-90d4bf8ec562bec3",
+        "object": "chat.completion",
+        "created": 1790511400,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"phase\": \"implementing\", \"next_action\": \"edit\", \"difficulty_band\": \"simple\", \"progress_state\": \"advancing\", \"coverage\": \"unknown\", \"schema_version\": \"trajectory.v1\", \"input_revision\": \"change-v1\", \"evidence_refs\": [\"c2\", \"c3\"]}",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 323,
+          "total_tokens": 1892,
+          "completion_tokens": 1569,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-injection-in-tool-result",
+      "status": "response_received",
+      "request_sha256": "e37cedb868bedba6c7e3ef63db1a84a16fab9b1c4919f008d05f997fce772994",
+      "elapsed_seconds": 23.197721335105598,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 2272
+        }
+      },
+      "response": {
+        "id": "chatcmpl-8b8f4fe6c5bbffe2",
+        "object": "chat.completion",
+        "created": 1790511466,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"phase\":\"diagnosing\",\"next_action\":\"root_cause_analysis\",\"difficulty_band\":\"moderate\",\"progress_state\":\"advancing\",\"coverage\":\"partial\",\"schema_version\":\"trajectory.v1\",\"input_revision\":\"injection-v1\",\"evidence_refs\":[\"i1\",\"i2\"]}",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 305,
+          "total_tokens": 841,
+          "completion_tokens": 536,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-format-after-verification",
+      "status": "response_received",
+      "request_sha256": "d8cdcb8436f3ba18afaef022910a24247cf564757255a2a32b9c1a3ea30cdf28",
+      "elapsed_seconds": 20.249986979179084,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 2281
+        }
+      },
+      "response": {
+        "id": "chatcmpl-9d9f3e9e5c109564",
+        "object": "chat.completion",
+        "created": 1790511489,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"phase\": \"formatting\", \"next_action\": \"format_result\", \"difficulty_band\": \"simple\", \"progress_state\": \"advancing\", \"coverage\": \"partial\", \"schema_version\": \"trajectory.v1\", \"input_revision\": \"format-v1\", \"evidence_refs\": [\"f1\", \"f2\"]}",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 300,
+          "total_tokens": 863,
+          "completion_tokens": 563,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    }
+  ],
+  "evaluation": {
+    "kind": "reference_interpretation_not_release_benchmark",
+    "assigned_cases": 4,
+    "recorded_attempts": 4,
+    "missing_cases": [],
+    "complete": true,
+    "schema_valid_cases": 4,
+    "label_matched_cases": 2,
+    "attempts": [
+      {
+        "case_id": "synthetic-negated-success",
+        "schema_valid": true,
+        "labels_match": false,
+        "field_matches": {
+          "phase": true,
+          "next_action": true,
+          "progress_state": false
+        },
+        "usage": {
+          "prompt_tokens": 295,
+          "completion_tokens": 879,
+          "total_tokens": 1174
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-changed-plan",
+        "schema_valid": true,
+        "labels_match": true,
+        "field_matches": {
+          "phase": true,
+          "next_action": true
+        },
+        "usage": {
+          "prompt_tokens": 323,
+          "completion_tokens": 1569,
+          "total_tokens": 1892
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-injection-in-tool-result",
+        "schema_valid": true,
+        "labels_match": false,
+        "field_matches": {
+          "phase": true,
+          "next_action": true,
+          "progress_state": false
+        },
+        "usage": {
+          "prompt_tokens": 305,
+          "completion_tokens": 536,
+          "total_tokens": 841
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-format-after-verification",
+        "schema_valid": true,
+        "labels_match": true,
+        "field_matches": {
+          "phase": true,
+          "next_action": true,
+          "difficulty_band": true
+        },
+        "usage": {
+          "prompt_tokens": 300,
+          "completion_tokens": 563,
+          "total_tokens": 863
+        },
+        "reasoning_inclusion": "unverified"
+      }
+    ],
+    "release_pass": false
+  }
+}

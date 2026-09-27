@@ -1,0 +1,59 @@
+{
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "suggestions": [
+    {
+      "file": "bench/trajectory_reference.py:162-163",
+      "severity": "non-blocking",
+      "message": "The optional response schema permits duplicate evidence_refs, while validate_state rejects them. Document that strict provider JSON schema is only a generation constraint, not a substitute for local validation; consider uniqueItems only for backends that support it. Existing scoring remains fail-closed."
+    },
+    {
+      "file": "tests/test_trajectory_reference.py:55",
+      "severity": "non-blocking",
+      "message": "Add explicit equality assertions for messages and generation settings between structured and unstructured requests, excluding response_format, to preserve the current reasoning/prompt invariance in future edits. The present implementation changes neither."
+    }
+  ],
+  "reviewed_sha": "8e593ab3fe3412ec6a06b783f6fc7a9c1630dfc2",
+  "base_sha": "e2e240e5a67885c8a7be34c03c8cf44421f0a577",
+  "reference_scope": "Uncommitted bench/trajectory_reference.py and tests/test_trajectory_reference.py in main checkout at base_sha; exact contents identified by SHA-256 below.",
+  "summary": "Pass for the bounded pure-selector library and optional structured reference request builder; not approval of production automatic routing, model qualification, benchmark quality, or economic results.",
+  "findings": [
+    "Candidate registry is bounded to 64 copied unique aliases and a nonzero generation; selection does not allocate or perform I/O.",
+    "Permissions and task qualification are explicit caller-supplied authoritative inputs, not inferred evidence. Alternative selection requires permission, capacity, capabilities, explicit task qualification, usable fresh context, and a strictly cheaper cost exceeding the minimum-saving threshold.",
+    "All quoted costs and minimum_saving must be finite and nonnegative. Ordered subtraction avoids overflow from cost-plus-threshold addition. Invalid or blocked calls leave output untouched.",
+    "Authoritative PINNED continuity retains only an eligible pin even if more expensive or unqualified; UNKNOWN blocks. Missing, expired, future or unknown-class context retains an eligible baseline for REPLAYABLE requests.",
+    "Header and documentation clearly reserve config binding, evidence provenance, final policy/continuity rechecks and dispatch integration for future work; no missing-future-integration failure assigned.",
+    "Reference requests default to max_tokens 4096. Optional strict JSON schema enumerates the complete taxonomy plus supplied revision and evidence IDs, not expected answers. Top-level expected labels do not affect requests.",
+    "Structured mode does not alter messages, reasoning controls or scoring. AST comparison confirms make_request is the only changed function in the reference helper; local strict response validation and release_pass=false remain intact.",
+    "No hardcoded credentials, new shell execution, unsafe deserialization, or data-exfiltration path found in the reviewed additions."
+  ],
+  "verification": {
+    "image": "recursant-v4-dev:local",
+    "image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+    "constraints": "Both independent runs used --pull never --network none --user 1000:1000 with read-only repository mounts. C build artifacts existed only in container /tmp; Python bytecode writing disabled.",
+    "selector": {
+      "configuration": "Debug, RECURSANT_SANITIZERS=ON, freshly compiled test_selector target",
+      "direct_result": "safety matrix: 4608 cases passed; selector tests passed",
+      "ctest_result": "selector_unit passed; 1/1 targeted suites, zero failures",
+      "exit_code": 0
+    },
+    "reference": {
+      "command": "python3 -m unittest discover -s tests -p test_trajectory_reference.py -v",
+      "result": "Ran 13 tests; OK",
+      "exit_code": 0
+    },
+    "limits": "Targeted independent review, not a rerun of all historical CTest suites or validation of historical evidence logs. No inference calls, installs, network calls, service changes, commits, or source edits.",
+    "issues_encountered": ["Initial local Docker inspect used recursant-dev:latest, which was absent. Corrected to the existing documented recursant-v4-dev:local image; no pull attempted."]
+  },
+  "hash_algorithm": "SHA-256",
+  "hashes": {
+    "/home/aj/projects/recursant-v4-m3-selector/CMakeLists.txt": "82e869c7df87686eee44b088d193962f068ed96f9aca569614002fd411f3cba7",
+    "/home/aj/projects/recursant-v4-m3-selector/core/include/recursant/selector.h": "dcc0838618a449cd4c22075102c4bc7793e4577ac50db60621e7b2b6ef3a98e4",
+    "/home/aj/projects/recursant-v4-m3-selector/core/src/context/selector.c": "1addc26b9415aa99bd1dcd8c0af43b75eee1b195964c24bd4f64ba095a0a0783",
+    "/home/aj/projects/recursant-v4-m3-selector/tests/unit/test_selector.c": "4f42da449fd2855b6b2c99829a9302ce327b8fd1d559d415c7e36df2354595b0",
+    "/home/aj/projects/recursant-v4-m3-selector/docs/evidence/m3-selector-tdd.md": "08012f39f6470ca043daf0dddeaed4fdd6f4473a8ec9b3fe00c4d730ed77b40b",
+    "/home/aj/projects/recursant-v4/bench/trajectory_reference.py": "331bdaae331ee61dc8b7f2a77ba1ba66b2cf20ac98ddc0ff93c2ed9929e38649",
+    "/home/aj/projects/recursant-v4/tests/test_trajectory_reference.py": "98ec50955a7bf1ff9f8957a17288344935591abb3f46cd5fdb861dd072f315f6"
+  }
+}

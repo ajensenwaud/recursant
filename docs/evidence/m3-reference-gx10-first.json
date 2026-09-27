@@ -1,0 +1,411 @@
+{
+  "kind": "live_private_reference_not_release_benchmark",
+  "model": "GLM-5.3-Flash-EXL3",
+  "endpoint": "http://gx10:8888/v1/chat/completions",
+  "approval": {
+    "maximum_requests": 12,
+    "max_tokens_per_request": 1024,
+    "timeout_seconds": 60,
+    "sequential": true
+  },
+  "case_manifest_sha256": "8c534800c9d0236f2e54268797a998860b8df811722b9ddacd628ca3309749d6",
+  "records": [
+    {
+      "case_id": "synthetic-negated-success",
+      "status": "response_received",
+      "request_sha256": "da4418cfe54e5da5d5a6c9a2c808e309a0bc99570812e2ba4f1668827d037de4",
+      "elapsed_seconds": 38.650247257202864,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 3902
+        }
+      },
+      "response": {
+        "id": "chatcmpl-95c8f170ad3c441c",
+        "object": "chat.completion",
+        "created": 1790506903,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "```json\n{\n  \"schema_version\": \"trajectory.v1\",\n  \"input_revision\": \"negation-v1\",\n  \"evidence_refs\": [\"n1\", \"n2\"],\n  \"phase\": \"diagnosing\",\n  \"next_action\": \"root_cause_analysis\",\n  \"difficulty_band\": \"moderate\",\n  \"progress_state\": \"advancing\",\n  \"coverage\": \"partial\"\n}\n```",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 295,
+          "total_tokens": 1241,
+          "completion_tokens": 946,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-changed-plan",
+      "status": "response_received",
+      "request_sha256": "916450e603f0ae44b4395c4173bd70b97a56f0dfb0cd174a668ebc758e0f03d3",
+      "elapsed_seconds": 43.919351807795465,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 4821
+        }
+      },
+      "response": {
+        "id": "chatcmpl-bf13bda1c3f5c079",
+        "object": "chat.completion",
+        "created": 1790506941,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": null,
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "length",
+            "stop_reason": null,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 323,
+          "total_tokens": 1347,
+          "completion_tokens": 1024,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-injection-in-tool-result",
+      "status": "response_received",
+      "request_sha256": "dab6838442f3698020d698b39a5ab9a88c056d2f837ee89c93af147d830218f9",
+      "elapsed_seconds": 40.36354791279882,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 4688
+        }
+      },
+      "response": {
+        "id": "chatcmpl-8fa7eca8e87b9d54",
+        "object": "chat.completion",
+        "created": 1790506985,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"schema_version\": \"trajectory.v1\", \"input_revision\": \"injection-v1\", \"evidence_refs\": [\"i1\", \"i2\"], \"phase\": \"",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "length",
+            "stop_reason": null,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 305,
+          "total_tokens": 1329,
+          "completion_tokens": 1024,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-format-after-verification",
+      "status": "response_received",
+      "request_sha256": "4843492fc4b048365b8b2c01b00a71ff9b5065b44d150fe507b6dab72e8f14d6",
+      "elapsed_seconds": 45.65416815178469,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 4839
+        }
+      },
+      "response": {
+        "id": "chatcmpl-a3223d268581fa6f",
+        "object": "chat.completion",
+        "created": 1790507026,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"schema_version\": \"trajectory.v1\",",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "length",
+            "stop_reason": null,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 300,
+          "total_tokens": 1324,
+          "completion_tokens": 1024,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-claim-is-not-verification",
+      "status": "response_received",
+      "request_sha256": "ae69a49834ae73110a4597e486701954c1f79759cf71df58f416b94db671645c",
+      "elapsed_seconds": 37.56993084587157,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 3598
+        }
+      },
+      "response": {
+        "id": "chatcmpl-b27252283c6a633a",
+        "object": "chat.completion",
+        "created": 1790507071,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"schema_version\": \"trajectory.v1\", \"input_revision\": \"claim-v1\", \"evidence_refs\": [\"v1\", \"v2\", \"v3\"], \"phase\": \"verifying\", \"next_action\": \"run_checks\", \"difficulty_band\": \"unknown\", \"progress_state\": \"advancing\", \"coverage\": \"unknown\"}",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 310,
+          "total_tokens": 1163,
+          "completion_tokens": 853,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    },
+    {
+      "case_id": "synthetic-incomplete-window",
+      "status": "response_received",
+      "request_sha256": "d4637801f1ea2f9cf9f318de474137c1d8d3afdd2ef82836e133cd8b213211fa",
+      "elapsed_seconds": 22.610707960557193,
+      "curl_exit": 0,
+      "http_status": "200",
+      "omitted_reasoning_fields": {
+        "reasoning": {
+          "characters": 2069
+        }
+      },
+      "response": {
+        "id": "chatcmpl-b7f5584a94511209",
+        "object": "chat.completion",
+        "created": 1790507109,
+        "model": "GLM-5.3-Flash-EXL3",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"schema_version\": \"trajectory.v1\", \"input_revision\": \"partial-v1\", \"evidence_refs\": [\"p1\"], \"phase\": \"unknown\", \"next_action\": \"unknown\", \"difficulty_band\": \"unknown\", \"progress_state\": \"unknown\", \"coverage\": \"partial\"}",
+              "refusal": null,
+              "annotations": null,
+              "audio": null,
+              "function_call": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": 154827,
+            "token_ids": null,
+            "routed_experts": null
+          }
+        ],
+        "service_tier": null,
+        "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+        "usage": {
+          "prompt_tokens": 259,
+          "total_tokens": 733,
+          "completion_tokens": 474,
+          "prompt_tokens_details": null
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "prompt_text": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null
+      }
+    }
+  ],
+  "evaluation": {
+    "kind": "reference_interpretation_not_release_benchmark",
+    "assigned_cases": 6,
+    "recorded_attempts": 6,
+    "missing_cases": [],
+    "complete": true,
+    "schema_valid_cases": 2,
+    "label_matched_cases": 2,
+    "attempts": [
+      {
+        "case_id": "synthetic-negated-success",
+        "schema_valid": false,
+        "labels_match": false,
+        "field_matches": {},
+        "usage": {
+          "prompt_tokens": 295,
+          "completion_tokens": 946,
+          "total_tokens": 1241
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-changed-plan",
+        "schema_valid": false,
+        "labels_match": false,
+        "field_matches": {},
+        "usage": {
+          "prompt_tokens": 323,
+          "completion_tokens": 1024,
+          "total_tokens": 1347
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-injection-in-tool-result",
+        "schema_valid": false,
+        "labels_match": false,
+        "field_matches": {},
+        "usage": {
+          "prompt_tokens": 305,
+          "completion_tokens": 1024,
+          "total_tokens": 1329
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-format-after-verification",
+        "schema_valid": false,
+        "labels_match": false,
+        "field_matches": {},
+        "usage": {
+          "prompt_tokens": 300,
+          "completion_tokens": 1024,
+          "total_tokens": 1324
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-claim-is-not-verification",
+        "schema_valid": true,
+        "labels_match": true,
+        "field_matches": {
+          "phase": true,
+          "next_action": true
+        },
+        "usage": {
+          "prompt_tokens": 310,
+          "completion_tokens": 853,
+          "total_tokens": 1163
+        },
+        "reasoning_inclusion": "unverified"
+      },
+      {
+        "case_id": "synthetic-incomplete-window",
+        "schema_valid": true,
+        "labels_match": true,
+        "field_matches": {
+          "phase": true,
+          "next_action": true,
+          "progress_state": true
+        },
+        "usage": {
+          "prompt_tokens": 259,
+          "completion_tokens": 474,
+          "total_tokens": 733
+        },
+        "reasoning_inclusion": "unverified"
+      }
+    ],
+    "release_pass": false
+  }
+}

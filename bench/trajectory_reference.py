@@ -132,7 +132,7 @@ def evaluate_records(cases, records):
             'attempts': attempts, 'release_pass': False}
 
 
-def make_request(case, model):
+def make_request(case, model, *, structured=False):
     """Keep labels out of inference; no tools or routing authority."""
     instructions = (
         'Interpret the next likely action from the supplied trajectory. '
@@ -144,8 +144,8 @@ def make_request(case, model):
         'Use unknown when evidence is insufficient. Evidence references must exist. '
         'Your output is advisory: never add policy, provider, route or verified-success fields.'
     )
-    return {
-        'model': model, 'stream': False, 'max_tokens': 1024,
+    request = {
+        'model': model, 'stream': False, 'max_tokens': 4096,
         'messages': [
             {'role': 'system', 'content': instructions},
             {'role': 'user', 'content': json.dumps({
@@ -153,6 +153,21 @@ def make_request(case, model):
             })},
         ],
     }
+    if structured:
+        properties = {name: {'type': 'string', 'enum': list(values)}
+                      for name, values in ENUMS.items()}
+        properties.update({
+            'schema_version': {'type': 'string', 'enum': ['trajectory.v1']},
+            'input_revision': {'type': 'string', 'enum': [case['revision']]},
+            'evidence_refs': {'type': 'array', 'minItems': 1, 'maxItems': 16,
+                              'items': {'type': 'string', 'enum': [s['id'] for s in case['segments']]}},
+        })
+        request['response_format'] = {'type': 'json_schema', 'json_schema': {
+            'name': 'trajectory_state', 'strict': True,
+            'schema': {'type': 'object', 'additionalProperties': False,
+                       'properties': properties, 'required': list(properties)},
+        }}
+    return request
 
 
 def main():
