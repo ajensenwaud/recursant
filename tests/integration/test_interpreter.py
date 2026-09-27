@@ -51,8 +51,9 @@ import threading
 import time
 
 class HTTP(unittest.TestCase):
-    def run_case(self, body, status='0', delay=0.15, code=200):
+    def run_case(self, body, status='0', delay=0.15, code=200, structured=False):
         requests = []
+        envelopes = []
         redirects = []
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
@@ -60,6 +61,7 @@ class HTTP(unittest.TestCase):
                 self.send_response(500); self.end_headers()
             def log_message(self, format, *args): pass
             def do_POST(self):
+                envelopes.append((self.path, dict(self.headers)))
                 requests.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
                 time.sleep(delay)
                 self.send_response(code)
@@ -73,18 +75,52 @@ class HTTP(unittest.TestCase):
         thread.start()
         try:
             env = dict(os.environ, http_proxy='http://127.0.0.1:1', ALL_PROXY='http://127.0.0.1:1', NO_PROXY='')
-            p = subprocess.run([BIN, f'http://127.0.0.1:{server.server_port}/v1/chat/completions', status],
+            p = subprocess.run([BIN, f'http://127.0.0.1:{server.server_port}/v1/chat/completions?fixture=1', status,
+                                'structured' if structured else 'legacy'],
                                capture_output=True, text=True, timeout=5, env=env)
             self.assertEqual(p.returncode, 0, p.stderr)
             self.assertEqual(redirects, [])
+            for path, headers in envelopes:
+                self.assertEqual(path, '/v1/chat/completions?fixture=1')
+                headers = {k.lower(): v for k,v in headers.items()}
+                self.assertEqual(headers['content-type'], 'application/json')
+                for key in ('authorization', 'proxy-authorization', 'cookie', 'x-api-key'):
+                    self.assertNotIn(key, headers)
             for request in requests:
-                self.assertEqual(set(request), {'model','stream','max_tokens','messages'})
+                keys = {'model','stream','max_tokens','messages'}
+                if structured: keys.add('response_format')
+                self.assertEqual(set(request), keys)
+                self.assertIs(request['stream'], False)
+                self.assertEqual([m['role'] for m in request['messages']], ['system', 'user'])
                 self.assertEqual(request['max_tokens'], 4096)
                 self.assertEqual(request['model'], 'fixture')
                 data = json.loads(request['messages'][1]['content'])
                 self.assertEqual(data['input_revision'], '1')
                 self.assertEqual(data['segments'][0]['text'], 'test failed')
-            if status not in ('cancel','shutdown'): self.assertTrue(requests)
+                self.assertEqual(set(data), {'input_revision', 'segments'})
+                if structured:
+                    self.assertEqual([s['id'] for s in data['segments']], ['e1', 'quoted"id\\newline\n'])
+                if structured:
+                    enums = {
+                        # Exact reference enums; not expected labels sent to inference.
+                        'phase': ['planning','implementing','diagnosing','verifying','formatting','unknown'],
+                        'next_action': ['plan','edit','root_cause_analysis','run_checks','format_result','unknown'],
+                        'difficulty_band': ['simple','moderate','hard','unknown'],
+                        'progress_state': ['advancing','blocked','backtracking','repeating','unknown'],
+                        'coverage': ['partial','unknown'],
+                    }
+                    properties = {k: {'type': 'string', 'enum': v} for k,v in enums.items()}
+                    properties.update({
+                        'schema_version': {'type': 'string', 'enum': ['trajectory.v1']},
+                        'input_revision': {'type': 'string', 'enum': [data['input_revision']]},
+                        'evidence_refs': {'type': 'array', 'minItems': 1, 'maxItems': 16,
+                                          'items': {'type': 'string', 'enum': [s['id'] for s in data['segments']]}},
+                    })
+                    self.assertEqual(request['response_format'], {
+                        'type': 'json_schema', 'json_schema': {'name': 'trajectory_state', 'strict': True,
+                        'schema': {'type': 'object', 'additionalProperties': False,
+                                   'properties': properties, 'required': list(properties)}}})
+            self.assertTrue(requests)  # cancellation/shutdown must exercise active HTTP
         finally:
             server.shutdown(); server.server_close(); thread.join()
     def test_delayed_nonblocking_and_copied_input(self): self.run_case(response().encode())
@@ -95,5 +131,12 @@ class HTTP(unittest.TestCase):
     def test_http_no_redirect(self): self.run_case(b'', '1', code=302)
     def test_http_cancel(self): self.run_case(response().encode(), 'cancel', delay=1.5)
     def test_http_shutdown(self): self.run_case(response().encode(), 'shutdown', delay=1.5)
+    def test_structured_request(self): self.run_case(response().encode(), structured=True)
+    def test_structured_still_rejects_invalid(self):
+        self.run_case(response(dict(STATE, evidence_refs=['invented'])).encode(), '1', structured=True)
+    def test_structured_still_rejects_markdown(self):
+        outer = json.loads(response())
+        outer['choices'][0]['message']['content'] = '```json\n' + json.dumps(STATE) + '\n```'
+        self.run_case(json.dumps(outer).encode(), '1', structured=True)
 
 if __name__ == '__main__': unittest.main()

@@ -9,7 +9,9 @@
  * created; disabled create returns NULL without starting a thread.
  * URL is a complete OpenAI chat/completions HTTP(S) URL, no discovery/fallback.
  * Config and jobs are copied. Sources: executor/exposed_plan/model_claim/
- * coverage_notice. Tokens 1..4096, deadline 1..2000ms including queue time.
+ * coverage_notice. Tokens 1..4096, deadline 1..180000ms including queue time.
+ * Local inference callers must configure 180000ms; cancellation and shutdown
+ * interrupt active work independently of that deadline.
  * Four outstanding jobs INCLUDING unpolled completions; try-submit never waits
  * on I/O or mutex. False means invalid/busy/full: retain baseline routing.
  * Cancellation is terminal; poll returns copied result, no registry access.
@@ -31,6 +33,9 @@ typedef struct {
     bool enabled;
     const char *url, *model;
     unsigned max_tokens, deadline_ms;
+    /* Zero/default preserves legacy requests. Future gateway must enable this
+     * explicitly; response validation remains strict regardless of this flag. */
+    bool structured_output;
 } rc_interpreter_config;
 typedef enum { RC_INTERPRETER_VALID, RC_INTERPRETER_REJECTED,
     RC_INTERPRETER_TIMEOUT, RC_INTERPRETER_CANCELLED } rc_interpreter_status;

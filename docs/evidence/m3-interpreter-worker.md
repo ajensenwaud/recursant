@@ -37,7 +37,7 @@ not prove semantic truth. The C parser additionally requires assistant role and
 rejects tool-call fields even when empty/null.
 
 Transport: libcurl multi on the worker, 20ms polling, total submission deadline
-1..2000ms (queue time included), max_tokens 1..4096, 65536-byte response bound,
+1..180000ms (queue time included), max_tokens 1..4096, 65536-byte response bound,
 16384-byte state-text bound. No redirects, environment proxy, netrc fallback,
 raw logging or tools. TLS verification retains libcurl defaults. Creation
 requires libcurl asynchronous DNS support; loopback tests do not establish
@@ -93,3 +93,62 @@ completion is claimed. Independent review remains for the parent before landing;
 this subagent environment has no reviewer-delegation tool. The image has libcurl
 headers/library but no curl CLI (an optional `curl -V` inspection failed); this
 did not block the compiled real HTTP tests.
+
+## Review fix: approved local deadline and explicit structured requests
+
+Reviewed MAIN `docs/evidence/m3-interpreter-review.json`, finding
+M3-INTERPRETER-001, against worker base 11d7b6e. The previous 2000ms ceiling
+was a deployment-contract mismatch. Creation now accepts 180000ms and rejects
+180001ms and zero. Local inference callers must explicitly configure 180000ms;
+only the deterministic timeout fixture uses 1000ms. No production 2-second
+deadline was introduced. Queue-inclusive expiration, nonblocking submission and
+polling, cancellation epoch and 20ms transport polling remain unchanged.
+
+`rc_interpreter_config.structured_output` is an optional bool, false when
+zero-initialized for compatibility. The future gateway MUST explicitly enable
+it and set `deadline_ms=180000`; gateway wiring is outside this worker scope.
+When enabled, Jansson builds `response_format.type=json_schema`, named
+`trajectory_state`, strict=true, matching MAIN `bench/trajectory_reference.py`
+`make_request(..., structured=True)`: the five enum properties, constant schema
+version, exact canonical input revision, existing evidence-ID enum with
+minItems=1/maxItems=16, all eight required properties, no additional properties.
+No expected labels, reasoning override, repair or scoring relaxation is added.
+The strict parser is unchanged and remains authoritative even when a server
+ignores the request schema. The request schema deliberately matches the reference
+(including no uniqueItems); the parser still rejects duplicate references.
+
+Separate observed RED -> GREEN cycles, all in the existing network-isolated dev
+image with source read-only and build artifacts in container `/tmp/build`:
+
+1. Deadline RED: interpreter CTest failed in 4.26s, 8/11 Python tests failed at
+   `test_interpreter.c:28: Assertion 'boundary' failed` for 180000ms creation.
+   After the ceiling fix: interpreter CTest passed in 7.58s (exit 0).
+2. Structured-request RED: interface/test added before request implementation;
+   11 tests passed and the two new structured tests failed because the captured
+   real loopback JSON lacked `response_format` (CTest 9.47s, exit 8).
+   After Jansson generation: interpreter CTest passed in 9.47s (exit 0).
+3. Added regression assertions after GREEN: escaped evidence IDs, copied bool
+   configuration, unchanged Markdown rejection, URI/query, Content-Type,
+   credential-header absence, stream=false and exact message roles. These are
+   additional coverage, not separate claimed pre-implementation RED cycles.
+
+Final verification (commands and complete output in the new logs):
+
+- Normal Debug: **12/12 CTest entries passed**, 58.66s. Verbose interpreter
+  rerun: **14/14 Python tests passed**, 10.365s (CTest 10.45s).
+- ASan/UBSan Debug: **12/12 CTest entries passed**, 60.22s. Verbose interpreter
+  rerun: **14/14 Python tests passed**, 10.996s (CTest 11.07s).
+- Both full-suite and verbose commands exited 0; no sanitizer diagnostic.
+- Active cancel and shutdown use 180000ms configuration against 1500ms delayed
+  loopback responses, require a captured HTTP request, and retain <500ms C
+  assertions. Four submissions plus foreground registry reads retain <200ms
+  assertions. Short timeout fixture remains 1000ms and returns TIMEOUT.
+- Exact request key-set assertions exclude reasoning/label/tool overrides;
+  legacy mode omits response_format. Structured mode still rejects invented
+  evidence and Markdown. Response/token bounds remain unchanged.
+
+Logs: `m3-interpreter-review-fix-normal.log` and
+`m3-interpreter-review-fix-asan.log`. No live inference, installs, image pulls,
+network models, host services, profiles, MAIN edits or routing integration.
+Loopback evidence is not a production DNS/TLS cancellation guarantee and does
+not itself prove server-side schema enforcement or model quality.

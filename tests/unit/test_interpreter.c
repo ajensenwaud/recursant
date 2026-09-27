@@ -22,15 +22,29 @@ int main(int argc, char **argv) {
   assert(entries("/proc/self/task")==tasks && entries("/proc/self/fd")==fds);
   cfg.enabled=true;
   cfg.max_tokens=4097; assert(!rc_interpreter_create(&cfg)); cfg.max_tokens=4096;
-  cfg.deadline_ms=2001; assert(!rc_interpreter_create(&cfg)); cfg.deadline_ms=1000;
+  cfg.deadline_ms=180001; assert(!rc_interpreter_create(&cfg));
+  cfg.deadline_ms=0; assert(!rc_interpreter_create(&cfg));
+  cfg.deadline_ms=180000;
+  rc_interpreter *boundary=rc_interpreter_create(&cfg); assert(boundary);
+  rc_interpreter_destroy(boundary);
+  /* Short deterministic timeout only for fixtures; local inference uses 180s. */
+  cfg.deadline_ms=argc>2 && !strcmp(argv[2],"2") ? 1000 : 180000;
   cfg.url="file:///etc/passwd"; assert(!rc_interpreter_create(&cfg));
   cfg.url="http://user:pass@127.0.0.1/"; assert(!rc_interpreter_create(&cfg));
   cfg.url=argv[1];
+  cfg.structured_output=argc>3 && !strcmp(argv[3],"structured");
   rc_interpreter *w=rc_interpreter_create(&cfg); assert(w);
+  cfg.structured_output=!cfg.structured_output; /* configuration must be copied */
   rc_interpreter_input job={.revision=1,.evidence_count=1};
   strcpy(job.key.tenant,"t"); strcpy(job.key.project,"p"); strcpy(job.key.task_generation,"g");
   strcpy(job.key.branch,"b"); strcpy(job.key.step,"s"); strcpy(job.key.attempt,"a");
   strcpy(job.evidence[0].id,"e1"); strcpy(job.evidence[0].source,"executor"); strcpy(job.evidence[0].text,"test failed");
+  if(argc>3 && !strcmp(argv[3],"structured")) {
+   job.evidence_count=2;
+   strcpy(job.evidence[1].id,"quoted\"id\\newline\n");
+   strcpy(job.evidence[1].source,"model_claim");
+   strcpy(job.evidence[1].text,"untrusted claim");
+  }
   double start=now();
   for(int i=0;i<4;i++) {
    while(!rc_interpreter_try_submit(w,&job)) assert(now()-start<0.2);

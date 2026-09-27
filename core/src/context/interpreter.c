@@ -84,6 +84,7 @@ struct rc_interpreter {
     atomic_uint_fast64_t epoch;
     char url[2049], model[129];
     unsigned tokens, timeout;
+    bool structured_output;
     struct slot slots[RC_INTERPRETER_CAPACITY];
 };
 static uint64_t millis(void) {
@@ -107,6 +108,48 @@ static bool input_valid(const rc_interpreter_input *in) {
         for(size_t j=0;j<i;j++) if(!strcmp(e->id,in->evidence[j].id)) return false;
     }
     return true;
+}
+/* Construct the reference request schema with Jansson, never string interpolation.
+ * The strict local validator remains authoritative even if a server ignores it. */
+static json_t *response_format(const rc_interpreter_input *in,const char *revision) {
+    static const char *const names[]={"phase","next_action","difficulty_band",
+        "progress_state","coverage","schema_version","input_revision","evidence_refs"};
+    const char *const values[][7]={
+        {"planning","implementing","diagnosing","verifying","formatting","unknown",NULL},
+        {"plan","edit","root_cause_analysis","run_checks","format_result","unknown",NULL},
+        {"simple","moderate","hard","unknown",NULL},
+        {"advancing","blocked","backtracking","repeating","unknown",NULL},
+        {"partial","unknown",NULL}, {"trajectory.v1",NULL}, {revision,NULL}
+    };
+    json_t *properties=json_object(), *required=json_array(), *refs=json_array();
+    json_t *format=NULL;
+    if(!properties || !required || !refs) goto done;
+    for(size_t i=0;i<7;i++) {
+        json_t *enums=json_array();
+        if(!enums) goto done;
+        for(size_t j=0;values[i][j];j++) {
+            if(json_array_append_new(enums,json_string(values[i][j]))) {
+                json_decref(enums); goto done;
+            }
+        }
+        json_t *property=json_pack("{s:s,s:O}","type","string","enum",enums);
+        json_decref(enums);
+        if(!property || json_object_set_new(properties,names[i],property)) goto done;
+    }
+    for(size_t i=0;i<in->evidence_count;i++)
+        if(json_array_append_new(refs,json_string(in->evidence[i].id))) goto done;
+    json_t *evidence=json_pack("{s:s,s:i,s:i,s:{s:s,s:O}}",
+        "type","array","minItems",1,"maxItems",16,"items","type","string","enum",refs);
+    if(!evidence || json_object_set_new(properties,"evidence_refs",evidence)) goto done;
+    for(size_t i=0;i<8;i++)
+        if(json_array_append_new(required,json_string(names[i]))) goto done;
+    format=json_pack("{s:s,s:{s:s,s:b,s:{s:s,s:b,s:O,s:O}}}",
+        "type","json_schema","json_schema","name","trajectory_state","strict",1,
+        "schema","type","object","additionalProperties",0,
+        "properties",properties,"required",required);
+done:
+    json_decref(properties); json_decref(required); json_decref(refs);
+    return format;
 }
 static char *request_body(rc_interpreter *w,const rc_interpreter_input *in) {
     const char *instruction=
@@ -136,6 +179,12 @@ static char *request_body(rc_interpreter *w,const rc_interpreter_input *in) {
         "role","system","content",instruction,"role","user","content",text);
     free(text);
     if(!root) return NULL;
+    if(w->structured_output) {
+        json_t *format=response_format(in,revision);
+        if(!format || json_object_set_new(root,"response_format",format)) {
+            json_decref(root); return NULL;
+        }
+    }
     char *body=json_dumps(root,JSON_COMPACT); json_decref(root); return body;
 }
 struct response_buffer { char bytes[65536]; size_t len; };
@@ -211,7 +260,7 @@ rc_interpreter *rc_interpreter_create(const rc_interpreter_config *cfg) {
     if(!cfg || !cfg->enabled) return NULL;
     if(!cfg->url || !cfg->model || strlen(cfg->url)>2048 || !cfg->model[0] ||
        strlen(cfg->model)>128 || !cfg->max_tokens || cfg->max_tokens>4096 ||
-       !cfg->deadline_ms || cfg->deadline_ms>2000) return NULL;
+       !cfg->deadline_ms || cfg->deadline_ms>180000) return NULL;
     /* Require asynchronous resolution: synchronous DNS cannot meet shutdown bound. */
     if(!(curl_version_info(CURLVERSION_NOW)->features&CURL_VERSION_ASYNCHDNS)) return NULL;
     CURLU *url=curl_url(); char *scheme=NULL,*host=NULL,*user=NULL,*fragment=NULL;
@@ -227,6 +276,7 @@ rc_interpreter *rc_interpreter_create(const rc_interpreter_config *cfg) {
     rc_interpreter *w=calloc(1,sizeof(*w)); if(!w) return NULL;
     strcpy(w->url,cfg->url); strcpy(w->model,cfg->model);
     w->tokens=cfg->max_tokens; w->timeout=cfg->deadline_ms;
+    w->structured_output=cfg->structured_output;
     atomic_init(&w->stop,false); atomic_init(&w->epoch,0);
     if(pthread_mutex_init(&w->lock,NULL)) { free(w); return NULL; }
     if(pthread_cond_init(&w->ready,NULL)) { pthread_mutex_destroy(&w->lock); free(w); return NULL; }

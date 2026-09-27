@@ -1,0 +1,141 @@
+$ docker run --rm --pull never --network none --user 1000:1000 -v "/home/aj/projects/recursant-v4-m3-interpreter-worker:/src:ro" -w /src recursant-v4-dev:local sh -c 'cmake -S . -B /tmp/build -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build /tmp/build -j4 && ctest --test-dir /tmp/build --output-on-failure && ctest --test-dir /tmp/build -R interpreter -V' 
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libcurl;jansson'
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/build
+[  3%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[  6%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o
+[ 10%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[ 13%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[ 16%] Linking C static library librecursant_policy.a
+[ 16%] Built target recursant_policy
+[ 20%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 23%] Linking C executable test_egress
+[ 26%] Linking C static library librecursant_context.a
+[ 26%] Built target recursant_context
+[ 26%] Built target test_egress
+[ 30%] Linking C static library librecursant_interpreter.a
+[ 33%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 33%] Built target recursant_interpreter
+[ 36%] Linking C static library librecursant_config.a
+[ 40%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o
+[ 43%] Linking C executable test_context
+[ 43%] Built target recursant_config
+[ 46%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 50%] Linking C executable test_interpreter
+[ 53%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 56%] Linking C static library librecursant_auth.a
+[ 56%] Built target test_context
+[ 60%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 63%] Linking C executable recursant-validate
+[ 63%] Built target recursant_auth
+[ 66%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 66%] Built target test_interpreter
+[ 70%] Linking C executable test_config
+[ 70%] Built target recursant-validate
+[ 73%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 76%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 80%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 83%] Linking C static library librecursant_admission.a
+[ 83%] Built target test_config
+[ 83%] Built target recursant_admission
+[ 86%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 90%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 93%] Linking C executable test_admission
+[ 96%] Linking C executable recursant
+[100%] Linking C executable recursant-tracer
+[100%] Built target test_admission
+[100%] Built target recursant
+[100%] Built target recursant-tracer
+Test project /tmp/build
+      Start  1: context_unit
+ 1/12 Test  #1: context_unit .....................   Passed    0.01 sec
+      Start  2: egress_policy
+ 2/12 Test  #2: egress_policy ....................   Passed    0.01 sec
+      Start  3: config_strict
+ 3/12 Test  #3: config_strict ....................   Passed    0.02 sec
+      Start  4: admission_unit
+ 4/12 Test  #4: admission_unit ...................   Passed    0.01 sec
+      Start  5: interpreter_loopback
+ 5/12 Test  #5: interpreter_loopback .............   Passed   11.08 sec
+      Start  6: hermes_observer
+ 6/12 Test  #6: hermes_observer ..................   Passed    0.11 sec
+      Start  7: compliance_integration
+ 7/12 Test  #7: compliance_integration ...........   Passed   19.36 sec
+      Start  8: router_integration
+ 8/12 Test  #8: router_integration ...............   Passed   24.04 sec
+      Start  9: transport_integration
+ 9/12 Test  #9: transport_integration ............   Passed    1.54 sec
+      Start 10: admission_integration
+10/12 Test #10: admission_integration ............   Passed    0.41 sec
+      Start 11: trajectory_reference
+11/12 Test #11: trajectory_reference .............   Passed    3.51 sec
+      Start 12: accounting
+12/12 Test #12: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =  60.22 sec
+UpdateCTestConfiguration  from :/tmp/build/DartConfiguration.tcl
+Parse Config file:/tmp/build/DartConfiguration.tcl
+Test project /tmp/build
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 5
+    Start 5: interpreter_loopback
+
+5: Test command: /usr/bin/python3 "/src/tests/integration/test_interpreter.py" "-v"
+5: Working Directory: /tmp/build
+5: Environment variables: 
+5:  INTERPRETER_BIN=/tmp/build/test_interpreter
+5:  PYTHONDONTWRITEBYTECODE=1
+5: Test timeout computed to be: 45
+5: test_delayed_nonblocking_and_copied_input (__main__.HTTP.test_delayed_nonblocking_and_copied_input) ... ok
+5: test_http_cancel (__main__.HTTP.test_http_cancel) ... ok
+5: test_http_forbidden_fields (__main__.HTTP.test_http_forbidden_fields) ... ok
+5: test_http_no_redirect (__main__.HTTP.test_http_no_redirect) ... ok
+5: test_http_overflow (__main__.HTTP.test_http_overflow) ... ok
+5: test_http_revision_mismatch (__main__.HTTP.test_http_revision_mismatch) ... ok
+5: test_http_shutdown (__main__.HTTP.test_http_shutdown) ... ok
+5: test_http_timeout (__main__.HTTP.test_http_timeout) ... ok
+5: test_structured_request (__main__.HTTP.test_structured_request) ... ok
+5: test_structured_still_rejects_invalid (__main__.HTTP.test_structured_still_rejects_invalid) ... ok
+5: test_structured_still_rejects_markdown (__main__.HTTP.test_structured_still_rejects_markdown) ... ok
+5: test_rejections (__main__.Parser.test_rejections) ... ok
+5: test_schema_edges (__main__.Parser.test_schema_edges) ... ok
+5: test_valid (__main__.Parser.test_valid) ... ok
+5: 
+5: ----------------------------------------------------------------------
+5: Ran 14 tests in 10.996s
+5: 
+5: OK
+1/1 Test #5: interpreter_loopback .............   Passed   11.07 sec
+
+The following tests passed:
+	interpreter_loopback
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  11.07 sec
+exit_code=0
