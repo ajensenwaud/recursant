@@ -40,7 +40,7 @@ struct rc_gateway_context {
 static bool keys(json_t *o,const char *allowed) {
     if(!json_is_object(o))return false;
     const char *k;json_t *v;
-    json_object_foreach(o,k,v){char b[128];if(strchr(k,'|')||snprintf(b,sizeof b,"|%s|",k)>=(int)sizeof b||!strstr(allowed,b))return false;}
+    json_object_foreach(o,k,v){char b[128];if(!*k||strchr(k,'|')||snprintf(b,sizeof b,"|%s|",k)>=(int)sizeof b||!strstr(allowed,b))return false;}
     return true;
 }
 static const char *token(json_t *o,const char *k,size_t max) {
@@ -231,7 +231,7 @@ static bool nullable_keys(json_t *o,const char *ordinary,const char *nullable) {
     const char *k;json_t *v;
     json_object_foreach(o,k,v){
         char b[128];
-        if(strchr(k,'|')||snprintf(b,sizeof b,"|%s|",k)>=(int)sizeof b)return false;
+        if(!*k||strchr(k,'|')||snprintf(b,sizeof b,"|%s|",k)>=(int)sizeof b)return false;
         if(!strstr(ordinary,b)&&(!strstr(nullable,b)||!json_is_null(v)))return false;
     }
     return true;

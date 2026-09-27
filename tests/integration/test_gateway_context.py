@@ -168,12 +168,12 @@ class GatewayContextTests(unittest.TestCase):
             time.sleep(.25)  # scripted fixture scheduling, not a readiness claim
             history.append({'role': 'user', 'content': 'continue'})
             sent = copy.deepcopy(history)
+            sink.envelope = {}  # subsequent clean responses cannot erase a pin
             self.turn(p, scope, 2, history)
             self.assertEqual(sink.seen[-1][2]['model'], expected)
             self.assertEqual(sink.seen[-1][2]['messages'], sent)  # no egress normalization
             # Clean responses/replay cannot erase a previous opaque-state pin.
-            sink.envelope = {}
-            history[-1] = {k: history[-1][k] for k in ('role', 'content')}
+            history[:] = [{k: message[k] for k in ('role', 'content')} for message in history]
             self.assertEqual(self.ingest(p, self.event(scope, 2, 2)), 202)
             time.sleep(.25)
             history.append({'role': 'user', 'content': 'again'})
@@ -185,6 +185,57 @@ class GatewayContextTests(unittest.TestCase):
 
     def test_glm_inert_envelope_preserves_nullable_assistant_replay(self):
         self.envelope_exchange(self.glm_envelope(), preserve_nulls=True)
+
+    def test_empty_root_null_response_remains_pinned(self):
+        self.envelope_exchange({'root': {'': None}}, expected='frontier')
+
+    def test_empty_root_opaque_response_remains_pinned(self):
+        self.envelope_exchange({'root': {'': {'opaque': 'continuation'}}}, expected='frontier')
+
+    def test_empty_choice_null_response_remains_pinned(self):
+        self.envelope_exchange({'choice': {'': None}}, expected='frontier')
+
+    def test_empty_choice_opaque_response_remains_pinned(self):
+        self.envelope_exchange({'choice': {'': {'opaque': 'continuation'}}}, expected='frontier')
+
+    def test_empty_message_null_response_remains_pinned(self):
+        self.envelope_exchange({'message': {'': None}}, expected='frontier')
+
+    def test_empty_message_opaque_response_remains_pinned(self):
+        self.envelope_exchange({'message': {'': {'opaque': 'continuation'}}}, expected='frontier')
+
+    def test_empty_null_assistant_replay_remains_pinned(self):
+        self.envelope_exchange(self.glm_envelope(), expected='frontier', replay_extra={'': None})
+
+    def test_empty_opaque_assistant_replay_remains_pinned(self):
+        self.envelope_exchange(self.glm_envelope(), expected='frontier', replay_extra={'': {'opaque': 'continuation'}})
+
+    def empty_request_exchange(self, value):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p)
+            history = [{'role': 'user', 'content': 'start'}]
+            self.turn(p, scope, 1, history)
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25)
+            history.append({'role': 'user', 'content': 'continue'})
+            code, data, _ = self.request(p, headers=self.headers(scope, 2), body={
+                'model': 'auto', 'messages': history, 'max_tokens': 128, '': value})
+            self.assertEqual(code, 200, data)
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+            history.append(json.loads(data)['choices'][0]['message'])
+            self.assertEqual(self.ingest(p, self.event(scope, 2, 2)), 202)
+            time.sleep(.25)
+            history.append({'role': 'user', 'content': 'again'})
+            self.turn(p, scope, 3, history)
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+
+    def test_empty_null_request_root_remains_pinned(self):
+        self.empty_request_exchange(None)
+
+    def test_empty_opaque_request_root_remains_pinned(self):
+        self.empty_request_exchange({'opaque': 'continuation'})
 
     def test_glm_envelope_opaque_response_state_remains_pinned(self):
         cases = []
