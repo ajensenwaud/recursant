@@ -1,0 +1,75 @@
+test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream) ... FAIL
+test_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream) ... FAIL
+test_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models) ... FAIL
+test_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream) ... FAIL
+test_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured) ... FAIL
+test_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order) ... FAIL
+test_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream) ... FAIL
+
+======================================================================
+FAIL: test_client_cancel_mid_stream_closes_upstream (test_transport.TransportTests.test_client_cancel_mid_stream_closes_upstream)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+======================================================================
+FAIL: test_malformed_request_line_rejected_before_upstream (test_transport.TransportTests.test_malformed_request_line_rejected_before_upstream)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+======================================================================
+FAIL: test_nonstream_roundtrip_and_models (test_transport.TransportTests.test_nonstream_roundtrip_and_models)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+======================================================================
+FAIL: test_oversized_body_rejected_before_upstream (test_transport.TransportTests.test_oversized_body_rejected_before_upstream)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+======================================================================
+FAIL: test_slow_client_body_is_backpressured (test_transport.TransportTests.test_slow_client_body_is_backpressured)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+======================================================================
+FAIL: test_streaming_chunks_arrive_in_order (test_transport.TransportTests.test_streaming_chunks_arrive_in_order)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+======================================================================
+FAIL: test_unknown_path_rejected_before_upstream (test_transport.TransportTests.test_unknown_path_rejected_before_upstream)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4/tests/integration/test_transport.py", line 197, in setUp
+    self.fail("recursant-tracer is not built (RED phase: binary missing)")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: recursant-tracer is not built (RED phase: binary missing)
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.002s
+
+FAILED (failures=7)

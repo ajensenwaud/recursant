@@ -17,11 +17,18 @@ add_executable(recursant-validate core/src/admin/validate.c)
 target_link_libraries(recursant-validate PRIVATE recursant_config)
 target_compile_options(recursant-validate PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
+find_package(Threads REQUIRED)
+add_executable(recursant-tracer core/src/http/tracer.c)
+target_link_libraries(recursant-tracer PRIVATE Threads::Threads)
+target_compile_options(recursant-tracer PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
 if(RECURSANT_SANITIZERS)
   target_compile_options(recursant_policy PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
   target_link_options(recursant_policy PUBLIC -fsanitize=address,undefined)
   target_compile_options(recursant_config PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
   target_link_options(recursant_config PUBLIC -fsanitize=address,undefined)
+  target_compile_options(recursant-tracer PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+  target_link_options(recursant-tracer PRIVATE -fsanitize=address,undefined)
 endif()
 
 include(CTest)
@@ -35,4 +42,11 @@ if(BUILD_TESTING)
   target_link_libraries(test_config PRIVATE recursant_config)
   target_compile_options(test_config PRIVATE -Wall -Wextra -Wpedantic -Werror)
   add_test(NAME config_strict COMMAND test_config)
+
+  find_package(Python3 COMPONENTS Interpreter)
+  if(Python3_FOUND)
+    add_test(NAME transport_integration
+             COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
+                     ${CMAKE_SOURCE_DIR}/tests/integration -p test_transport.py -v)
+  endif()
 endif()
