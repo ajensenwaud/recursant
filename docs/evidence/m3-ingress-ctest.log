@@ -1,0 +1,31 @@
+Test project /home/aj/projects/recursant-v4-m3-ingress-attempts/build-attempts
+      Start  1: attempts_unit
+ 1/13 Test  #1: attempts_unit ....................   Passed    0.00 sec
+      Start  2: attempts_overflow
+ 2/13 Test  #2: attempts_overflow ................   Passed    0.00 sec
+      Start  3: context_unit
+ 3/13 Test  #3: context_unit .....................   Passed    0.00 sec
+      Start  4: egress_policy
+ 4/13 Test  #4: egress_policy ....................   Passed    0.00 sec
+      Start  5: config_strict
+ 5/13 Test  #5: config_strict ....................   Passed    0.00 sec
+      Start  6: admission_unit
+ 6/13 Test  #6: admission_unit ...................   Passed    0.00 sec
+      Start  7: hermes_observer
+ 7/13 Test  #7: hermes_observer ..................   Passed    0.10 sec
+      Start  8: compliance_integration
+ 8/13 Test  #8: compliance_integration ...........   Passed   19.76 sec
+      Start  9: router_integration
+ 9/13 Test  #9: router_integration ...............   Passed   23.22 sec
+      Start 10: transport_integration
+10/13 Test #10: transport_integration ............   Passed    1.47 sec
+      Start 11: admission_integration
+11/13 Test #11: admission_integration ............   Passed    0.34 sec
+      Start 12: trajectory_reference
+12/13 Test #12: trajectory_reference .............   Passed    3.57 sec
+      Start 13: accounting
+13/13 Test #13: accounting .......................   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 13
+
+Total Test time (real) =  48.58 sec

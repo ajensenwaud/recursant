@@ -1,0 +1,15 @@
+test_real_retry_has_exact_wire_to_relay_join (__main__.PhysicalContract.test_real_retry_has_exact_wire_to_relay_join) ... FAIL
+
+======================================================================
+FAIL: test_real_retry_has_exact_wire_to_relay_join (__main__.PhysicalContract.test_real_retry_has_exact_wire_to_relay_join)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/probe/run.py", line 34, in test_real_retry_has_exact_wire_to_relay_join
+    self.assertIsNotNone(importlib.util.find_spec('attempt_boundary'), 'C ingress boundary not implemented')
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None : C ingress boundary not implemented
+
+----------------------------------------------------------------------
+Ran 1 test in 4.538s
+
+FAILED (failures=1)

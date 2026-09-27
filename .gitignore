@@ -7,6 +7,8 @@ secrets/
 __pycache__/
 *.pyc
 build/
+build-attempts/
+build-attempts-san/
 node_modules/
 .next/
 docs/evidence/**/raw/
