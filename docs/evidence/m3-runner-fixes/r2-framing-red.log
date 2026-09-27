@@ -1,0 +1,17 @@
+test_unterminated_sse_tail_cannot_become_an_event (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_unterminated_sse_tail_cannot_become_an_event) ... FAIL
+
+======================================================================
+FAIL: test_unterminated_sse_tail_cannot_become_an_event (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_unterminated_sse_tail_cannot_become_an_event)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 47, in test_unterminated_sse_tail_cannot_become_an_event
+    call = self.check_wire(b'data: '+json.dumps({'usage':USAGE}).encode()+b'\n', status=502, usage={})
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 27, in check_wire
+    self.assertEqual(actual, status, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.504s
+
+FAILED (failures=1)

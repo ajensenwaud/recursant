@@ -21,11 +21,48 @@ PUBLIC_RATES={'openai/gpt-4.1':('0.000002','0.000008'),
               'openai/gpt-4.1-mini':('0.0000004','0.0000016')}
 
 
+RESPONSE_LIMIT=16*1024*1024
+
+
+def provider_records(raw, content_type):
+    """Extract bounded JSON records, honoring SSE event framing, not byte prefixes."""
+    if len(raw)>RESPONSE_LIMIT: raise ValueError('response size limit')
+    mime=content_type.split(';',1)[0].strip().lower()
+    # Legacy fixtures omitted MIME. An explicit MIME always wins.
+    sse=mime=='text/event-stream' or (not mime and raw.lstrip().startswith(b'data:'))
+    if not sse:
+        yield json.loads(raw)
+        return
+    data=[]
+    lines=raw.decode('utf-8-sig').replace('\r\n','\n').replace('\r','\n').split('\n')
+    # split() adds a phantom final empty line after a single terminal newline.
+    if lines[-1]=='': lines.pop()
+    for line in lines:
+        if not line:
+            if data:
+                event='\n'.join(data)
+                data=[]
+                if event.strip()!='[DONE]': yield json.loads(event)
+        elif line.startswith('data:'):
+            value=line[5:]
+            data.append(value[1:] if value.startswith(' ') else value)
+        elif line=='data':
+            data.append('')
+        # Comments and event/id/retry/unknown fields are legal SSE framing.
+    if data: raise ValueError('unterminated SSE event')
+
+
 def admission(config, endpoint, body):
     allowed={'model','messages','max_tokens','max_completion_tokens','temperature','top_p',
              'stream','stream_options','tools','tool_choice','parallel_tool_calls','response_format',
-             'reasoning','reasoning_effort','stop','seed','frequency_penalty','presence_penalty'}
+             'reasoning','reasoning_effort','stop','seed','frequency_penalty','presence_penalty','provider'}
     if set(body)-allowed: raise ValueError('unreviewed request option / priced server tool')
+    if 'provider' in body:
+        controls=body['provider']
+        # Only the final-M2 no-fallback control is qualified, not provider routing/pricing extensions.
+        if (not isinstance(controls,dict) or set(controls)!={'allow_fallbacks'} or
+                controls['allow_fallbacks'] is not False):
+            raise ValueError('unqualified provider controls')
     tools=body.get('tools') or []
     if any(t.get('type')!='function' for t in tools): raise ValueError('server tools forbidden')
     messages=body.get('messages') or []
@@ -49,7 +86,18 @@ def admission(config, endpoint, body):
     return upper*input_rate+output*output_rate,upper
 
 
+def validate_allocation_limits(config):
+    # Allocation A's 12 local requests and US$0.01 are NOT available to this runner.
+    cap=config.get('paid_cap_usd')
+    if (type(cap) not in (int,float) or not math.isfinite(cap) or
+            not Decimal('0')<Decimal(str(cap))<=Decimal('9.99')):
+        raise ValueError('allocation B public cap must be positive and at most US$9.99')
+    if type(config.get('request_cap')) is not int or not 1<=config['request_cap']<=188:
+        raise ValueError('allocation B total physical request cap must be 1..188 (conservatively includes public)')
+
+
 def create_allocation(config):
+    validate_allocation_limits(config)
     # Parent must deduct this complete allocation from its aggregate allowance.
     # Exclusive creation forbids spending the same allocation twice after a crash.
     path=Path(config['allocation_path'])
@@ -64,16 +112,11 @@ def create_allocation(config):
 def validate_live(config):
     if config.get('approved') is not True or not config.get('approval_reference'):
         raise ValueError('fresh explicit live approval required; original allowance consumed')
-    for name in ('paid_cap_usd',):
-        v=config.get(name)
-        if type(v) not in (int,float) or not math.isfinite(v) or v<=0:
-            raise ValueError('positive reviewed '+name+' required')
+    validate_allocation_limits(config)
     if not config.get('token_bound_evidence') or not config.get('source_and_metrics_review'):
         raise ValueError('review and worst-case tariff/output/context bound evidence required')
-    if type(config.get('request_cap')) is not int or not 1<=config['request_cap']<=188:
-        raise ValueError('allocation B total physical request cap must be 1..188 (conservatively includes public)')
-    if config['paid_cap_usd']>10 or not config.get('allocation_reference') or not config.get('allocation_path'):
-        raise ValueError('parent allocation and at most US$10 public required')
+    if not config.get('allocation_reference') or not config.get('allocation_path'):
+        raise ValueError('parent allocation required')
     if Path(config['allocation_path']).exists(): raise ValueError('allocation already used; reconcile with parent, never resume')
     if type(config.get('context_limit')) is not int or config['context_limit']<8192:
         raise ValueError('explicit common serving/harness context required')
@@ -203,6 +246,7 @@ class RouteSession:
 
 class Egress:
     def __init__(self, config, out, task_id, arm, *, fixture=False, budget=None):
+        if not fixture: validate_allocation_limits(config)
         self.config,self.out,self.task_id,self.arm=config,out,task_id,arm
         self.fixture=fixture
         self.calls=[]; self.traces=[]
@@ -267,26 +311,31 @@ class Egress:
             raw_request=json.dumps(body).encode()
             conn.request('POST',url.path.rstrip('/')+'/chat/completions',raw_request,hs)
             response=conn.getresponse()
-            raw=response.read(16*1024*1024+1)
-            if len(raw)>16*1024*1024: raise ValueError('response size limit')
+            raw=response.read(RESPONSE_LIMIT+1)
             call['status']=response.status
             call['provider_response_sha256']=hashlib.sha256(raw).hexdigest()
-            records=[]
-            if raw.lstrip().startswith(b'data:'):
-                for line in raw.splitlines():
-                    if line.startswith(b'data:') and line[5:].strip()!=b'[DONE]':
-                        records.append(json.loads(line[5:]))
-            else:
-                records=[json.loads(raw)]
-            call['provider_model']=next((r['model'] for r in records if r.get('model')),None)
-            usage=next((r['usage'] for r in reversed(records) if isinstance(r.get('usage'),dict)),{})
-            call.update(input_tokens=usage.get('prompt_tokens'),output_tokens=usage.get('completion_tokens'),
-                        reasoning_tokens=usage.get('completion_tokens_details',{}).get('reasoning_tokens'),
-                        cached_input_tokens=usage.get('prompt_tokens_details',{}).get('cached_tokens'),
-                        cost_usd=usage.get('cost'),reasoning_semantics=upstream['reasoning_semantics'],
-                        tokenizer=upstream['tokenizer'])
-            self.traces.append({'dispatch_id':call['dispatch_id'],'request':body,'response':raw.decode(errors='replace')})
-            return response.status,raw,response.getheader('Content-Type','application/json')
+            mime=response.getheader('Content-Type','')
+            # Persist bounded exact evidence BEFORE parsing; parser failures cannot erase it.
+            ref=call['dispatch_id']+'.response.private.bin'
+            with (self.out/ref).open('xb') as evidence:
+                os.chmod(self.out/ref,0o600)
+                evidence.write(raw[:RESPONSE_LIMIT]); evidence.flush(); os.fsync(evidence.fileno())
+            call['provider_response_ref']=ref
+            call['provider_response_truncated']=len(raw)>RESPONSE_LIMIT
+            self.traces.append({'dispatch_id':call['dispatch_id'],'request':body,
+                                'response':raw[:RESPONSE_LIMIT].decode(errors='replace')})
+            call.update(reasoning_semantics=upstream['reasoning_semantics'],tokenizer=upstream['tokenizer'])
+            for record in provider_records(raw,mime):
+                if not isinstance(record,dict): raise ValueError('provider record must be an object')
+                if record.get('model'): call['provider_model']=record['model']
+                if 'error' in record: call['error']='provider_error'
+                usage=record.get('usage')
+                if isinstance(usage,dict):
+                    call.update(input_tokens=usage.get('prompt_tokens'),output_tokens=usage.get('completion_tokens'),
+                                reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                                cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                                cost_usd=usage.get('cost'))
+            return response.status,raw,mime or 'application/json'
         except (OSError,ValueError,http.client.HTTPException) as exc:
             call['error']=type(exc).__name__
             return 502,b'{"error":"ambiguous_upstream_attempt"}','application/json'

@@ -13,7 +13,9 @@ This hash covers task/version/cases, not the scripted solvers. Grader cases and 
 
 Executed fixture matrix: **18 assigned episodes, 18 verified artifacts, 72 scripted HTTP completions**, three arms, two repeats, seed 7321. No provider usage/cost was invented: totals are unknown, fixture responses deliberately omit usage. `release_gate=false`. Raw artifacts are ignored under `.hermes/runtime/m3-full-task-fixture-v1/`, mode 0700. The manifest records the source hashes at execution; later admission-hardening changes do not retroactively change that provenance.
 
-Latest combined verification: **29 tests passed**, including two real pinned-Hermes container tests, a real C-gateway lifecycle/egress test, real loopback SSE/tool calls, durable crash reconciliation, request/spend admission, local serialization and the existing accounting suite. Gateway test used existing `/home/aj/projects/recursant-v4/build/m3-current/recursant`; this was a protocol fixture, not a source-qualified live gateway.
+Historical pre-review verification: **29 tests passed**, including two real pinned-Hermes container tests, a real C-gateway lifecycle/egress test, real loopback SSE/tool calls, durable crash reconciliation, request/spend admission, local serialization and the existing accounting suite. Gateway test used existing `/home/aj/projects/recursant-v4/build/m3-current/recursant`; this was a protocol fixture, not a source-qualified live gateway.
+
+The independent review of `45c1de4` failed on three runner blockers. R1–R3 repair evidence and exact expanded regression commands are in [`../../docs/evidence/m3-runner-fixes/README.md`](../../docs/evidence/m3-runner-fixes/README.md). Original fixture evidence and the failed review are historical evidence, not superseded with a live-ready claim. **Parent independent re-review is required before live execution.**
 
 ```sh
 M3_DOCKER_TEST=1 \
@@ -31,7 +33,7 @@ Hermes source: `d0288be5b3330d2442e3907185b8e9d0958297bb`; pristine source is ch
 
 ## Live interface — parent only, NOT executed here
 
-The parent owns the aggregate authorization (200 additional sequential LOCAL requests and US$10 PUBLIC). Allocation A reserves up to 12 local requests; full-task allocation B has at most 188 local requests and the remaining public allowance. Wait for A to finish. This runner does not authorize itself to spend.
+The parent owns the aggregate authorization (200 additional sequential LOCAL requests and US$10 PUBLIC). Allocation A separately reserves up to **12 local requests and US$0.01**; full-task allocation B has at most **188 local requests and US$9.99 public**, or a smaller remaining subset explicitly issued by the parent after reconciliation. The runner conservatively counts public requests against its physical-request ceiling too. Preflight, allocation creation and nonfixture egress reject larger caps. Wait for A to finish. This runner does not authorize itself to spend; truthy review-reference strings and even a syntactically valid configuration are not independent approval.
 
 Copy `bench/evaluation/live.example.json` to an ignored private configuration and replace every `REPLACE`/null field using independently reviewed source, capabilities, candidate qualification and cost estimates. Keep credentials in the host environment only. **The example is deliberately unapproved, not fake ready-to-run evidence.** `router_config` is the existing native gateway schema. Endpoint URLs/listen ports/auth references are overwritten with episode-local metering addresses; aliases/candidates/compliance are otherwise preserved. Use verified source/binary hash after the parallel native streaming/tool implementation lands. Do not use placeholder qualification or synthetic expected-task prices in a live registry.
 

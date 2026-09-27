@@ -1,0 +1,18 @@
+test_malformed_tail_keeps_usage_semantics (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_tail_keeps_usage_semantics) ... FAIL
+
+======================================================================
+FAIL: test_malformed_tail_keeps_usage_semantics (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_tail_keeps_usage_semantics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 48, in test_malformed_tail_keeps_usage_semantics
+    self.assertEqual(call['reasoning_semantics'], 'inclusive')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'unknown' != 'inclusive'
+- unknown
++ inclusive
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.504s
+
+FAILED (failures=1)

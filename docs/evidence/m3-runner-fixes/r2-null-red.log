@@ -1,0 +1,24 @@
+test_null_optional_details_do_not_discard_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_null_optional_details_do_not_discard_usage) ... ERROR
+
+======================================================================
+ERROR: test_null_optional_details_do_not_discard_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_null_optional_details_do_not_discard_usage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 49, in test_null_optional_details_do_not_discard_usage
+    self.check_wire(wire, usage=usage)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 26, in check_wire
+    actual, raw, content_type = meter.forward('public', BODY, {})
+                                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 256, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 321, in _forward
+    reasoning_tokens=usage.get('completion_tokens_details',{}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.505s
+
+FAILED (errors=1)

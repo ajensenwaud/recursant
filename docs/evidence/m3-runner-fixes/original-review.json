@@ -1,0 +1,349 @@
+{
+  "verdict": "FAIL_DO_NOT_RUN_LIVE",
+  "passed": false,
+  "ready_to_live": false,
+  "reviewed_commit": "45c1de43524330c3b152cbdd58028282b3c63f27",
+  "base_commit": "3e0608031243a48b50d171696d81e142d716eee7",
+  "reviewed_repository": "/home/aj/projects/recursant-v4-m3-full-task-evaluation",
+  "scope": "Independent frozen runner/spend-admission review. No source edits, commits, pushes, model inference, installs, downloads or serving changes.",
+  "authorization": {
+    "allocation_B_local_max": 188,
+    "allocation_B_public_usd_max": 9.99,
+    "separately_reserved_local": 12,
+    "separately_reserved_public_usd": 0.01,
+    "approval_is_real": true,
+    "review_consumed_live_local": 0,
+    "review_consumed_live_public_usd": 0
+  },
+  "image": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b",
+  "hermes_commit": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+  "build_binary_sha256": "f692bae58e08353e90b6a4f14d9882b9373233975de67b7ddcb855fd735517cc",
+  "frozen_source_sha256": {
+    "live.py": "d286354e29382f9ae74505e698145ec9ed19ab20f0847d415b81aa23dc9f281c",
+    "run.py": "d84723c948931b7c0216faedb95690366551f3e56b04d7e40e0ad03c7ac3fd5e",
+    "meter.py": "0ed9c79939c1c2840dbe5a513c49ac5f8fbf10b91f73107c9a098ab28a53979f",
+    "worker.py": "c000ece8f67a000c1b8b7495cf2c415bb71c782bc15e28bc66399c71f865a5f5",
+    "report.py": "f4add61f2edd2448294816619d7d05574a2c2d1a6a257d292f50a68b0218f1f1",
+    "tasks.py": "c53c949ba8cabf71943bed388f80994f5c72d899c024bc0b94a9819f72548b5d",
+    "test_evaluation.py": "9e08fb71e449fe1b5cedb6497c8899581b7babab1e47e68e7366d5f35f629f01"
+  },
+  "findings": [
+    {
+      "id": "R1",
+      "severity": "high",
+      "title": "Native public egress is rejected by the runner admission allowlist",
+      "locations": [
+        "bench/evaluation/live.py:24-28",
+        "core/src/compliance/classifier.c:208-214"
+      ],
+      "detail": "The M2 gateway adds provider={allow_fallbacks:false} to every clean public request. admission() forbids the provider key. Therefore compliant routed public requests fail locally even though the same baseline request is admitted. This is a runner allowlist mismatch with already-existing M2 behavior, not the separate native-tools/metadata integration gap.",
+      "reproduction": "probes.py: direct admission rejects provider controls; real frozen C RouteSession returns 502 with zero metered calls and zero scripted-provider HTTP requests. No live provider was contacted.",
+      "required_fix": "Narrowly validate and admit the exact safe provider controls emitted by M2, rejecting unqualified pricing/routing extensions. Add real public RouteSession+nonfixture-admission loopback coverage."
+    },
+    {
+      "id": "R2",
+      "severity": "high",
+      "title": "Legal comment-prefixed SSE loses final usage and turns successful upstream generation into 502",
+      "locations": [
+        "bench/evaluation/live.py:269-292"
+      ],
+      "detail": "SSE detection relies on raw.lstrip().startswith(b\"data:\"). A leading SSE comment or event field takes the JSON-document path, raises JSONDecodeError, and returns ambiguous_upstream_attempt. The real response body is only appended to traces after successful parsing, so on this path raw usage/cost is discarded except for its SHA-256. Failed calls remain unknown, correctly not zero, but a paid successful generation can be wasted and retried.",
+      "reproduction": "probes.py uses actual loopback HTTP: canonical data-first stream returns 200 and captures prompt=11, completion=5, reasoning=3, cached=7, usage.cost=0.02. The identical stream with : OPENROUTER PROCESSING comment or event: message prefix returns 502 with all usage/cost null. These are synthetic protocol probes, not claimed actual provider recordings.",
+      "required_fix": "Parse according to response Content-Type with a bounded SSE parser supporting legal comments/event fields; retain bounded raw provider evidence before parsing; test final usage tails, null optional details, error tails and actual authorized OpenRouter recordings."
+    },
+    {
+      "id": "R3",
+      "severity": "medium",
+      "title": "Preflight allows US$10 although allocation B has only US$9.99",
+      "locations": [
+        "bench/evaluation/live.py:64-77"
+      ],
+      "detail": "validate_live rejects paid_cap_usd only above 10. Independent probe passed validation at 10 using the real reviewed binary. The separately reserved 0.01 makes that exceed this runner allocation. The example 8-dollar setting is within scope, but the claimed allocation guard is too permissive.",
+      "required_fix": "Enforce the parent-issued remaining allocation (at most 9.99 here), retain the independent earlier reservations, and test exact boundary and larger values. Do not infer approval from truthy review-reference strings."
+    }
+  ],
+  "verified": {
+    "tests": {
+      "command": "M3_DOCKER_TEST=1 M3_ROUTER_BINARY=\"$PWD/build/review/recursant\" python3 -m unittest bench.evaluation.test_evaluation tests.test_accounting -v",
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/source",
+      "exit_code": 0,
+      "run": 29,
+      "passed": 29,
+      "skipped": 0,
+      "log": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/tests-all.log"
+    },
+    "real_pinned_harness_and_artifact_grader": {
+      "task_id": "dag-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "success": true,
+        "passed": 5,
+        "total": 5,
+        "exit_code": 0,
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520"
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "source": {
+        "sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+        "pristine": true
+      },
+      "physical_attempts": 4,
+      "harness_settings": {
+        "context": 65536,
+        "model": "fixture",
+        "output": 4096,
+        "turns": 8,
+        "deadline_s": 180
+      },
+      "hook_counts": {
+        "on_session_start": 1,
+        "pre_api_request": 4,
+        "on_stream_start": 4,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "on_session_end": 1
+      },
+      "evidence_kind": "fixture"
+    },
+    "admission_negative_controls": {
+      "arbitrary_model": "rejected: public model not budget-qualified",
+      "online_suffix": "rejected: public model not budget-qualified",
+      "server_tool": "rejected: server tools forbidden",
+      "plugins": "rejected: unreviewed request option / priced server tool",
+      "oversized_output": "rejected: conflicting output bound",
+      "oversized_alternate_output": "rejected: conflicting output bound",
+      "oversized_input": "rejected: conservative context bound exceeded"
+    },
+    "durability_and_serialization": {
+      "nonfixture_admission_loopback": {
+        "calls": 2,
+        "state": {
+          "active": 0,
+          "maximum": 1,
+          "observations": [
+            {
+              "reservation_visible_before_provider_handler": true,
+              "unique_reserved_dispatches": 1
+            },
+            {
+              "reservation_visible_before_provider_handler": true,
+              "unique_reserved_dispatches": 2
+            }
+          ]
+        },
+        "third_request_status": 429
+      },
+      "restart_same_allocation_refused": true,
+      "recovered_after_no_outcome": {
+        "calls": 2,
+        "success": false,
+        "collection_complete": false
+      },
+      "persistence_failure_refuses_network": true
+    },
+    "isolation": "Docker task/grader --network=none --pull=never, non-root, read-only image, no Docker socket/home/repository/credential mounts. Task mounts only its workspace, trace, input settings, per-episode socket, worker and context adapter. Image env variable names contain no API credential names. Expected answers and grader remain host-only; only submission and case inputs enter the fresh grader.",
+    "authoritative_attempts": "Host egress mints unique dispatch UUIDs at physical HTTP boundary, counts retries and all private endpoint traffic, journals before connect; tasks cannot rewrite host egress journals. Does not authenticate main/interpreter role; explicitly unclassified.",
+    "failures_and_denominators": "Assignments are frozen before execution, missing/failing episodes retained, interrupted attempts recover as incomplete, unknown usage/cost not zero. Failed-task expenditure enters aggregate numerator. Harness completion is recorded separately from artifact success.",
+    "fairness": "Common pinned image, baseline model name in all harnesses, same prompt/tools/budgets/reasoning defaults/observer/adapter; only host ingress model rewrite and text-event ablation differ. No proof of live matched wire envelopes or successful routing yet.",
+    "accounting": "Uses provider prompt_tokens as gross input, completion_tokens as output, records cached tokens separately, inclusive reasoning not added twice. Canonical OpenRouter-style usage.cost and final streaming usage captured by successful-parser control. Cost detail/BYOK fields remain only in raw traces. Private resource and collector costs remain null.",
+    "fixture_release_separation": "Committed evidence says 18 assigned/18 artifacts/72 SCRIPTED completions, not live quality; independently reran real pinned Hermes via tests plus retained DAG episode with 5/5 artifact cases, 4 scripted requests, completed=true. Did not rerun full 18-episode matrix. release_gate is hard false.",
+    "source_check": {
+      "reviewed_files_unchanged": true,
+      "changed_files": 11,
+      "branch_worktree_clean": true,
+      "leftover_review_task_or_grader_containers": 0
+    }
+  },
+  "pending_not_runner_defects": [
+    "75e868f metadata fix absent from branch base; native routing/tools/stream compatibility under separate work. Requalify merged gateway/harness before live; do not treat these external gaps as runner implementation failures.",
+    "Approval alone is insufficient: no actual filled independently reviewed allocation-B configuration was provided. Truthy reference strings/approved=true are not cryptographic evidence. Parent must reserve fresh subset after earlier allocation reconciles.",
+    "Validate frozen rates as worst-case provider tariffs, allowed tokenizer/framing upper bound, provider-enforced output bound and served private context using actual evidence. Model whitelist/input/output checks exist; this audit does not establish the bytes-plus-margin bound as mathematically qualified for every provider transformation.",
+    "8 iterations, 4096 output, 65536 common context and 180s task deadline are assistant-selected pilot constraints, not full model capabilities. Calibrate separately and refreeze if truncating.",
+    "Response buffering is explicitly disclosed and prevents transparent TTFT/live-mid-generation timing claims. Semantic readiness denominator/numerator remain null. Asynchronous native interpreter overlap/readiness has not been independently exercised here.",
+    "Private endpoint is shared by main and interpreter so role-specific costs/tokens cannot be established; lock serializes both by endpoint. Unknown private CPU/GPU and collector costs block full economics.",
+    "Three development tasks, missing request-only ablation, no live real-interpreter mechanism proof, no broad held-out paired quality/token/dollar inference. Fixture pass is not full-task quality or M3 release acceptance.",
+    "Task-visible trace/source/result files are agent-writable, as disclosed; authoritative harness provenance should use host/image evidence and reconciliation. This is not a hostile-tenant benchmark security boundary.",
+    "Exclusive creation plus file fsync verified for process interruption/restart. Power-loss durability of directory entries and cross-process allocation identity registry not independently qualified."
+  ],
+  "commands": [
+    {
+      "cwd": "/home/aj/projects/recursant-v4-m3-full-task-evaluation",
+      "command": "git archive 45c1de4 (extracted via Python tarfile into /home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/source)",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/source",
+      "command": "docker run --rm --pull=never --network=none --user \"$(id -u):$(id -g)\" -v \"$PWD:/work\" -w /work recursant-v4-dev:local bash -lc 'cmake -S . -B build/review -DCMAKE_BUILD_TYPE=Debug && cmake --build build/review -j2'",
+      "exit_code": 0,
+      "log": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/build.log"
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/source",
+      "command": "python3 ../probes.py",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4/source",
+      "command": "python3 ../durability.py",
+      "exit_code": 0
+    }
+  ],
+  "independent_probe_results": {
+    "allocation_10_dollars_accepted": true,
+    "gateway_provider_field_rejected": "unreviewed request option / priced server tool",
+    "admission_negative_controls": {
+      "arbitrary_model": "rejected: public model not budget-qualified",
+      "online_suffix": "rejected: public model not budget-qualified",
+      "server_tool": "rejected: server tools forbidden",
+      "plugins": "rejected: unreviewed request option / priced server tool",
+      "oversized_output": "rejected: conflicting output bound",
+      "oversized_alternate_output": "rejected: conflicting output bound",
+      "oversized_input": "rejected: conservative context bound exceeded"
+    },
+    "native_public_gateway_admission": {
+      "status": 502,
+      "body": "{\"error\":{\"message\":\"request failed\"}}",
+      "meter_calls": 0,
+      "scripted_provider_requests": 0
+    },
+    "sse": {
+      "canonical": {
+        "status": 200,
+        "call": {
+          "dispatch_id": "76f95e0a0adc483ba32e770077d2041e",
+          "task_id": "probe",
+          "arm": "baseline",
+          "attempt": 1,
+          "role": "main",
+          "evidence_kind": "fixture",
+          "evidence_ref": "attempts.private.jsonl",
+          "input_tokens": 11,
+          "output_tokens": 5,
+          "reasoning_tokens": 3,
+          "cached_input_tokens": 7,
+          "cost_usd": 0.02,
+          "reasoning_semantics": "inclusive",
+          "tokenizer": "synthetic",
+          "started_at": 1790540184.673377,
+          "status": 200,
+          "liability_reserved_usd": "0.1",
+          "endpoint": "public",
+          "requested_model": "openai/gpt-4.1",
+          "provider_model": "openai/gpt-4.1",
+          "input_token_upper_bound": null,
+          "provider_response_sha256": "62753f3a009435e80bf4f28beb0d86e0673ae62b1e703088b9b732cb3cda2ba8",
+          "finished_at": 1790540184.6749732
+        }
+      },
+      "comment_prefixed": {
+        "status": 502,
+        "call": {
+          "dispatch_id": "3296359ce4594ec1aa56297492dea024",
+          "task_id": "probe",
+          "arm": "baseline",
+          "attempt": 1,
+          "role": "main",
+          "evidence_kind": "fixture",
+          "evidence_ref": "attempts.private.jsonl",
+          "input_tokens": null,
+          "output_tokens": null,
+          "reasoning_tokens": null,
+          "cached_input_tokens": null,
+          "cost_usd": null,
+          "reasoning_semantics": "unknown",
+          "tokenizer": null,
+          "started_at": 1790540184.6752396,
+          "status": 200,
+          "liability_reserved_usd": "0.1",
+          "endpoint": "public",
+          "requested_model": "openai/gpt-4.1",
+          "provider_model": null,
+          "input_token_upper_bound": null,
+          "provider_response_sha256": "b6fc8878c4e94491487807416d753f19e920db913e28f049ae373e7049239eb7",
+          "error": "JSONDecodeError",
+          "finished_at": 1790540184.6760538
+        }
+      },
+      "event_prefixed": {
+        "status": 502,
+        "call": {
+          "dispatch_id": "1928e20027154f7b817e5f8a62e5206b",
+          "task_id": "probe",
+          "arm": "baseline",
+          "attempt": 1,
+          "role": "main",
+          "evidence_kind": "fixture",
+          "evidence_ref": "attempts.private.jsonl",
+          "input_tokens": null,
+          "output_tokens": null,
+          "reasoning_tokens": null,
+          "cached_input_tokens": null,
+          "cost_usd": null,
+          "reasoning_semantics": "unknown",
+          "tokenizer": null,
+          "started_at": 1790540184.6762598,
+          "status": 200,
+          "liability_reserved_usd": "0.1",
+          "endpoint": "public",
+          "requested_model": "openai/gpt-4.1",
+          "provider_model": null,
+          "input_token_upper_bound": null,
+          "provider_response_sha256": "a2d6391932c88f1fcd6da760850dfaa864a2ef8a3022717afdd5b178d8149fc8",
+          "error": "JSONDecodeError",
+          "finished_at": 1790540184.676947
+        }
+      }
+    },
+    "retained_episode": {
+      "task_id": "dag-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "success": true,
+        "passed": 5,
+        "total": 5,
+        "exit_code": 0,
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520"
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "source": {
+        "sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+        "pristine": true
+      },
+      "physical_attempts": 4,
+      "harness_settings": {
+        "context": 65536,
+        "model": "fixture",
+        "output": 4096,
+        "turns": 8,
+        "deadline_s": 180
+      },
+      "hook_counts": {
+        "on_session_start": 1,
+        "pre_api_request": 4,
+        "on_stream_start": 4,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "on_session_end": 1
+      },
+      "evidence_kind": "fixture"
+    }
+  },
+  "reproduction_scripts": {
+    "probes.py": "import sys,json,tempfile,threading,hashlib,os\nfrom pathlib import Path\nfrom http.server import BaseHTTPRequestHandler,ThreadingHTTPServer\nROOT=Path(__file__).resolve().parent\nsys.path.insert(0,str(ROOT/'source'))\nfrom bench.evaluation.live import Egress,admission,validate_live,create_allocation,RouteSession\nfrom bench.evaluation.run import run_episode,SETTINGS\nfrom bench.evaluation.tasks import TASKS\nbinary=ROOT/'source/build/review/recursant'\nresults={}\n# Local scripted bytes only. No external inference or credentials.\nwire={'body':b'', 'seen':0}\nclass Sink(BaseHTTPRequestHandler):\n def log_message(self,*args): pass\n def do_POST(self):\n  self.rfile.read(int(self.headers['Content-Length'])); wire['seen']+=1\n  self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers();self.wfile.write(wire['body'])\nserver=ThreadingHTTPServer(('127.0.0.1',0),Sink)\nthread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()\nurl=f'http://127.0.0.1:{server.server_port}/v1'\nbody={'model':'openai/gpt-4.1','messages':[{'role':'user','content':'hello'}],'max_tokens':32}\ntry:\n with tempfile.TemporaryDirectory() as t:\n  p=Path(t)\n  cfg=json.loads((ROOT/'source/bench/evaluation/live.example.json').read_text())\n  cfg.update(approved=True,paid_cap_usd=10,allocation_path=str(p/'allocation'),router_binary=str(binary),router_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),isolation_reviewed=True)\n  validate_live(cfg)\n  results['allocation_10_dollars_accepted']=True\n  try: admission(cfg,'public',dict(body,provider={'allow_fallbacks':False}))\n  except ValueError as e: results['gateway_provider_field_rejected']=str(e)\n  cases={}\n  for name,change in {'arbitrary_model':{'model':'expensive/not-approved'},'online_suffix':{'model':'openai/gpt-4.1:online'},'server_tool':{'tools':[{'type':'web_search'}]},'plugins':{'plugins':[{'id':'web'}]},'oversized_output':{'max_tokens':100000},'oversized_alternate_output':{'max_completion_tokens':100000},'oversized_input':{'messages':[{'role':'user','content':'x'*65536}]}}.items():\n   try: admission(cfg,'public',dict(body,**change));cases[name]='ACCEPTED'\n   except ValueError as e: cases[name]='rejected: '+str(e)\n  results['admission_negative_controls']=cases\n  # Current native C gateway injects provider controls before reaching admission.\n  cfg['upstreams']={k:dict(url=url,model='private-fixture',reasoning_semantics='inclusive',tokenizer='synthetic') for k in ['public','private']}\n  cfg['router_config']['private']['model']='private-fixture'\n  for c in cfg['router_config']['context']['candidates']: c.update(quality_evidence='review-protocol-fixture',expected_task_cost=1.0)\n  cfg['router_config']['context']['candidates']=cfg['router_config']['context']['candidates'][:1]\n  create_allocation(cfg)\n  with RouteSession(cfg,p,'probe','text-aware') as r:\n   status,raw,mime=r.handle('/v1/chat/completions',body,{})\n   results['native_public_gateway_admission']={'status':status,'body':raw.decode(),'meter_calls':len(r.calls),'scripted_provider_requests':wire['seen']}\n  # Record provider canonical usage and comment-prefixed SSE through actual local HTTP.\n  usage={'prompt_tokens':11,'completion_tokens':5,'completion_tokens_details':{'reasoning_tokens':3},'prompt_tokens_details':{'cached_tokens':7},'cost':0.02,'cost_details':{'upstream_inference_cost':0.03},'is_byok':False}\n  frame=('data: '+json.dumps({'model':'openai/gpt-4.1','choices':[],'usage':usage})+'\\n\\ndata: [DONE]\\n\\n').encode()\n  results['sse']={}\n  for name,prefix in [('canonical',b''),('comment_prefixed',b': OPENROUTER PROCESSING\\n\\n'),('event_prefixed',b'event: message\\n')]:\n   wire['body']=prefix+frame\n   meter=Egress({'request_cap':1,'paid_cap_usd':1,'liability_usd_per_dispatch':0.1,'upstreams':cfg['upstreams']},p,'probe','baseline',fixture=True)\n   status,raw,mime=meter.forward('public',body,{})\n   results['sse'][name]={'status':status,'call':meter.calls[0]}\nfinally:\n server.shutdown();server.server_close();thread.join()\n# Independent retained real Hermes + terminal + separate artifact grader.\nrow=run_episode(TASKS[2],'baseline',ROOT/'retained-episode',SETTINGS)\nresults['retained_episode']={k:row[k] for k in ['task_id','arm','success','verifier','exit_code','harness_completed','source','physical_attempts','harness_settings','hook_counts','evidence_kind']}\n(ROOT/'probes.json').write_text(json.dumps(results,indent=2)+'\\n')\nprint(json.dumps(results,indent=2))\n\n",
+    "durability.py": "import json,sys,threading,tempfile,time,hashlib\nfrom pathlib import Path\nfrom http.server import BaseHTTPRequestHandler,ThreadingHTTPServer\nROOT=Path(__file__).resolve().parent\nsys.path.insert(0,str(ROOT/'source'))\nfrom bench.evaluation.live import Egress,create_allocation\nfrom bench.evaluation.run import recover_outcomes\nresults={};state={'active':0,'maximum':0,'observations':[]};lock=threading.Lock()\nwith tempfile.TemporaryDirectory() as td:\n p=Path(td);allocation=p/'allocation.jsonl'\n class Sink(BaseHTTPRequestHandler):\n  def log_message(self,*args):pass\n  def do_POST(self):\n   self.rfile.read(int(self.headers['Content-Length']))\n   entries=[json.loads(x) for x in allocation.read_text().splitlines()][1:]\n   with lock:\n    state['active']+=1;state['maximum']=max(state['maximum'],state['active'])\n    state['observations'].append({'reservation_visible_before_provider_handler':any(e['status'] is None for e in entries),'unique_reserved_dispatches':len(set(e['dispatch_id'] for e in entries))})\n   time.sleep(.1)\n   self.send_response(200);self.end_headers();self.wfile.write(b'{\"model\":\"private-model\",\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2}}')\n   with lock:state['active']-=1\n server=ThreadingHTTPServer(('127.0.0.1',0),Sink);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()\n cfg=dict(request_cap=2,paid_cap_usd=9.99,allocation_path=str(allocation),allocation_reference='review-synthetic-only',approval_reference='NO-LIVE',context_limit=65536,upstreams={'private':dict(url=f'http://127.0.0.1:{server.server_port}/v1',model='private-model',reasoning_semantics='inclusive',tokenizer='synthetic')})\n create_allocation(cfg)\n ep=p/'ep';ep.mkdir()\n egress=Egress(cfg,ep,'task','text-aware')\n # Using real admission path, ONLY loopback scripted endpoint; these are not model results.\n body={'model':'private-model','messages':[{'role':'user','content':'synthetic'}],'max_tokens':32}\n try:\n  workers=[threading.Thread(target=egress.forward,args=('private',body,{})) for _ in range(2)]\n  for w in workers:w.start()\n  for w in workers:w.join()\n  results['nonfixture_admission_loopback']={'calls':len(egress.calls),'state':state,'third_request_status':egress.forward('private',body,{})[0]}\n  try:create_allocation(cfg)\n  except FileExistsError:results['restart_same_allocation_refused']=True\n  assignment={'episode_id':'ep','task_id':'task','arm':'text-aware','pair_id':'p'}\n  recovered=recover_outcomes(p,[assignment],[])[0]\n  results['recovered_after_no_outcome']={'calls':len(recovered['calls']),'success':recovered['success'],'collection_complete':recovered['collection_complete']}\n  # Fsync journal failure must prevent all upstream IO.\n  another=Egress(dict(cfg,request_cap=10),ep,'task','baseline')\n  before=len(state['observations'])\n  def fail(call):raise OSError('injected persistence failure')\n  another.journal=fail\n  try:another.forward('private',body,{})\n  except OSError:results['persistence_failure_refuses_network']=len(state['observations'])==before\n finally:server.shutdown();server.server_close();thread.join()\n(ROOT/'durability.json').write_text(json.dumps(results,indent=2)+'\\n')\nprint(json.dumps(results,indent=2))\n\n"
+  },
+  "issues_encountered": [
+    "Initial tests ran with one C-gateway opt-in skipped; built frozen binary and reran all 29 successfully, no skipped tests in final run.",
+    "Optional official-doc web_extract failed because the configured search backend cannot extract; no provider inference was attempted. Protocol findings are executable local reproductions, not claims of new live-provider observation."
+  ],
+  "evidence_root": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-45c1de4",
+  "raw_artifacts": "Retained only in ignored runtime directory; not embedded or published. Probe source and synthetic accounting results are embedded for reproducibility."
+}

@@ -1,0 +1,28 @@
+test_only_exact_m2_provider_controls_are_qualified (bench.evaluation.test_runner_regressions.AdmissionRegressionTests.test_only_exact_m2_provider_controls_are_qualified) ... ERROR
+test_real_c_public_route_passes_nonfixture_admission (bench.evaluation.test_runner_regressions.AdmissionRegressionTests.test_real_c_public_route_passes_nonfixture_admission) ... FAIL
+
+======================================================================
+ERROR: test_only_exact_m2_provider_controls_are_qualified (bench.evaluation.test_runner_regressions.AdmissionRegressionTests.test_only_exact_m2_provider_controls_are_qualified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 79, in test_only_exact_m2_provider_controls_are_qualified
+    self.assertGreater(live.admission(cfg, 'public', dict(BODY, provider={'allow_fallbacks':False}))[0], 0)
+                       ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 28, in admission
+    if set(body)-allowed: raise ValueError('unreviewed request option / priced server tool')
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: unreviewed request option / priced server tool
+
+======================================================================
+FAIL: test_real_c_public_route_passes_nonfixture_admission (bench.evaluation.test_runner_regressions.AdmissionRegressionTests.test_real_c_public_route_passes_nonfixture_admission)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 70, in test_real_c_public_route_passes_nonfixture_admission
+    self.assertEqual(status, 200, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 502 != 200 : b'{"error":{"message":"request failed"}}'
+
+----------------------------------------------------------------------
+Ran 2 tests in 1.006s
+
+FAILED (failures=1, errors=1)

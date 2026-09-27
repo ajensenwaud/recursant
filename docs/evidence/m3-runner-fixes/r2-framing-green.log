@@ -1,0 +1,14 @@
+test_authorized_recordings_replayed_read_only (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_authorized_recordings_replayed_read_only) ... ok
+test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) ... ok
+test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) ... ok
+test_malformed_tail_keeps_usage_semantics (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_tail_keeps_usage_semantics) ... ok
+test_multiline_sse_and_explicit_content_type (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_multiline_sse_and_explicit_content_type) ... ok
+test_null_optional_details_do_not_discard_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_null_optional_details_do_not_discard_usage) ... ok
+test_oversized_response_retains_only_bounded_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_oversized_response_retains_only_bounded_evidence) ... ok
+test_unknown_usage_and_provider_error_are_not_zero (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_unknown_usage_and_provider_error_are_not_zero) ... ok
+test_unterminated_sse_tail_cannot_become_an_event (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_unterminated_sse_tail_cannot_become_an_event) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 9.095s
+
+OK
