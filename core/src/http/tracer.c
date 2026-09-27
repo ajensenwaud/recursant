@@ -37,6 +37,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "recursant/admission.h"
+#include "recursant/auth.h"
+#include "recursant/config.h"
+
 #define HEAD_BUF 16384
 #define RELAY_CHUNK 65536
 #define DEFAULT_MAX_BODY (8L * 1024L * 1024L)
@@ -49,7 +53,18 @@ static const char *g_upstream_port;
 static long g_max_body = DEFAULT_MAX_BODY;
 static long g_header_timeout_ms = DEFAULT_HEADER_TIMEOUT_MS;
 static long g_idle_timeout_ms = DEFAULT_IDLE_TIMEOUT_MS;
+static long g_max_inflight = 64; /* compat alias for the connection cap */
+static bool g_max_body_explicit;
+static bool g_max_inflight_explicit;
+static rc_auth_table *g_auth;    /* NULL when no --config: admission off */
+static rc_admission_policy g_policy;
+static const char *g_config_path;
 static atomic_int g_active;
+
+static const char *env_lookup(const char *name, void *unused) {
+    (void)unused;
+    return getenv(name);
+}
 
 static void log_line(const char *fmt, ...) {
     char ts[32];
@@ -120,6 +135,7 @@ static int read_head(int fd, char *buf, size_t cap, size_t *have, size_t *head_e
 typedef struct {
     char method[8];
     char path[160];
+    char authorization[1024];
     bool has_cl;
     long cl;
     bool chunked;
@@ -169,7 +185,12 @@ static int parse_request_head(const char *buf, size_t n, req_info *ri) {
             ++value;
             --value_len;
         }
-        if (name_len == 14 && strncasecmp(p, "content-length", 14) == 0) {
+        if (name_len == 13 && strncasecmp(p, "authorization", 13) == 0) {
+            if (value_len >= sizeof ri->authorization)
+                return -1; /* absurdly long credentials are malformed */
+            memcpy(ri->authorization, value, value_len);
+            ri->authorization[value_len] = '\0';
+        } else if (name_len == 14 && strncasecmp(p, "content-length", 14) == 0) {
             char tmp[32];
             if (value_len == 0 || value_len >= sizeof tmp)
                 return -1;
@@ -546,7 +567,35 @@ static void *handle_connection(void *arg) {
         (void)atomic_fetch_sub(&g_active, 1);
         return NULL;
     }
+
     const bool is_post = strcmp(ri.method, "POST") == 0;
+
+    /* T04 admission: identity first; every deny below sends ZERO upstream
+     * bytes because the upstream connection does not exist yet. */
+    if (g_auth) {
+        long project = -1;
+        const rc_admit_result ar = rc_admit_request(
+            g_auth, &g_policy,
+            ri.authorization[0] ? ri.authorization : NULL,
+            is_post ? ri.cl : 0, atomic_load(&g_active) - 1, &project);
+        if (ar != RC_ADMIT_OK) {
+            int code;
+            switch (ar) {
+            case RC_ADMIT_DENY_AUTH: code = 401; break;
+            case RC_ADMIT_DENY_MALFORMED: code = 400; break;
+            case RC_ADMIT_DENY_TOO_LARGE: code = 413; break;
+            case RC_ADMIT_DENY_OVERLOAD: code = 503; break;
+            default: code = 400; break;
+            }
+            if (ar == RC_ADMIT_DENY_AUTH)
+                log_line("admission denied: unauthenticated (zero upstream bytes)");
+            (void)send_simple(fd, code);
+            (void)close(fd);
+            (void)atomic_fetch_sub(&g_active, 1);
+            return NULL;
+        }
+    }
+
     if (is_post && (ri.chunked || !ri.has_cl)) {
         /* The spike requires exact-length request bodies; anything else is
          * rejected before upstream bytes. */
@@ -692,10 +741,16 @@ int main(int argc, char **argv) {
             upstream_base = argv[++i];
         } else if (strcmp(argv[i], "--max-body-bytes") == 0 && i + 1 < argc) {
             g_max_body = strtol(argv[++i], NULL, 10);
+            g_max_body_explicit = true;
         } else if (strcmp(argv[i], "--header-timeout-ms") == 0 && i + 1 < argc) {
             g_header_timeout_ms = strtol(argv[++i], NULL, 10);
         } else if (strcmp(argv[i], "--idle-timeout-ms") == 0 && i + 1 < argc) {
             g_idle_timeout_ms = strtol(argv[++i], NULL, 10);
+        } else if (strcmp(argv[i], "--max-inflight") == 0 && i + 1 < argc) {
+            g_max_inflight = strtol(argv[++i], NULL, 10);
+            g_max_inflight_explicit = true;
+        } else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+            g_config_path = argv[++i];
         } else {
             fprintf(stderr, "unknown or incomplete argument: %s\n", argv[i]);
             return 2;
@@ -728,6 +783,67 @@ int main(int argc, char **argv) {
     if (!g_upstream_host[0]) {
         fprintf(stderr, "upstream host is empty\n");
         return 2;
+    }
+
+    /* T04: optional strict config load; enables admission enforcement. */
+    static rc_config tracer_cfg;
+    if (g_config_path) {
+        FILE *f = fopen(g_config_path, "rb");
+        if (!f) {
+            fprintf(stderr, "config file cannot be opened: %s\n", g_config_path);
+            return 2;
+        }
+        char *doc = NULL;
+        size_t len = 0, cap = 0, n;
+        char chunk[4096];
+        while ((n = fread(chunk, 1, sizeof chunk, f)) > 0) {
+            if (len + n + 1 > cap) {
+                size_t new_cap = cap ? cap * 2 : 8192;
+                while (len + n + 1 > new_cap)
+                    new_cap *= 2;
+                char *grown = realloc(doc, new_cap);
+                if (!grown) {
+                    free(doc);
+                    (void)fclose(f);
+                    fprintf(stderr, "out of memory\n");
+                    return 2;
+                }
+                doc = grown;
+                cap = new_cap;
+            }
+            memcpy(doc + len, chunk, n);
+            len += n;
+        }
+        (void)fclose(f);
+        if (!doc) {
+            fprintf(stderr, "config file is empty\n");
+            return 2;
+        }
+        doc[len] = '\0';
+        char cfg_err[512];
+        if (!rc_config_load(&tracer_cfg, doc, len, cfg_err, sizeof cfg_err) ||
+            !rc_config_validate(&tracer_cfg, cfg_err, sizeof cfg_err)) {
+            fprintf(stderr, "invalid config: %s\n", cfg_err);
+            free(doc);
+            return 2;
+        }
+        free(doc);
+        static rc_auth_table table;
+        if (!rc_auth_table_init(&table, &tracer_cfg, env_lookup, NULL,
+                                cfg_err, sizeof cfg_err)) {
+            fprintf(stderr, "auth init failed: %s\n", cfg_err);
+            return 2;
+        }
+        g_auth = &table;
+        g_policy.max_body_bytes = g_max_body_explicit
+                                      ? g_max_body
+                                      : tracer_cfg.max_body_bytes;
+        g_policy.max_inflight = g_max_inflight_explicit ? g_max_inflight
+                                                        : tracer_cfg.max_inflight;
+        g_max_body = g_policy.max_body_bytes;
+    } else {
+        g_policy.max_body_bytes = g_max_body;
+        g_policy.max_inflight = g_max_inflight;
     }
 
     /* listen_addr: host:port */

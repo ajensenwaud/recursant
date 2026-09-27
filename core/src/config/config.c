@@ -705,10 +705,15 @@ static bool bind_endpoint_section(const jval *section, const char *name,
 }
 
 static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_len) {
-    static const char *const root_known[] = { "listen", "private", "public", "aliases" };
-    if (!obj_keys_known(root, root_known, 4, "config root", err, err_len))
+    static const char *const root_known[] = { "listen", "private", "public", "aliases", "projects", "limits" };
+    if (!obj_keys_known(root, root_known, 6, "config root", err, err_len))
         return false;
     static const char *const listen_known[] = { "host", "port" };
+    static const char *const limits_known[] = { "max_body_bytes", "max_inflight" };
+    const jval *limits = obj_get(root, "limits");
+    if (limits && limits->child &&
+        !obj_keys_known(limits, limits_known, 2, "limits", err, err_len))
+        return false;
     const jval *listen = obj_get(root, "listen");
     if (!listen) {
         err_set(err, err_len, "listen section is required");
@@ -723,6 +728,18 @@ static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_le
             if (a->child && !obj_keys_known(a, alias_known, 3, "alias entry", err, err_len))
                 return false;
         }
+    }
+    static const char *const project_known[] = { "name", "token_env" };
+    const jval *projects = obj_get(root, "projects");
+    if (projects) {
+        for (const jval *p = projects->child; p; p = p->next) {
+            if (p->child && !obj_keys_known(p, project_known, 2, "project entry", err, err_len))
+                return false;
+        }
+    }
+    if (limits && limits->str) {
+        err_set(err, err_len, "limits must be an object");
+        return false;
     }
     const jval *host = obj_get(listen, "host");
     if (!host) {
@@ -805,6 +822,61 @@ static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_le
             }
         }
     }
+
+    if (projects) {
+        if (projects->str) {
+            err_set(err, err_len, "projects must be an array of objects");
+            return false;
+        }
+        size_t count = 0;
+        for (const jval *p = projects->child; p; p = p->next)
+            ++count;
+        cfg->projects = calloc(count ? count : 1, sizeof *cfg->projects);
+        if (!cfg->projects) {
+            err_set(err, err_len, "out of memory");
+            return false;
+        }
+        cfg->project_count = count;
+        size_t i = 0;
+        for (const jval *p = projects->child; p; p = p->next, ++i) {
+            const jval *name = obj_get(p, "name");
+            const jval *token_env = obj_get(p, "token_env");
+            if (!name || !token_env || !name->str || !token_env->str) {
+                err_set(err, err_len,
+                        "project entry %zu requires string name and token_env",
+                        i + 1);
+                return false;
+            }
+            if (!bind_string(name, "project.name", &cfg->projects[i].name, err, err_len) ||
+                !bind_string(token_env, "project.token_env",
+                             &cfg->projects[i].token_env, err, err_len))
+                return false;
+        }
+    }
+
+    if (limits) {
+        const jval *mbb = obj_get(limits, "max_body_bytes");
+        const jval *mif = obj_get(limits, "max_inflight");
+        if (mbb) {
+            if (!mbb->str || !mbb->num) {
+                err_set(err, err_len, "limits.max_body_bytes must be an integer");
+                return false;
+            }
+            cfg->max_body_bytes = strtol(mbb->str, NULL, 10);
+        }
+        if (mif) {
+            if (!mif->str || !mif->num) {
+                err_set(err, err_len, "limits.max_inflight must be an integer");
+                return false;
+            }
+            cfg->max_inflight = strtol(mif->str, NULL, 10);
+        }
+    }
+    /* Defaults live in load: validate is const and only checks bounds. */
+    if (cfg->max_body_bytes <= 0)
+        cfg->max_body_bytes = 8L * 1024L * 1024L;
+    if (cfg->max_inflight <= 0)
+        cfg->max_inflight = 64;
     return true;
 }
 
@@ -868,6 +940,14 @@ bool rc_config_validate(const rc_config *cfg, char *err, size_t err_len) {
         err_set(err, err_len, "listen.port must be between 1 and 65535");
         return false;
     }
+    if (cfg->max_body_bytes > (1L << 30)) {
+        err_set(err, err_len, "limits.max_body_bytes must not exceed 1 GiB");
+        return false;
+    }
+    if (cfg->max_inflight > 4096) {
+        err_set(err, err_len, "limits.max_inflight must not exceed 4096");
+        return false;
+    }
     if (!cfg->private_url ||
         !rc_config_url_is_valid(cfg->private_url, false, err, err_len)) {
         if (err && err_len && err[0] == '\0')
@@ -917,6 +997,27 @@ bool rc_config_validate(const rc_config *cfg, char *err, size_t err_len) {
             }
         }
     }
+    if (cfg->project_count == 0) {
+        err_set(err, err_len, "projects must contain at least one project identity");
+        return false;
+    }
+    for (size_t i = 0; i < cfg->project_count; ++i) {
+        const rc_project *pr = &cfg->projects[i];
+        if (!pr->name || !ascii_alias_ok(pr->name)) {
+            err_set(err, err_len, "project.name must be a non-empty printable name");
+            return false;
+        }
+        if (!pr->token_env || !ascii_name_ok(pr->token_env)) {
+            err_set(err, err_len, "project.token_env must be an ASCII environment-variable name");
+            return false;
+        }
+        for (size_t j = 0; j < i; ++j) {
+            if (strcmp(cfg->projects[j].name, pr->name) == 0) {
+                err_set(err, err_len, "duplicate project name");
+                return false;
+            }
+        }
+    }
     return true;
 }
 
@@ -931,6 +1032,16 @@ bool rc_config_check_secrets(const rc_config *cfg, rc_secret_lookup lookup,
     const char *names[2] = { cfg->private_key_env, cfg->public_key_env };
     for (int i = 0; i < 2; ++i) {
         const char *name = names[i];
+        if (!name)
+            continue;
+        const char *value = lookup(name, userdata);
+        if (!value || !value[0]) {
+            err_set(err, err_len, "secret not available: %s", name);
+            return false;
+        }
+    }
+    for (size_t i = 0; i < cfg->project_count; ++i) {
+        const char *name = cfg->projects[i].token_env;
         if (!name)
             continue;
         const char *value = lookup(name, userdata);
@@ -957,5 +1068,10 @@ void rc_config_free(rc_config *cfg) {
         free(cfg->aliases[i].model);
     }
     free(cfg->aliases);
+    for (size_t i = 0; i < cfg->project_count; ++i) {
+        free(cfg->projects[i].name);
+        free(cfg->projects[i].token_env);
+    }
+    free(cfg->projects);
     memset(cfg, 0, sizeof *cfg);
 }

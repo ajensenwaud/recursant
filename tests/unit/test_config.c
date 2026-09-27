@@ -12,6 +12,9 @@ static const char *VALID_DOC =
     "\"aliases\": ["
     "  {\"from\": \"fast\", \"endpoint\": \"private\", \"model\": \"glm-5.3-flash\"},"
     "  {\"from\": \"frontier\", \"endpoint\": \"public\", \"model\": \"a/b-c\"}"
+    "],"
+    "\"projects\": ["
+    "  {\"name\": \"anders\", \"token_env\": \"RECURSANT_TOKEN_ANDERS\"}"
     "]"
     "}";
 
@@ -52,6 +55,9 @@ static int test_valid_document_parses(void) {
     CHECK(cfg.aliases[0].endpoint == RC_ENDPOINT_PRIVATE);
     CHECK(strcmp(cfg.aliases[0].model, "glm-5.3-flash") == 0);
     CHECK(cfg.aliases[1].endpoint == RC_ENDPOINT_PUBLIC);
+    CHECK(cfg.project_count == 1);
+    CHECK(strcmp(cfg.projects[0].name, "anders") == 0);
+    CHECK(strcmp(cfg.projects[0].token_env, "RECURSANT_TOKEN_ANDERS") == 0);
     rc_config_free(&cfg);
     return 0;
 }
@@ -216,6 +222,44 @@ static int test_secret_resolution_reports_name_only(void) {
     return 0;
 }
 
+static int test_project_rules(void) {
+    /* Missing or empty projects section is invalid: nobody could ever
+     * authenticate, which is a misconfiguration, not a mode. */
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"}}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": []}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": [{\"name\": \"p\"}]}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": [{\"token_env\": \"T\"}]}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": [{\"name\": \"p\", \"token_env\": \"T\", \"extra\": 1}]}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": [{\"name\": \"p\", \"token_env\": \"1BAD\"}]}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": [{\"name\": \"p\", \"token_env\": \"T\"},"
+                  " {\"name\": \"p\", \"token_env\": \"T2\"}]}"));
+    CHECK(rejects("{\"listen\": {\"host\": \"h\", \"port\": 1},"
+                  "\"private\": {\"url\": \"http://g:1/v1\"},"
+                  "\"public\": {\"url\": \"https://o/v1\", \"api_key_env\": \"K\"},"
+                  "\"projects\": [{\"name\": \"\", \"token_env\": \"T\"}]}"));
+    return 0;
+}
+
 int main(void) {
     CHECK(test_valid_document_parses() == 0);
     CHECK(test_unknown_top_level_key_rejected() == 0);
@@ -224,6 +268,7 @@ int main(void) {
     CHECK(test_endpoint_scheme_rules() == 0);
     CHECK(test_public_requires_key_env_name() == 0);
     CHECK(test_alias_rules() == 0);
+    CHECK(test_project_rules() == 0);
     CHECK(test_malformed_json_rejected() == 0);
     CHECK(test_errors_do_not_echo_input() == 0);
     CHECK(test_secret_resolution_reports_name_only() == 0);

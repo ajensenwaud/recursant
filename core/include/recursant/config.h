@@ -16,8 +16,15 @@ typedef struct {
 } rc_alias;
 
 typedef struct {
+    char *name;          /* project identity name (audit label) */
+    char *token_env;     /* env-var NAME holding the project's bearer token */
+} rc_project;
+
+typedef struct {
     char *listen_host;
     long listen_port;
+    long max_body_bytes;   /* limits section */
+    long max_inflight;
 
     char *private_url;   /* http(s) base URL, e.g. http://gx10:8888/v1 */
     char *private_model;
@@ -29,6 +36,9 @@ typedef struct {
 
     rc_alias *aliases;
     size_t alias_count;
+
+    rc_project *projects;
+    size_t project_count;
 } rc_config;
 
 /* Strict JSON load: RFC 8259 grammar, duplicate keys rejected at every object
@@ -43,10 +53,11 @@ bool rc_config_load(rc_config *cfg, const char *doc, size_t len,
  * (public https-only), secret-name syntax, alias uniqueness. */
 bool rc_config_validate(const rc_config *cfg, char *err, size_t err_len);
 
-/* Asks the callback for each referenced secret by NAME only. The callback
- * returns the value (which this function never stores, logs or echoes) or
- * NULL when the secret is unavailable. Missing or empty secrets fail closed
- * and are reported by name. */
+/* Asks the callback for each referenced secret by NAME only (endpoint keys
+ * and every project bearer token). The callback returns the value (which
+ * this function never stores, logs or echoes) or NULL when the secret is
+ * unavailable. Missing or empty secrets fail closed and are reported by
+ * name. */
 typedef const char *(*rc_secret_lookup)(const char *name, void *userdata);
 bool rc_config_check_secrets(const rc_config *cfg, rc_secret_lookup lookup,
                              void *userdata, char *err, size_t err_len);

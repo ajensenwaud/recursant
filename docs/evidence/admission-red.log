@@ -1,0 +1,4 @@
+/usr/bin/x86_64-linux-gnu-ld.bfd: test_admission.c:(.text+0xfca): undefined reference to `rc_auth_table_free'
+/usr/bin/x86_64-linux-gnu-ld.bfd: test_admission.c:(.text+0xfd9): undefined reference to `rc_config_free'
+/usr/bin/x86_64-linux-gnu-ld.bfd: test_admission.c:(.text+0xfe8): undefined reference to `rc_config_free'
+collect2: error: ld returned 1 exit status
