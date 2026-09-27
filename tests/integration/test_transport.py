@@ -252,8 +252,9 @@ class TransportTests(unittest.TestCase):
                                          headers={"Content-Type": "application/json"})
             with self.assertRaises(urllib.error.HTTPError) as ctx:
                 urllib.request.urlopen(req, timeout=10)
-            self.assertEqual(ctx.exception.code, 404)
-            self.assertEqual(up.requests_seen, 0)
+            with ctx.exception as error:
+                self.assertEqual(error.code, 404)
+                self.assertEqual(up.requests_seen, 0)
         finally:
             tr.stop()
             up.stop()

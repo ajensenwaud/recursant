@@ -123,13 +123,16 @@ class AdmissionTests(unittest.TestCase):
         while time.time() < deadline:
             try:
                 with socket.create_connection(("127.0.0.1", listen), timeout=0.5):
+                    os.unlink(config_path)
                     return proc, listen
             except OSError:
                 if proc.poll() is not None:
-                    err = proc.stderr.read().decode(errors="replace")
-                    raise AssertionError(f"tracer exited early: {err}")
+                    _, stderr = proc.communicate()
+                    os.unlink(config_path)
+                    raise AssertionError(f"tracer exited early: {stderr.decode(errors="replace")}")
                 time.sleep(0.05)
-        proc.terminate()
+        self.stop_tracer(proc)
+        os.unlink(config_path)
         raise AssertionError("tracer did not start in time")
 
     @staticmethod

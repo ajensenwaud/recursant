@@ -228,10 +228,18 @@ class RouterTests(unittest.TestCase):
             self.assertEqual(self.request(p)[0], 200)
 
     def test_13_untrusted_tls_is_rejected(self):
+        class UntrustedTLSSink(Sink):
+            def handle(self):
+                try:
+                    super().handle()
+                except ConnectionResetError:
+                    # The client rejects this fixture's untrusted certificate.
+                    pass
         with tempfile.TemporaryDirectory() as tmp:
             cert, key = str(pathlib.Path(tmp) / 'cert.pem'), str(pathlib.Path(tmp) / 'key.pem')
             subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=localhost'], check=True, capture_output=True)
             def edit(cfg, sink):
+                sink.RequestHandlerClass = UntrustedTLSSink
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 context.load_cert_chain(cert, key)
                 sink.socket = context.wrap_socket(sink.socket, server_side=True)
