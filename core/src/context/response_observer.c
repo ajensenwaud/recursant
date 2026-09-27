@@ -1,6 +1,7 @@
 #include "recursant/response_observer.h"
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 static bool keys(json_t *o, const char *ordinary, const char *nullable) {
     if(!json_is_object(o))return false;
@@ -21,16 +22,27 @@ static bool counts(json_t *v,const char *allowed) {
     json_object_foreach(v,k,n){(void)k;if(!json_is_integer(n)||json_integer_value(n)<0)return false;}
     return true;
 }
+static bool cost(json_t *v) {
+    return json_is_number(v)&&isfinite(json_number_value(v))&&json_number_value(v)>=0;
+}
+static bool costs(json_t *v) {
+    if(!keys(v,"|upstream_inference_cost||upstream_inference_prompt_cost||upstream_inference_completions_cost|",""))return false;
+    const char *k;json_t *n;
+    json_object_foreach(v,k,n){(void)k;if(!cost(n))return false;}
+    return true;
+}
 static bool usage(json_t *v) {
-    if(!keys(v,"|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details|",""))return false;
+    if(!keys(v,"|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details||cost||is_byok||cost_details|",""))return false;
     const char *required[]={"prompt_tokens","completion_tokens","total_tokens"};
     for(size_t i=0;i<3;i++){
         json_t *n=json_object_get(v,required[i]);
         if(!json_is_integer(n)||json_integer_value(n)<0)return false;
     }
     json_t *prompt=json_object_get(v,"prompt_tokens_details"),*completion=json_object_get(v,"completion_tokens_details");
-    return (!prompt||json_is_null(prompt)||counts(prompt,"|cached_tokens||audio_tokens|"))&&
-        (!completion||json_is_null(completion)||counts(completion,"|reasoning_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
+    json_t *amount=json_object_get(v,"cost"),*byok=json_object_get(v,"is_byok"),*details=json_object_get(v,"cost_details");
+    return (!amount||cost(amount))&&(!byok||json_is_boolean(byok))&&(!details||costs(details))&&
+        (!prompt||json_is_null(prompt)||counts(prompt,"|cached_tokens||cache_write_tokens||audio_tokens||video_tokens|"))&&
+        (!completion||json_is_null(completion)||counts(completion,"|reasoning_tokens||image_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
 }
 static bool identity(char stored[129],json_t *v) {
     if(!v)return true;
@@ -40,11 +52,13 @@ static bool identity(char stored[129],json_t *v) {
     strcpy(stored,s);return true;
 }
 static bool chunk(rc_response_observer *o,json_t *root) {
-    if(!keys(root,"|id||object||created||model||choices||usage||system_fingerprint|",
-             "|service_tier||prompt_logprobs||prompt_token_ids||prompt_text||kv_transfer_params||ec_transfer_params||metrics|"))return false;
+    if(!keys(root,"|id||object||created||model||provider||choices||usage||system_fingerprint||service_tier|",
+             "|prompt_logprobs||prompt_token_ids||prompt_text||kv_transfer_params||ec_transfer_params||metrics|"))return false;
+    json_t *tier=json_object_get(root,"service_tier");
+    if(tier&&!json_is_null(tier)&&!string_is(tier,"default"))return false;
     json_t *id=json_object_get(root,"id"),*model=json_object_get(root,"model");
     json_t *object=json_object_get(root,"object"),*created=json_object_get(root,"created");
-    if(!identity(o->id,id)||!identity(o->model,model)||
+    if(!identity(o->id,id)||!identity(o->model,model)||!identity(o->provider,json_object_get(root,"provider"))||
        (object&&!string_is(object,"chat.completion.chunk"))||
        (created&&(!json_is_integer(created)||json_integer_value(created)<0)))return false;
     if(created){
@@ -56,16 +70,31 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     json_t *choices=json_object_get(root,"choices"),*c=json_array_get(choices,0);
     json_t *u=json_object_get(root,"usage");
     if(u&&!json_is_null(u)&&!usage(u))return false;
-    if(json_is_array(choices)&&!json_array_size(choices))return o->finished&&usage(u);
-    if(!json_is_array(choices)||json_array_size(choices)!=1||o->finished)return false;
-    if(!keys(c,"|index||delta||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|"))return false;
+    if(json_is_array(choices)&&!json_array_size(choices)){
+        if(!o->finished||o->accounting_tail||!usage(u))return false;
+        o->accounting_tail=true;return true;
+    }
+    if(!json_is_array(choices)||json_array_size(choices)!=1)return false;
+    if(!keys(c,"|index||delta||finish_reason||native_finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|"))return false;
     json_t *index=json_object_get(c,"index"),*stop=json_object_get(c,"stop_reason");
     if(!json_is_integer(index)||json_integer_value(index)!=0||
        (stop&&(!json_is_integer(stop)||json_integer_value(stop)<0)))return false;
     json_t *delta=json_object_get(c,"delta"),*finish=json_object_get(c,"finish_reason");
+    json_t *native=json_object_get(c,"native_finish_reason");
+    /* Only the observed successful completion spelling is inert. */
+    if(native&&!json_is_null(native)&&
+       (!string_is(native,"completed")||!string_is(finish,"stop")))return false;
     if(!keys(delta,"|role||content|","|refusal||annotations||audio||function_call|"))return false;
     json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
-    if(role){if(o->role||!string_is(role,"assistant"))return false;o->role=true;}
+    /* OpenRouter repeats the empty terminal choice with accounting. This is
+     * not a second completion or permission to append state after finish. */
+    if(o->finished){
+        if(o->accounting_tail||!usage(u)||!string_is(finish,"stop")||
+           (text&&!string_is(text,""))||
+           o->native_completed!=string_is(native,"completed"))return false;
+        o->accounting_tail=true;
+    }
+    if(role){if(!string_is(role,"assistant"))return false;o->role=true;}
     if(!o->role)return false;
     if(text&&!json_is_null(text)){
         if(!json_is_string(text))return false;
@@ -76,6 +105,7 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     if(!finish)return false;
     if(!json_is_null(finish)){
         if(!string_is(finish,"stop"))return false;
+        o->native_completed=string_is(native,"completed");
         o->finished=true;
     }
     return true;

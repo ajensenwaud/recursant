@@ -15,9 +15,9 @@ typedef struct {
     char line[RC_RESPONSE_LIMIT + 1], event[RC_RESPONSE_LIMIT + 1];
     char text[RC_RESPONSE_LIMIT + 1];
     size_t total, line_used, event_used, text_used;
-    char id[129], model[129];
+    char id[129], model[129], provider[129];
     json_int_t created;
-    bool has_created;
+    bool has_created, native_completed, accounting_tail;
     bool failed, cr, role, finished, done;
 } rc_response_observer;
 void rc_response_observer_feed(rc_response_observer *, const char *, size_t);
