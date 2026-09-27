@@ -1,0 +1,140 @@
+{
+  "passed": false,
+  "reviewed_sha": "9814d844607b862495d67e579312f8a514138b54",
+  "base_sha": "e2e240e5a67885c8a7be34c03c8cf44421f0a577",
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "id": "INGRESS-001",
+      "severity": "medium",
+      "file": "core/src/context/attempts.c",
+      "line": 70,
+      "title": "Authenticated physical begin with a null ID output silently preserves false exactness",
+      "description": "The !id early return skips authentication, counting, and the sticky loss fence. The public header does not declare a non-null ID precondition. Under the documented once-per-accepted-physical-dispatch contract, an authenticated duplicate passed with id=NULL returns UNTRACKED but leaves an earlier row exact=true and count_known=true with physical_count=1. Other unrecordable authenticated ingress paths correctly poison the generation. This is a library fail-closed defect on caller misuse, not a demonstrated remote exploit; the supplied fixture always supplies a valid output pointer.",
+      "reproduction": [
+        "Create fixture ledger; use the same five valid opaque tokens and Bearer synthetic-not-a-secret throughout.",
+        "begin(l,auth,&h,1,&first) returns TRACKED; finish(first,true,2); source_complete(l,auth,&h,2); get(first,2) returns count=1, count_known=true, exact=true.",
+        "begin(l,auth,&h,3,NULL) returns UNTRACKED.",
+        "get(l,auth,&h,first,3,&view) still returns count=1, count_known=true, exact=true."
+      ],
+      "expected": "An authenticated accepted dispatch that cannot be retained must revoke count certainty/exactness for the generation, including previously exact rows.",
+      "recommended_fix": "For an enabled ledger, authenticate before handling a missing output pointer; on an authenticated missing-output begin call mark loss before returning UNTRACKED. Keep unauthorized calls state-neutral. Add a regression covering both authenticated-null and unauthorized-null output cases."
+    }
+  ],
+  "suggestions": [
+    {
+      "file": "bench/hermes_ingress_probe.py",
+      "line": 2,
+      "description": "The module docstring names run_hermes_physical_probe.sh rather than run_hermes_ingress_probe.sh."
+    },
+    {
+      "file": "bench/hermes_ingress_probe.py",
+      "line": 55,
+      "description": "Record and assert the three request stream booleans explicitly (true,false,true), so the streaming-503/nonstreaming-reissue/next-streaming description is directly enforced by this proof, rather than inferred from pinned Hermes behavior."
+    },
+    {
+      "file": "tests/unit/test_attempts.c",
+      "description": "Promote the independent per-axis full-key source mismatch and unauthorized large-timestamp checks into durable unit cases."
+    }
+  ],
+  "verified": {
+    "normal_ctest": {
+      "command": "cmake -S . -B build-attempts -DCMAKE_BUILD_TYPE=Debug && cmake --build build-attempts -j 4 && ctest --test-dir build-attempts --output-on-failure",
+      "exit_code": 0,
+      "groups_passed": 13,
+      "groups_failed": 0
+    },
+    "sanitizer_ctest": {
+      "command": "cmake -S . -B build-attempts-san -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build build-attempts-san -j 4 && ctest --test-dir build-attempts-san --output-on-failure",
+      "exit_code": 0,
+      "groups_passed": 13,
+      "groups_failed": 0,
+      "scope": "New ledger and white-box overflow targets explicitly instrumented with ASan+UBSan; not a claim that every pre-existing target is fully instrumented."
+    },
+    "hermes_runtime": {
+      "command": "sh bench/run_hermes_ingress_probe.sh",
+      "exit_code": 0,
+      "result": "INGRESS_CONTRACT_PASS",
+      "hermes_sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+      "image": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b",
+      "source_clean_assertion_passed": true,
+      "physical_http_requests": 3,
+      "unique_router_ids": 3,
+      "physical_count": [
+        2,
+        2,
+        1
+      ],
+      "ambiguous": [
+        true,
+        true,
+        false
+      ],
+      "exact": [
+        false,
+        false,
+        true
+      ],
+      "count_known": [
+        true,
+        true,
+        true
+      ],
+      "relay_spans": 2,
+      "source_response_datagrams": 2,
+      "second_wire_traceparent_absent": true,
+      "terminal_output": "M3_PHYSICAL_OK",
+      "terminal_exit_code": 0,
+      "isolation": "Existing image, --pull never, --network none, owning UID:GID, read-only root, dropped capabilities, no-new-privileges, tmpfs HOME/HERMES_HOME, scoped read-only fixture/adapter/library mounts, no host profile or credentials."
+    },
+    "additional_independent_checks": [
+      "full-key axis 0",
+      "full-key axis 1",
+      "full-key axis 2",
+      "full-key axis 3",
+      "full-key axis 4",
+      "unauthorized begin/source/get do not poison clock/count"
+    ],
+    "static_assessment": [
+      "Ledger namespace is the immutable borrowed auth table and project index; client project headers cannot change it.",
+      "All five opaque fields are matched exactly and case sensitively; names are case insensitive and duplicate headers invalid.",
+      "Boot entropy plus monotonically increasing serial gives generation-separated physical handles, with explicit exhaustion fail-closed.",
+      "Duplicates revoke previous eligibility; expiry is exclusive; permanent tombstones prevent same-generation replay resurrection.",
+      "Capacity, malformed identity, backwards time, TTL arithmetic overflow, and explicit loss fence exactness, except the null-ID output path reported above.",
+      "Source completion is a trusted internal API requiring the identical authenticated full key, not a public complete=true input. This library is not source attestation.",
+      "Production router source is unchanged between base and reviewed commit."
+    ],
+    "evidence_limits": [
+      "No production router integration or full M3 acceptance is claimed or granted.",
+      "Datagrams are drained after the workflow; live authenticated ingest and source-before-next-dispatch are unproved and explicitly deferred.",
+      "Cross-restart source replay admission, boot/task lifecycle validation, and atomic selection re-query remain integration responsibilities.",
+      "The scripted provider is not inference, quality, token-cost or savings evidence.",
+      "Historical RED/TDD chronology was read as supplied evidence, not independently re-executed at intermediate revisions."
+    ]
+  },
+  "issues_encountered": [
+    "Existing upstream /opt/hermes/pm/shell.py invalid-escape SyntaxWarning; runtime test passed."
+  ],
+  "hash_algorithm": "sha256",
+  "hashes": {
+    ".gitignore": "f2db64d19f32cb0fa8fdffe1cfb82b96834377c290743d2aa2e2f9350f70ef35",
+    "CMakeLists.txt": "da39cbcebfad87301c28ad902f760ae3b2766b6b77e5e64beb0c2cec6b7a8f7d",
+    "bench/attempt_boundary.py": "22a9e6710471f45afbcc14fdbd587d3c8c66371220d410c41cf9f20adfe1067d",
+    "bench/hermes_ingress_probe.py": "325d18d2c2d0d4f2a12c7dac44db174e8060f537e866b869e66c4c26da29f9f5",
+    "bench/physical_observer.py": "637a1586205d7a5952c6e47f10f86f27f505c93b69230036e275a25fcf8adb76",
+    "bench/run_hermes_ingress_probe.sh": "98f3d851fa8e67e1eb3af85c19d2fe97d7b5239d9f03c696ff140276a6799938",
+    "core/include/recursant/attempts.h": "f522c63560af7e51d5847b903ced982b8ee68c050af1f580dbc810f1376c4bf3",
+    "core/src/context/attempts.c": "4080e8a906e6bbb351aa8378a78223d47d26ce739870e687dad2da86e4498fac",
+    "docs/evidence/m3-ingress-attempts.md": "1f6354186bbba32a2e84a633eae55678fd0fbe0f69d7c00c9a35fb7f929a133f",
+    "docs/evidence/m3-ingress-ctest.log": "c08431d88af8ae8834fd4b0f6bc10cb996a25f58d568bdc0502972fda0e2f29a",
+    "docs/evidence/m3-ingress-runtime-green.log": "441009aa34a0d5920516c58c3ed7245a1dc394dcbed02854437072915c032036",
+    "docs/evidence/m3-ingress-runtime-red.log": "7a5b3817fcb0600ffe74f594f7da9db32034bf74be9b62afbc757814ad9c25f3",
+    "docs/evidence/m3-ingress-sanitizer.log": "563075909a5171772c0f7c1425a8818002c471680a265db3dbfb0f4fd3f7262c",
+    "docs/m3-ingress-attempt-contract.md": "1c1d2708fa2e00579dbab8589e3dbbf6471925e1a53297491bbb4c1b0e068765",
+    "tests/fixtures/attempt_probe.c": "32e96657a19404e8f47615303aafd46640c9b9a01ea5083feb3cb6a21ab97d76",
+    "tests/unit/test_attempts.c": "b3f62f2d44f0a8e768d1d9b85259c82e39d3788659735385d76b759b6a5d229c",
+    "tests/unit/test_attempts_internal.c": "b4859c6604d46099131f1a7be836adae512d1bee4cffb9e49635b448d333d684",
+    "build-attempts/libattempt_probe.so": "09276382e306be2e71ad26d9bd17075e60cb2efaf6c2e4b6374cf290e14fb9fc"
+  },
+  "summary": "All supplied tests and isolated pinned-Hermes retry proof reproduce; review blocked by the reproduced null-ID begin fail-closed gap. No production M3 acceptance."
+}

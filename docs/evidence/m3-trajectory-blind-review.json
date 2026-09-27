@@ -1,0 +1,219 @@
+{
+  "scope": "human-style independent agent adjudication not model benchmark",
+  "cases": [
+    {
+      "case_id": "holdout-v1-01-negative-result-new-information",
+      "labels": {
+        "phase": "diagnosing",
+        "next_action": "root_cause_analysis",
+        "difficulty_band": "unknown",
+        "progress_state": "advancing",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h01a",
+        "h01b",
+        "h01c"
+      ],
+      "ambiguities": [
+        "Difficulty: tracing two callers is explicit, but the supplied scope and dependency complexity do not establish a difficulty anchor. The failed test does not negate the useful elimination of decoding as a cause."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-02-failure-without-workflow-status",
+      "labels": {
+        "phase": "unknown",
+        "next_action": "unknown",
+        "difficulty_band": "unknown",
+        "progress_state": "unknown",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h02a",
+        "h02b"
+      ],
+      "ambiguities": [
+        "Phase and next action: the sole failure is historical; no current activity or intent is attributable.",
+        "Difficulty: no immediate intended operation is supplied.",
+        "Progress: a single historical mismatch with no subsequent disposition or movement comparison establishes neither blockage nor another progress state."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-03-retracted-plan-redesign",
+      "labels": {
+        "phase": "planning",
+        "next_action": "plan",
+        "difficulty_band": "unknown",
+        "progress_state": "backtracking",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h03a",
+        "h03b",
+        "h03c",
+        "h03d"
+      ],
+      "ambiguities": [
+        "Difficulty: the replacement alternatives are named, but their constraints and dependency complexity are not specified sufficiently for an anchor. Rejection, migration removal, and reopening establish backtracking independently of the new plan."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-04-identical-reruns",
+      "labels": {
+        "phase": "verifying",
+        "next_action": "run_checks",
+        "difficulty_band": "simple",
+        "progress_state": "repeating",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h04a",
+        "h04b",
+        "h04c"
+      ],
+      "ambiguities": []
+    },
+    {
+      "case_id": "holdout-v1-05-revert-before-repair",
+      "labels": {
+        "phase": "implementing",
+        "next_action": "edit",
+        "difficulty_band": "unknown",
+        "progress_state": "backtracking",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h05a",
+        "h05b",
+        "h05c"
+      ],
+      "ambiguities": [
+        "Difficulty: the invalidation-hook change lacks sufficient implementation constraints or scope to establish an anchor. The intended repair has not yet produced a delta that supersedes the executed rollback."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-06-external-authorization-stop",
+      "labels": {
+        "phase": "verifying",
+        "next_action": "unknown",
+        "difficulty_band": "unknown",
+        "progress_state": "blocked",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h06a",
+        "h06b",
+        "h06c"
+      ],
+      "ambiguities": [
+        "Next action: waiting for the service owner is not representable as an executable operation in the allowed enum; the known suspended acceptance-check phase remains verifying.",
+        "Difficulty: there is no executable immediate operation to assess; external access delay does not establish cognitive difficulty."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-07-unordered-conflicting-notes",
+      "labels": {
+        "phase": "unknown",
+        "next_action": "unknown",
+        "difficulty_band": "unknown",
+        "progress_state": "unknown",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h07a",
+        "h07b",
+        "h07c",
+        "h07d"
+      ],
+      "ambiguities": [
+        "Phase and next action: edit and compatibility-check intentions conflict, with neither chronology nor authority available to choose between them.",
+        "Difficulty: no single immediate operation with adequately specified scope is established; claimed ease supplies no anchor.",
+        "Progress: missing outcomes and coordinating decision leave no attributable movement; optimism is not outcome evidence."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-08-quoted-injection-final-table",
+      "labels": {
+        "phase": "formatting",
+        "next_action": "format_result",
+        "difficulty_band": "simple",
+        "progress_state": "advancing",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h08a",
+        "h08b",
+        "h08c"
+      ],
+      "ambiguities": []
+    },
+    {
+      "case_id": "holdout-v1-09-metadata-only-abstention",
+      "labels": {
+        "phase": "unknown",
+        "next_action": "unknown",
+        "difficulty_band": "unknown",
+        "progress_state": "unknown",
+        "coverage": "unknown"
+      },
+      "evidence_refs": [
+        "h09a"
+      ],
+      "ambiguities": [
+        "The envelope supplies no task, activity, intent, outcome, or ordering, so phase, next action, difficulty, and progress are unestablished.",
+        "Coverage: missing substantive content does not itself demonstrate omitted history; completeness and existence of further content are explicitly unreported."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-10-cross-service-causal-proof",
+      "labels": {
+        "phase": "diagnosing",
+        "next_action": "root_cause_analysis",
+        "difficulty_band": "hard",
+        "progress_state": "advancing",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h10a",
+        "h10b",
+        "h10c"
+      ],
+      "ambiguities": []
+    },
+    {
+      "case_id": "holdout-v1-11-bounded-two-consumer-edit",
+      "labels": {
+        "phase": "implementing",
+        "next_action": "edit",
+        "difficulty_band": "moderate",
+        "progress_state": "advancing",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h11a",
+        "h11b",
+        "h11c"
+      ],
+      "ambiguities": []
+    },
+    {
+      "case_id": "holdout-v1-12-claimed-ease-not-progress",
+      "labels": {
+        "phase": "planning",
+        "next_action": "plan",
+        "difficulty_band": "unknown",
+        "progress_state": "unknown",
+        "coverage": "partial"
+      },
+      "evidence_refs": [
+        "h12a",
+        "h12b",
+        "h12c"
+      ],
+      "ambiguities": [
+        "Difficulty: retention requirements are not yet collected, and the archive-strategy scope and dependency complexity are unspecified; claimed ease is insufficient.",
+        "Progress: the current plan and optimistic claim supply no attributable outcome or movement comparison."
+      ]
+    }
+  ]
+}

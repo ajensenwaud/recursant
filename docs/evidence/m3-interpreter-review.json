@@ -1,0 +1,66 @@
+{
+  "passed": false,
+  "reviewed_sha": "11d7b6ea4f78f84f6581ab29a98ddf8997af39b6",
+  "base_sha": "e2e240e5a67885c8a7be34c03c8cf44421f0a577",
+  "summary": "One blocking deployment-contract mismatch: the worker rejects the newly approved 180-second deadline. No additional blocking security or correctness defect identified in the bounded standalone library under its serialized-owner contract.",
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "id": "M3-INTERPRETER-001",
+      "severity": "high",
+      "file": "core/src/context/interpreter.c",
+      "lines": "210-214",
+      "related_locations": ["core/include/recursant/interpreter.h:12", "tests/unit/test_interpreter.c:26", "docs/evidence/m3-interpreter-worker.md:39-40"],
+      "title": "Hard-coded 2000ms maximum rejects approved 180000ms local-model deadline",
+      "detail": "The current user explicitly approved 180 seconds for future calls because the local GLM endpoint is slow. rc_interpreter_create rejects deadline_ms > 2000, so the approved configuration cannot create a worker; substituting 2000ms would prematurely time out legitimate interpretation. This is a mismatch against the newly clarified deployment contract, not a failure of the existing tests against their original 2-second contract.",
+      "reproduction": "Independent compiled probe in the existing network-isolated dev image: enabled=true, loopback URL, model=fixture, max_tokens=4096, deadline_ms=180000 yields NULL; the identical config with deadline_ms=2000 creates successfully. No job was submitted and no HTTP connection was made by the probe.",
+      "actual_output": ["approved deadline 180000ms: REJECTED", "legacy deadline 2000ms: accepted"],
+      "required_change": "Allow configured deadlines through 180000ms, update API documentation and boundary assertions, and pass the approved deadline from the embedding configuration. Keep submission and polling nonblocking, retain queue-inclusive expiration, and preserve prompt cancellation/shutdown independent of the request deadline. Do not make the routing lane wait for interpretation.",
+      "verification_required": "Test 180000ms acceptance and >180000ms rejection; retain short deterministic fixture timeout tests; exercise active cancellation and shutdown with deadline_ms=180000 against a stalled loopback response without waiting 180 seconds."
+    }
+  ],
+  "suggestions": [
+    {
+      "file": "tests/integration/test_interpreter.py",
+      "detail": "Add focused request-envelope assertions for the exact URI/query, Content-Type, stream=false, message roles, and absence of credential headers. Existing fixtures inspect the body but do not assert the path or headers. Code inspection found POST to the configured URL, JSON Content-Type, no configured authentication, proxy/netrc disabled, redirects disabled, and default TLS verification retained."
+    },
+    {
+      "file": "tests/unit/test_interpreter.c",
+      "detail": "Add regressions for cancellation of already-completed unpolled results, reuse after cancellation, unchanged validator output on failure, and allocation failures. The implementations appear consistent with these contracts, but these paths are not directly established by the current suite."
+    }
+  ],
+  "scope": {
+    "repository": "/home/aj/projects/recursant-v4-m3-interpreter-worker",
+    "reviewed": ["new interpreter API and C implementation", "CMake additions", "new C/Python tests", "worker evidence documentation", "docs/m3-architecture-review.md"],
+    "boundary": "Standalone asynchronous advisory worker only; not final router integration. Caller must serialize the owner API, initialize libcurl globally, authorize the exact scope/evidence/private destination before submission, preserve sensitivity, reject stale publication, and enforce final deterministic policy.",
+    "not_claimed": ["live model quality or latency", "production DNS/TLS shutdown guarantees", "routing integration", "semantic evidence truth", "functional server-side response_format enforcement", "fault-injected allocation coverage", "ThreadSanitizer coverage"],
+    "response_format_note": "The reviewed SHA does not send response_format. Parent is preparing JSON-schema request support; endpoint OpenAPI advertising it is not proof that the deployed model/server enforces it. Local strict response validation must remain authoritative."
+  },
+  "inspection_findings": {
+    "bounds_and_schema": "Four fixed slots include unpolled completions; fixed copied input arrays are checked before submission; response body is bounded to 65536 bytes and state text to 16384 bytes. Nested and outer duplicate keys are rejected. Exact eight-field state allowlist, enums, canonical revision, unique existing evidence references, one completed assistant choice, and absence of tool/function-call fields are enforced. Failed validation leaves output unchanged.",
+    "locking_and_lifecycle": "Owner serialization is an explicit API prerequisite. Slot access is mutex-protected; stop and epoch are atomic; worker runs HTTP outside the mutex; submit and poll use trylock. Epoch cancellation covers in-flight work and rewrites pending/unpolled jobs to terminal cancellation. Destroy signals stop and joins. Loopback active cancellation/shutdown tests passed; asynchronous DNS support alone is not a hard real-time guarantee, as documentation acknowledges.",
+    "transport_and_failures": "HTTP(S) only; URL userinfo and fragments rejected; no redirect, environment proxy, netrc, fallback provider or raw logging. Requests are generated with Jansson escaping. Only successful curl completion with HTTP 200 and strict valid response yields VALID; partial bodies, oversized data, malformed responses, other statuses and transport errors remain non-valid. Allocation/handle creation errors take cleanup paths. Authorization is explicitly the caller's responsibility, not inferred from hostname.",
+    "cmake": "New static library links Threads, libcurl and Jansson, uses warning-as-error compilation, propagates ASan/UBSan instrumentation, and gates tests on dependencies and Python. It is not silently wired into the router."
+  },
+  "verification": {
+    "environment": "Existing recursant-v4-dev:local image (observed image ID 2b5edaf312e5), docker --pull never --network none --user 1000:1000, source mounted read-only, build/probe artifacts only in container /tmp.",
+    "normal": {"command": "cmake -S . -B /tmp/review-build -DCMAKE_BUILD_TYPE=Debug && cmake --build /tmp/review-build -j4 && ctest --test-dir /tmp/review-build --output-on-failure", "passed": 12, "total": 12, "elapsed_seconds": 55.28},
+    "sanitizers": {"command": "cmake -S . -B /tmp/review-asan -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build /tmp/review-asan -j4 && ctest --test-dir /tmp/review-asan --output-on-failure", "passed": 12, "total": 12, "elapsed_seconds": 57.59, "diagnostics": "No ASan/UBSan failure reported; new interpreter and driver instrumented."},
+    "deadline_probe": "Compiled independently from stdin against reviewed interpreter.c; reproduced 180000ms rejection and 2000ms acceptance.",
+    "restrictions_observed": "No source edits, commits, installs, pulls, host service/profile changes, paid/private model calls, or live inference. Network-isolated fixture tests used container loopback only.",
+    "reviewed_worktree_status_after_tests": "clean"
+  },
+  "hashes": {
+    "algorithm": "sha256",
+    "files": {
+      "CMakeLists.txt": "736c51f14f0479f771dee4b8929d8f0c2eddb9c1e3fd213d68f3d63708128140",
+      "core/include/recursant/interpreter.h": "89cf2d093980aef0283856cbb0eb4baf9ab20cd993d2dbac208ee9cd98fa5843",
+      "core/src/context/interpreter.c": "890e87b0328eb9e7fff7599c76d93a002ddcb4d60e57a6c441162055b31f3e0c",
+      "docs/evidence/m3-interpreter-worker-tests.log": "1ba6a20af17c5a6cfdf57f0775121a96c8f7f004a6f1186ad9f85e7d566ce623",
+      "docs/evidence/m3-interpreter-worker.md": "3a4671b9c9bf15cf4f63a4d062352e8b29acf3c246fceac8ee1bdd224219c071",
+      "tests/integration/test_interpreter.py": "b1e4f811c5bc89c893613214fb2212d93522d2642db7ddac38e18e92d094a6ed",
+      "tests/unit/test_interpreter.c": "c702308ae3dd4ed221f360442f5e5862e1702b784368fa324bbdf5cc9e88a556",
+      "docs/m3-architecture-review.md": "f4ba32da2011851a6cc40d96316a1bc8fb385fc307f6cbd604d83496381e1e16"
+    }
+  }
+}

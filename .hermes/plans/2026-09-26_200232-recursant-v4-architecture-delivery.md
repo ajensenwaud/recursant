@@ -18,6 +18,15 @@
 
 The [M3 architecture review](../../docs/m3-architecture-review.md) records the implemented M1/M2 starting point and proposed M3-A through M3-E acceptance gates. Approved by Anders for staged implementation, these sequence M3 as causal harness integration, safe C selection/continuity, real private trajectory interpretation, live closed-loop routing, and matched full-task economics. Proposed sequencing change: prove exact live hook correlation before adding OTLP transport dependencies. Preserve the detailed companion's safety contract and the benchmark contract's separate dollar/token/quality gates. Existing transport is libmicrohttpd/libcurl/Jansson/PCRE2; historical discovery and dependency blockers below are not current inventory. No M3 completion or new dependency/spend approval is implied.
 
+## M3 continued execution checkpoint
+
+- A: authenticated ingress-owned physical-attempt ledger is independently reviewed and integrated through `6d6e4dd`. Parent reproduced the real pinned-Hermes retry case: three HTTP attempts versus two Relay physical spans; duplicate invocations become ineligible rather than guessing causality. Production-path wiring is in a separate slice, not yet an A-gate pass.
+- B: reviewed C suitability/cost selector is integrated through `8e593ab`. Automatic HTTP dispatch and authoritative continuity integration remain under construction/review.
+- C: preserve all twelve live private requests. The separately labelled 4096-token/schema-constrained condition returned four schema-valid outputs with matching phase/action; two full-label disagreements remain. User-approved future inference timeout is 180 seconds. Local latency is not itself a failure; next-decision readiness still needs measurement. The asynchronous C worker has an allocation-failure request-integrity fix pending independent review.
+- D: production gateway and supported-source HTTP bridge are in isolated worktrees; do not treat module tests as a live closed loop.
+- E: no task-quality/savings pass. Frozen prospective diagnostic holdout has twelve cases and independent blinded agent label agreement; zero model attempts, and it is not a product benchmark. Additional live-request/spend permission was requested, not granted by silence.
+- Parent verification at the selector+ingress checkpoint: 14/14 normal and 14/14 ASan/UBSan suites, plus real Hermes/scripted-provider ingress proof. See `docs/evidence/m3-ingress-integrated-*.xml`, live reference follow-up, and review artifacts. Nothing pushed or installed; serving services unchanged.
+
 ## 1. Ground truth and scope
 
 Source of product requirements: `/home/aj/projects/recursant-v4/AGENTS.md`, read in full.

@@ -1,0 +1,65 @@
+{
+  "scope": "prospective diagnostic label agreement, not model evaluation",
+  "manifest_sha256": "a9d11a40ed35402d210b7ab47c06d8ab92d8f1e076b23a48983d0854bb60dc16",
+  "cases": 12,
+  "exact_label_agreement_cases": 12,
+  "disagreements": [],
+  "blind_ambiguities": [
+    {
+      "case_id": "holdout-v1-01-negative-result-new-information",
+      "notes": [
+        "Difficulty: tracing two callers is explicit, but the supplied scope and dependency complexity do not establish a difficulty anchor. The failed test does not negate the useful elimination of decoding as a cause."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-02-failure-without-workflow-status",
+      "notes": [
+        "Phase and next action: the sole failure is historical; no current activity or intent is attributable.",
+        "Difficulty: no immediate intended operation is supplied.",
+        "Progress: a single historical mismatch with no subsequent disposition or movement comparison establishes neither blockage nor another progress state."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-03-retracted-plan-redesign",
+      "notes": [
+        "Difficulty: the replacement alternatives are named, but their constraints and dependency complexity are not specified sufficiently for an anchor. Rejection, migration removal, and reopening establish backtracking independently of the new plan."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-05-revert-before-repair",
+      "notes": [
+        "Difficulty: the invalidation-hook change lacks sufficient implementation constraints or scope to establish an anchor. The intended repair has not yet produced a delta that supersedes the executed rollback."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-06-external-authorization-stop",
+      "notes": [
+        "Next action: waiting for the service owner is not representable as an executable operation in the allowed enum; the known suspended acceptance-check phase remains verifying.",
+        "Difficulty: there is no executable immediate operation to assess; external access delay does not establish cognitive difficulty."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-07-unordered-conflicting-notes",
+      "notes": [
+        "Phase and next action: edit and compatibility-check intentions conflict, with neither chronology nor authority available to choose between them.",
+        "Difficulty: no single immediate operation with adequately specified scope is established; claimed ease supplies no anchor.",
+        "Progress: missing outcomes and coordinating decision leave no attributable movement; optimism is not outcome evidence."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-09-metadata-only-abstention",
+      "notes": [
+        "The envelope supplies no task, activity, intent, outcome, or ordering, so phase, next action, difficulty, and progress are unestablished.",
+        "Coverage: missing substantive content does not itself demonstrate omitted history; completeness and existence of further content are explicitly unreported."
+      ]
+    },
+    {
+      "case_id": "holdout-v1-12-claimed-ease-not-progress",
+      "notes": [
+        "Difficulty: retention requirements are not yet collected, and the archive-strategy scope and dependency complexity are unspecified; claimed ease is insufficient.",
+        "Progress: the current plan and optimistic claim supply no attributable outcome or movement comparison."
+      ]
+    }
+  ],
+  "model_requests": 0
+}

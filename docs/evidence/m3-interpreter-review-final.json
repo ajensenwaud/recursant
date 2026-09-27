@@ -1,0 +1,165 @@
+{
+  "passed": false,
+  "reviewed_sha": "838329ee42dd2dac91841d743095aacfdb009841",
+  "base_sha": "11d7b6ea4f78f84f6581ab29a98ddf8997af39b6",
+  "summary": "The old 180-second blocker is fixed and the new structured schema/helper passes review, but unconditional worker-library approval is withheld for a newly demonstrated, pre-existing Jansson allocation-failure path that returns a request containing malformed input JSON.",
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "id": "M3-INTERPRETER-002",
+      "severity": "medium",
+      "introduced_by_reviewed_diff": false,
+      "file": "core/src/context/interpreter.c",
+      "lines": "175-180, 202-206",
+      "title": "Transient Jansson serialization allocation failure can silently corrupt the evidence payload instead of rejecting the job",
+      "detail": "In the existing dev image (Jansson 2.14), failing only Jansson allocation 23 or 24 of a one-evidence request_body call makes json_dumps(input, JSON_COMPACT) return non-NULL malformed JSON. The NULL check passes, the malformed text is embedded as messages[1].content in an otherwise valid outer request, and perform has no further request validation before configuring the POST. This is not a leak and is not introduced by structured_output: it reproduces at the same allocation indices on 11d7b6e. The new response_format itself remains correct. The unchanged local response validator cannot establish that the model received the original uncorrupted evidence payload.",
+      "reproduction": "Compile the embedded request probe with the reviewed interpreter.c under ASan/UBSan. json_set_alloc_funcs injects a single failed allocation, then resumes allocating normally; source-local free calls are routed to the tracked free function for accurate accounting. request_body returns non-NULL at sites 23 and 24; independent Python parsing rejects both inner payloads. The request probe deliberately prints anomalies and exits 0 after allocation-accounting checks; that exit is NOT a request-integrity pass. A separate equality-asserting run exited 134 on the first corrupt result.",
+      "observed_payloads": [
+        {
+          "user_content": "{\":\"1\",\"segments\":[{\"id\":\"e1\",\"source\":\"executor\",\"text\":\"fixture\"}]}",
+          "valid_json": false,
+          "outer_schema_present": true
+        },
+        {
+          "user_content": "{\"input_revision\":\"1\",\"segments:[{\"id\":\"e1\",\"source\":\"executor\",\"text\":\"fixture\"}]}",
+          "valid_json": false,
+          "outer_schema_present": true
+        }
+      ],
+      "required_change": "Make request serialization fail closed when the resulting inner input differs from the constructed input or is invalid; similarly protect the final request serialization. A checked serialization path or parse-and-equality verification before transport is one possible bounded fix. Preserve schema, prompt, token/deadline settings and strict validator semantics. Add transient (not only persistent) allocation-failure regression coverage.",
+      "verification_required": "For each injected Jansson allocation failure, request construction must either return NULL or return a complete request semantically identical to the non-failing request, including the inner user JSON. Retain zero leaked allocations and rerun normal/sanitizer loopback suites."
+    }
+  ],
+  "suggestions": [
+    {
+      "file": "tests/unit/test_interpreter.c",
+      "detail": "Keep systematic Jansson fault injection in repository tests; happy-path ASan/UBSan tests do not establish allocation-failure integrity."
+    }
+  ],
+  "resolved_findings": [
+    {
+      "id": "M3-INTERPRETER-001",
+      "status": "resolved_in_worker_library",
+      "evidence": "180000 accepted; 180001 and 0 rejected in executed C driver; active cancellation and shutdown with 180000ms deadline meet <500ms assertions and Python requires a captured HTTP request. Caller integration remains outside this review."
+    }
+  ],
+  "acceptance_checks": {
+    "deadline_180000_accepted": true,
+    "deadline_over_180000_rejected": true,
+    "active_cancel_shutdown_prompt_in_loopback": true,
+    "queue_inclusive_deadline_and_nonblocking_submit_poll_preserved": true,
+    "structured_schema_matches_main_python": true,
+    "no_duplicate_or_wrong_required_properties_or_dangling_refs": true,
+    "helper_allocation_ownership_and_failure_cleanup": true,
+    "default_false_preserves_legacy_envelope": true,
+    "no_expected_label_or_reasoning_override_added": true,
+    "local_strict_validator_byte_unchanged": true,
+    "complete_request_allocation_failure_integrity": false,
+    "new_regression_identified": false
+  },
+  "scope": {
+    "repository": "/home/aj/projects/recursant-v4-m3-interpreter-worker",
+    "boundary": "Standalone asynchronous advisory worker library; not actual router configuration, parent integration, quality, price or deterministic policy integration.",
+    "reference_repository": "/home/aj/projects/recursant-v4",
+    "reference_main_sha": "248fea0475f2bb460fc0463011bed92fc999644e",
+    "not_claimed": [
+      "Live GLM requests or model quality/latency",
+      "Server-side schema enforcement",
+      "Production DNS/TLS cancellation guarantee",
+      "Actual router integration",
+      "ThreadSanitizer or all libcurl/system allocation failures"
+    ],
+    "caller_contract": "Serialized owner APIs, libcurl global initialization, authorized exact scope/evidence/private endpoint, stale-publication rejection, sensitivity preservation and final deterministic policy remain caller responsibilities. Explicit deadline_ms=180000 and structured_output=true must be supplied by integration."
+  },
+  "inspection_findings": {
+    "schema": "Exact eight properties/required entries, full reference enums, trajectory.v1, canonical revision, evidence-ID enum, minItems=1/maxItems=16, additionalProperties=false, strict=true. No $ref. Matches MAIN make_request(..., structured=True), intentionally without uniqueItems; local validator still rejects repeated references.",
+    "ownership": "Uppercase O json_pack references are incremented before container ownership; local properties/required/refs references are released at the single exit; _new APIs consume transferred values on failures. Helper probes demonstrate zero outstanding allocations at every injected site.",
+    "unchanged": "Validator prefix and system instruction compared byte-for-byte with 11d7b6e. Diff adds no reasoning settings, expected-label fields, tools, credentials, routing/scoring authority or parser relaxation. Cancellation epoch and 20ms polling unchanged."
+  },
+  "verification": {
+    "environment": "Existing recursant-v4-dev:local image 2b5edaf312e5, docker --pull never --network none --user 1000:1000; source mounted :ro; builds in container /tmp. No installs, pulls or external inference/network.",
+    "normal": {
+      "command": "cmake -S . -B /tmp/review-build -DCMAKE_BUILD_TYPE=Debug && cmake --build /tmp/review-build -j4 && ctest --test-dir /tmp/review-build --output-on-failure && ctest --test-dir /tmp/review-build -R interpreter -V",
+      "passed": 12,
+      "total": 12,
+      "elapsed_seconds": 58.06,
+      "interpreter_verbose_tests": 14,
+      "interpreter_verbose_seconds": 10.36,
+      "exit_code": 0
+    },
+    "sanitizers": {
+      "command": "cmake -S . -B /tmp/review-asan -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build /tmp/review-asan -j4 && ctest --test-dir /tmp/review-asan --output-on-failure && ctest --test-dir /tmp/review-asan -R interpreter -V",
+      "passed": 12,
+      "total": 12,
+      "elapsed_seconds": 60.4,
+      "interpreter_verbose_tests": 14,
+      "interpreter_verbose_seconds": 10.995,
+      "exit_code": 0,
+      "diagnostics": "No sanitizer failure in suites."
+    },
+    "helper_probe": {
+      "allocation_sites": 206,
+      "failure_modes": [
+        "single allocation failure",
+        "persistent failure starting at allocation"
+      ],
+      "result": "Every injected helper failure returned NULL; zero live allocations. Invalid UTF-8 evidence ID rejected with clean teardown. ASan/UBSan/LSan no diagnostics.",
+      "exit_code": 0
+    },
+    "schema_probe": "Actual C output with sixteen escaped evidence IDs and UINT64_MAX revision parsed with duplicate-rejecting parser and compared directly to imported MAIN make_request; response_format equal, required set exact/unique, no $ref; structured=false output identical to true output minus response_format.",
+    "request_probe": {
+      "allocation_sites": 266,
+      "failure_modes": [
+        "single allocation failure",
+        "persistent failure starting at allocation"
+      ],
+      "allocation_accounting": "Zero live allocations after each call; no ASan/UBSan/LSan diagnostics in diagnostic run.",
+      "integrity": "FAILED: two transient failures yield malformed inner JSON rather than NULL.",
+      "baseline": "Same two transient failures reproduced against 11d7b6e; baseline has 67 allocation sites."
+    },
+    "worker_worktree_status": "clean",
+    "original_review_preserved_sha256": "90a7faf8c17b802b727027e8a29643fdf3c428b03a49ad0289d0ddd740499581"
+  },
+  "hashes": {
+    "algorithm": "sha256",
+    "worker_files": {
+      "CMakeLists.txt": "736c51f14f0479f771dee4b8929d8f0c2eddb9c1e3fd213d68f3d63708128140",
+      "core/include/recursant/interpreter.h": "c3bcf9953739d5d75ab92c3c960ae19e29153e5bfc365001e85100644a85be6c",
+      "core/src/context/interpreter.c": "d893eb31ad7a6ff5109335a7f2d69d75276dcd0f0911ba4b2084f88943139430",
+      "tests/integration/test_interpreter.py": "13acf42f59c33997c1a1e2c20dcb3481ed20c2a78e19eedc7b18d34d02c77512",
+      "tests/unit/test_interpreter.c": "b9f1f2b466eabf92a12499c31db8d4a04d91161b8f6f6f52d7b940d2236eec8b",
+      "docs/evidence/m3-interpreter-worker.md": "637df4e1de3e61e214182078df2426bd65669270a17472636eadbc4f89ec0c69",
+      "docs/evidence/m3-interpreter-review-fix-normal.log": "7451d59376a6c66cd96ae529bb0cd16fdcc11e7c2253024683b2b30eaababc83",
+      "docs/evidence/m3-interpreter-review-fix-asan.log": "833fd52b4f9f2237a134ade54f0ae65c718be152b6c07a83bb4d2e873c8d15ba"
+    },
+    "main_reference_files": {
+      "bench/trajectory_reference.py": "331bdaae331ee61dc8b7f2a77ba1ba66b2cf20ac98ddc0ff93c2ed9929e38649",
+      "docs/evidence/m3-interpreter-review.json": "90a7faf8c17b802b727027e8a29643fdf3c428b03a49ad0289d0ddd740499581"
+    }
+  },
+  "reproduction_artifacts": {
+    "compile_command": [
+      "docker",
+      "run",
+      "--rm",
+      "--pull",
+      "never",
+      "--network",
+      "none",
+      "--user",
+      "1000:1000",
+      "-v",
+      "/home/aj/projects/recursant-v4-m3-interpreter-worker:/src:ro",
+      "-v",
+      "/tmp/m3-final-review-request-probe.c:/probe.c:ro",
+      "recursant-v4-dev:local",
+      "sh",
+      "-c",
+      "cc -std=c11 -Wall -Wextra -Werror -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie -I/src/core/include /probe.c -o /tmp/probe $(pkg-config --cflags --libs libcurl jansson) -pthread && ASAN_OPTIONS=detect_leaks=1 /tmp/probe"
+    ],
+    "helper_probe_source": "#include \"/src/core/src/context/interpreter.c\"\n#include <assert.h>\nstatic size_t calls, fail_at, live;\nstatic int persistent;\nstatic void *fm(size_t n) {\n    calls++;\n    if(fail_at && (calls==fail_at || (persistent && calls>=fail_at))) return NULL;\n    void *p=malloc(n); if(p) live++; return p;\n}\nstatic void ff(void *p) { if(p) { assert(live); live--; free(p); } }\nint main(void) {\n    rc_interpreter_input in={.revision=UINT64_MAX,.evidence_count=16};\n    for(size_t i=0;i<16;i++) { snprintf(in.evidence[i].id,129,\"e%zu-\\\"\\\\\\n\",i); strcpy(in.evidence[i].source,\"executor\"); strcpy(in.evidence[i].text,\"fixture only\"); }\n    json_set_alloc_funcs(fm,ff);\n    json_t *j=response_format(&in,\"18446744073709551615\"); assert(j);\n    size_t total=calls; json_decref(j); assert(live==0);\n    for(persistent=0;persistent<=1;persistent++) {\n        for(size_t i=1;i<=total;i++) {\n            calls=0; fail_at=i; j=response_format(&in,\"18446744073709551615\");\n            if(j) { fprintf(stderr,\"unexpected success mode=%d allocation=%zu\\n\",persistent,i); return 1; }\n            if(live) { fprintf(stderr,\"leak mode=%d allocation=%zu live=%zu\\n\",persistent,i,live); return 1; }\n        }\n    }\n    fail_at=0; calls=0; in.evidence[0].id[0]=(char)0xff;\n    j=response_format(&in,\"18446744073709551615\"); assert(!j); assert(live==0);\n    in.evidence[0].id[0]='e';\n    json_set_alloc_funcs(malloc,free);\n    rc_interpreter w={.tokens=4096,.structured_output=true}; strcpy(w.model,\"fixture\");\n    char *body=request_body(&w,&in); assert(body); puts(body); free(body);\n    w.structured_output=false; body=request_body(&w,&in); assert(body); puts(body); free(body);\n    fprintf(stderr,\"helper fault injection: %zu allocation sites x 2 failure modes, zero live allocations; invalid UTF-8 rejected cleanly\\n\",total);\n    return 0;\n}\n",
+    "request_probe_source": "#define _POSIX_C_SOURCE 200809L\n#include <stdlib.h>\n#include <stdio.h>\n#include <assert.h>\nstatic size_t calls, fail_at, live;\nstatic int persistent;\nstatic void *fm(size_t n) { calls++; if(fail_at && (calls==fail_at || (persistent && calls>=fail_at))) return NULL; void *p=malloc(n); if(p) live++; return p; }\nstatic void ff(void *p) { if(p) { assert(live); live--; free(p); } }\n#define free ff\n#include \"/src/core/src/context/interpreter.c\"\n#undef free\nint main(void) {\n rc_interpreter_input in={.revision=1,.evidence_count=1}; strcpy(in.evidence[0].id,\"e1\"); strcpy(in.evidence[0].source,\"executor\"); strcpy(in.evidence[0].text,\"fixture\");\n rc_interpreter w={.tokens=4096,.structured_output=true}; strcpy(w.model,\"fixture\");\n json_set_alloc_funcs(fm,ff);\n char *body=request_body(&w,&in); assert(body); char *expected=strdup(body); assert(expected); size_t total=calls; ff(body); assert(!live);\n for(persistent=0;persistent<=1;persistent++) for(size_t i=1;i<=total;i++) {\n   calls=0; fail_at=i; body=request_body(&w,&in);\n   if(body) { fprintf(stderr,\"success allocation=%zu mode=%d equal=%d\\nEXPECTED=%s\\nACTUAL=%s\\n\",i,persistent,!strcmp(body,expected),expected,body); ff(body); }\n   if(live) { fprintf(stderr,\"LEAK allocation=%zu mode=%d live=%zu\\n\",i,persistent,live); return 1; }\n }\n fprintf(stderr,\"request fault injection: %zu allocation sites x 2 failure modes; zero live allocations\\n\",total); free(expected); return 0;\n}\n",
+    "request_probe_sha256": "e7bfeb0038c436add6944b4ed6e03add4646f9afc9812f45f78dacf5746072b9",
+    "baseline_reproduction": "Use git show 11d7b6e:<path> to create a temporary snapshot of interpreter.c, interpreter.h and context.h; remove .structured_output=true from the probe initializer; mount the snapshot as /src:ro and use the same compiler command."
+  }
+}

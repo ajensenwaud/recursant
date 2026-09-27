@@ -1,0 +1,71 @@
+{
+  "passed": true,
+  "reviewed_sha": "3b145b3c1eac691aba40b39fa2143e455e6856c5",
+  "base_sha": "9814d844607b862495d67e579312f8a514138b54",
+  "scope": "Independent bounded re-review of INGRESS-001 library null-ID loss fence; not production integration acceptance.",
+  "security_concerns": [],
+  "logic_errors": [],
+  "resolved_findings": [
+    {
+      "id": "INGRESS-001",
+      "status": "resolved",
+      "assessment": "Enabled-ledger begin authenticates first. Authenticated id=NULL sets sticky generation loss and returns UNTRACKED. Unauthorized id=NULL returns UNAUTHORIZED before any ledger write. Disabled ledger remains UNTRACKED. Existing and future rows cannot regain exactness or count certainty in the lost generation.",
+      "locations": ["core/src/context/attempts.c:68-80", "core/src/context/attempts.c:105-106", "tests/unit/test_attempts.c:104-130"],
+      "regression": "missing_id_contract begins with exact/count-known count=1, rejects unauthorized null output at UINT64_MAX without observable time/count/exactness mutation, then verifies authenticated null output revokes certainty for the existing row and survives repeated source completion and a different-key later row. Static inspection confirms serial/rows also remain untouched by unauthorized null output."
+    }
+  ],
+  "api_compatibility": {
+    "header_unchanged": true,
+    "ownership_and_lifetime_unchanged": true,
+    "public_api_changed": false,
+    "contract_expanded": false
+  },
+  "suggestions": [
+    {
+      "blocking": false,
+      "file": "bench/hermes_ingress_probe.py",
+      "description": "At reviewed SHA the suggested runner-docstring correction and explicit stream boolean assertions [true,false,true] are NOT present. This file is byte-identical to 9814d84. Those optional enhancements are not reviewed or credited by this verdict."
+    }
+  ],
+  "verified": {
+    "worktree": "/home/aj/projects/recursant-v4-m3-ingress-attempts",
+    "worktree_clean": true,
+    "diff_scope": "Only attempts.c and test_attempts.c executable code changed; remaining changes are evidence documentation/logs. Header and runtime fixture unchanged.",
+    "container_image": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+    "isolation": "Existing recursant-v4-dev:local image, --pull never --network none, owning UID:GID, --cap-drop ALL --security-opt no-new-privileges; no installs or inference calls.",
+    "independent_test_command": "cmake --build build-attempts --target test_attempts test_attempts_internal -j 4 && ctest --test-dir build-attempts -R '^attempts_(unit|overflow)$' --output-on-failure && cmake --build build-attempts-san --target test_attempts test_attempts_internal -j 4 && ctest --test-dir build-attempts-san -R '^attempts_(unit|overflow)$' --output-on-failure",
+    "exit_code": 0,
+    "normal_groups_passed": 2,
+    "sanitizer_groups_passed": 2,
+    "groups_failed": 0,
+    "tests": ["attempts_unit", "attempts_overflow"],
+    "historical_evidence": "Read supplied RED/GREEN and runtime evidence. Full 13-group normal/sanitizer runs and post-fix Hermes runtime run were not independently repeated in this bounded review. Parent independently reproduced pre-fix three requests/counts [2,2,1]/exactness [false,false,true]/two Relay spans, as recorded in initial review.",
+    "initial_review_preserved": true
+  },
+  "evidence_limits": [
+    "Library and fixture proof only; production integration and full M3 acceptance remain false.",
+    "Runtime bridge always supplies an ID pointer; null-ID misuse is covered by the C regression, not the runtime proof.",
+    "Source-before-next-dispatch, live authenticated source ingestion, lifecycle/replay admission and atomic selection re-query remain integration responsibilities.",
+    "Synthetic scripted provider is not inference, quality, cost or savings evidence.",
+    "No code changes or commits made by this reviewer."
+  ],
+  "production_integration_accepted": false,
+  "full_M3": false,
+  "issues_encountered": [
+    "An exploratory git show used nonexistent core/src/auth.c; resolved to core/src/auth/auth.c and read the authentication implementation. No test or review blocker.",
+    "Requested related probe enhancements were absent from the specified clean reviewed revision; explicitly excluded rather than assumed complete."
+  ],
+  "hash_algorithm": "sha256",
+  "hashes": {
+    "core/src/context/attempts.c": "3c0db498ed0ef36ede5f9c72c082544266aeca562d1db5512fee3caa18af0be9",
+    "core/include/recursant/attempts.h": "f522c63560af7e51d5847b903ced982b8ee68c050af1f580dbc810f1376c4bf3",
+    "tests/unit/test_attempts.c": "48f0812f6409c07365bdc99854aa6a5720f1a500a89f4e0fcb8f94316b7db5e4",
+    "tests/unit/test_attempts_internal.c": "b4859c6604d46099131f1a7be836adae512d1bee4cffb9e49635b448d333d684",
+    "tests/fixtures/attempt_probe.c": "32e96657a19404e8f47615303aafd46640c9b9a01ea5083feb3cb6a21ab97d76",
+    "bench/hermes_ingress_probe.py": "325d18d2c2d0d4f2a12c7dac44db174e8060f537e866b869e66c4c26da29f9f5",
+    "bench/attempt_boundary.py": "22a9e6710471f45afbcc14fdbd587d3c8c66371220d410c41cf9f20adfe1067d",
+    "bench/run_hermes_ingress_probe.sh": "98f3d851fa8e67e1eb3af85c19d2fe97d7b5239d9f03c696ff140276a6799938"
+  },
+  "initial_review_sha256": "131696aa0eae998f4128ac06ba401441a22900105ec251ae0c08ce9adba509be",
+  "summary": "PASS for narrow INGRESS-001 fix at 3b145b3; authentication ordering and sticky loss are correct, focused normal/sanitizer tests pass, public header unchanged. No production M3 acceptance."
+}
