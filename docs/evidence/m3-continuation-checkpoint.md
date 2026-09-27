@@ -14,7 +14,11 @@ The separately labelled schema-controlled condition returned four valid outputs 
 
 Independent rubric work and blind adjudication agreed on all five expected fields in twelve fresh diagnostic cases. These cases have **zero model attempts** and do not constitute quality or savings evidence.
 
-## Open engineering gaps—do not call M3 complete
+## Subsequent bridge integration
+
+The three bridge findings below were independently re-reviewed at `f0bc656` and resolved. The corrected bridge is now integrated as `9178f48`. Parent verified reviewed hashes before landing and reran 31/31 full Hermes tests plus 2/2 actual C integration tests against each current normal and sanitizer binary on the combined checkout. The initial failed review remains preserved; final approval is `m3-hermes-gateway-bridge-review-final.json`. This does not resolve native streaming/tool support or demonstrate model quality/savings.
+
+## Open engineering gaps and historical findings—do not call M3 complete
 
 - The supported Hermes HTTP bridge was implemented and its basic unit/real-C loopback tests passed, but independent review found lifecycle-header substitution, duplicate-header occurrence loss and install-failure cleanup defects. It is **not landed**; a fresh fix workstream owns these findings.
 - A parent HTTP regression using known inert/null metadata from saved GLM response records found permanent pinning. The bounded compatibility fix is in a separate worktree. This shape-based fixture is not replay of an original complete wire response; saved records omit reasoning.

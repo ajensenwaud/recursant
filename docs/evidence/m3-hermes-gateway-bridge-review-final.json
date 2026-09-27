@@ -1,0 +1,116 @@
+{
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "reviewed_sha": "f0bc6562516037700ead6b8d3ee079e8ea015fe6",
+  "compared_to": "0a8d9760bcbadcd851944fef2c922381ad21149b",
+  "summary": "All three original bridge findings are resolved within the documented supported API and header-container contract. Independently inspected fixes and reran full offline Hermes suite and actual corrected-main C integration in normal and sanitizer configurations. Narrow bridge approval only; not M3 acceptance.",
+  "scope": {
+    "bridge_repository": "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge",
+    "main_repository": "/home/aj/projects/recursant-v4",
+    "main_sha": "bf3cd7e94eb2961ebec47bfa6aba792bc9e42f65",
+    "legacy_adapter_unchanged": true,
+    "full_m3_acceptance": false,
+    "image_id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7"
+  },
+  "findings_resolution": [
+    {
+      "id": "M3-BRIDGE-001",
+      "resolved": true,
+      "source": "deploy/hermes/context_adapter/gateway.py:120-151",
+      "verification": "Actual C integration on both corrected main binaries: A public-frontier pin accepted (200), honest A private destination rejected (403), complete valid B headers through A rejected (403), same attack against compatible baseline also rejected (403). Canonical A task/session/branch/generation retained, invalid lowercase generation fence appended, no invocation fabricated; only initial request reaches scripted upstream."
+    },
+    {
+      "id": "M3-BRIDGE-002",
+      "resolved": true,
+      "source": "deploy/hermes/context_adapter/gateway.py:124-152",
+      "verification": "Full suite exercises same-case and case-variant duplicates, conflicting and identical values, list pairs, single-use iterators, stdlib Message, and multi_items() with lossy items(). Every duplicate is fenced before conversion; separate iterator test verifies unrelated Keep header survives and a valid invocation is issued. Actual C tests reject list-pair duplicates and last-value-wins case-folded fences with 403 on normal and sanitizer builds."
+    },
+    {
+      "id": "M3-BRIDGE-003",
+      "resolved": true,
+      "source": "deploy/hermes/context_adapter/gateway.py:281-309",
+      "verification": "Test injects RuntimeError and KeyboardInterrupt at each of four registration steps. All returned handles disposed in reverse order, unrelated callback preserved, owned exporter worker dead before install re-raises. Source inspection confirms dispose() is a supported public PluginRegistration API in local hermes_cli/plugins.py (1231 onward), with register_hook returning such a handle (3387-3410). Tests use minimal public-contract fixtures, not a full native Hermes runtime."
+    }
+  ],
+  "tests": {
+    "full_offline_hermes_tests": 31,
+    "actual_C_normal_tests": 2,
+    "actual_C_ASan_UBSan_tests": 2,
+    "skipped_tests": 0,
+    "sanitizer_verification": "Integration launcher requires clean process exit and checks stderr for AddressSanitizer and runtime error diagnostics; both tests passed."
+  },
+  "sha256": {
+    "/home/aj/.hermes/hermes-agent/hermes_cli/plugins.py": "accc79459a5936d69b1b9b0773273987dbfcf827997e3cb19147a49397851c33",
+    "/home/aj/projects/recursant-v4/build/m3-current/recursant": "6cca60a253f1a47599650e6a954b7df961cfee424cfe261a67715813294916f3",
+    "/home/aj/projects/recursant-v4/build/m3-current-asan/recursant": "cd5eefb2b0431c5cd826f6ad7d50562faeab53bd08b4f76b5320aa6af3cbcf6f",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/context_adapter/__init__.py": "7033238e57af838169a9a4a109a948608d820b367906072a4457b8ced27bbbf2",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/context_adapter/gateway.py": "e4a9e2337f78460edd96406ee88466315544b98b47e56e833883326865dfc8bd",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/observer/__init__.py": "a4ed9ee5fcf691dd973c07bca3128268b95e5c0337d4de2376ca9f5ce6dcaef8",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/run.py": "519218723126e570bd65d8ef15bfa2b8103b9d1cdbe0587fec10ca95ce915378",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_context_adapter.py": "561a937bff47bd7ced5872d80fd24f11b753895552003c84ddc53b0c31ad4e27",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_gateway_bridge.py": "1fd4997507394c21e53ffd8cdeb8b284634c285a0237434f0f0ba97f3d527773",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_observer.py": "45dab132944730030d6f9355e1e76518b09b04900f202066b08949d817405d10",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_smoke.py": "c0a79fa6aa63610dc97ae65f31d6feaaf01289c76466dd40ad42661a07f3ee8d",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/docs/evidence/m3-hermes-gateway-bridge-fixes.md": "3dfd7abb03531d5ac0827c2b52342780d3718c95939d6f3a9dbf0be244f769c1",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/docs/m3-hermes-gateway-bridge.md": "029bc2be9c47c40fbfec16682d1342c5ad80ff6ef1726c03cdc5272400b05384",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/tests/integration/test_gateway_bridge_live.py": "121f9d0147bf789aa476718fd496775b9b857fa04697b8cfde38d041d4e1eadb",
+    "/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/tests/integration/test_router.py": "5ea2592083fb66741088bda04776dc47b20d8cf6001976b0c10efb401514fbdb"
+  },
+  "results": [
+    {
+      "name": "full_hermes",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/hermes -p 'test_*.py' -v",
+      "result": {
+        "output": "test_bounded_datagrams_loss_and_state_capacity (test_context_adapter.AdapterTests.test_bounded_datagrams_loss_and_state_capacity) ... ok\ntest_callbacks_serialize_state_and_emission (test_context_adapter.AdapterTests.test_callbacks_serialize_state_and_emission) ... ok\ntest_completed_response_opt_in_text_and_retry_ambiguity (test_context_adapter.AdapterTests.test_completed_response_opt_in_text_and_retry_ambiguity) ... ok\ntest_disabled_registers_nothing (test_context_adapter.AdapterTests.test_disabled_registers_nothing) ... ok\ntest_error_and_header_collision_cannot_claim_exact (test_context_adapter.AdapterTests.test_error_and_header_collision_cannot_claim_exact) ... ok\ntest_incomplete_or_duplicate_response_is_not_eligible (test_context_adapter.AdapterTests.test_incomplete_or_duplicate_response_is_not_eligible) ... ok\ntest_invalidation_is_metadata_only_and_revokes_issued_evidence (test_context_adapter.AdapterTests.test_invalidation_is_metadata_only_and_revokes_issued_evidence) ... ok\ntest_lone_surrogate_content_is_dropped_without_logging (test_context_adapter.AdapterTests.test_lone_surrogate_content_is_dropped_without_logging) ... ok\ntest_rejected_same_identity_revokes_old_join (test_context_adapter.AdapterTests.test_rejected_same_identity_revokes_old_join) ... ok\ntest_request_exact_endpoint_only_headers_unique_invocations (test_context_adapter.AdapterTests.test_request_exact_endpoint_only_headers_unique_invocations) ... ok\ntest_text_windows_explicitly_mark_truncation (test_context_adapter.AdapterTests.test_text_windows_explicitly_mark_truncation) ... ok\ntest_tool_requires_completed_matching_response_not_arrival_order (test_context_adapter.AdapterTests.test_tool_requires_completed_matching_response_not_arrival_order) ... ok\ntest_close_cannot_lose_worker_wakeup_at_idle_boundary (test_gateway_bridge.BridgeTests.test_close_cannot_lose_worker_wakeup_at_idle_boundary) ... ok\ntest_close_drops_queued_text_without_waiting_for_stalled_exporter (test_gateway_bridge.BridgeTests.test_close_drops_queued_text_without_waiting_for_stalled_exporter) ... ok\ntest_disabled_does_not_resolve_secret_open_or_register (test_gateway_bridge.BridgeTests.test_disabled_does_not_resolve_secret_open_or_register) ... ok\ntest_duplicate_header_occurrences_are_fenced_before_conversion (test_gateway_bridge.BridgeTests.test_duplicate_header_occurrences_are_fenced_before_conversion) ... ok\ntest_foreign_scope_and_unobserved_invocation_never_export_full_claim (test_gateway_bridge.BridgeTests.test_foreign_scope_and_unobserved_invocation_never_export_full_claim) ... ok\ntest_header_pair_iterator_is_consumed_once (test_gateway_bridge.BridgeTests.test_header_pair_iterator_is_consumed_once) ... ok\ntest_http_errors_expose_uncertainty_without_retry_or_redirect_or_proxy (test_gateway_bridge.BridgeTests.test_http_errors_expose_uncertainty_without_retry_or_redirect_or_proxy) ... ok\ntest_invalid_api_metadata_preserves_registered_scope_after_exporter_loss (test_gateway_bridge.BridgeTests.test_invalid_api_metadata_preserves_registered_scope_after_exporter_loss) ... ok\ntest_open_then_scoped_headers_and_authenticated_async_response (test_gateway_bridge.BridgeTests.test_open_then_scoped_headers_and_authenticated_async_response) ... ok\ntest_registration_failure_rolls_back_handles_and_stops_worker (test_gateway_bridge.BridgeTests.test_registration_failure_rolls_back_handles_and_stops_worker) ... ok\ntest_slow_drip_cannot_defeat_export_transaction_deadline (test_gateway_bridge.BridgeTests.test_slow_drip_cannot_defeat_export_transaction_deadline) ... ok\ntest_stall_queue_loss_and_bounded_close_preserve_mandatory_tags (test_gateway_bridge.BridgeTests.test_stall_queue_loss_and_bounded_close_preserve_mandatory_tags) ... ok\ntest_startup_never_normalizes_endpoint_or_coerces_enable_flag (test_gateway_bridge.BridgeTests.test_startup_never_normalizes_endpoint_or_coerces_enable_flag) ... ok\ntest_startup_rejects_auth_redirect_generation_and_invalid_scope (test_gateway_bridge.BridgeTests.test_startup_rejects_auth_redirect_generation_and_invalid_scope) ... ok\ntest_text_is_opt_in_and_unsupported_segments_are_loss_not_repaired (test_gateway_bridge.BridgeTests.test_text_is_opt_in_and_unsupported_segments_are_loss_not_repaired) ... ok\ntest_observer_is_read_only_and_bounded (test_observer.ObserverTest.test_observer_is_read_only_and_bounded) ... ok\ntest_acceptance_requires_exact_final_response (test_smoke.AcceptanceTest.test_acceptance_requires_exact_final_response) ... ok\ntest_acceptance_requires_real_successful_tool (test_smoke.AcceptanceTest.test_acceptance_requires_real_successful_tool) ... ok\ntest_loopback_requires_container_network (test_smoke.AcceptanceTest.test_loopback_requires_container_network) ... ok\n\n----------------------------------------------------------------------\nRan 31 tests in 7.234s\n\nOK",
+        "exit_code": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "m3-current",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/projects/recursant-v4:/src:ro -v /home/aj/projects/recursant-v4-m3-hermes-gateway-bridge:/bridge:ro -e PYTHONDONTWRITEBYTECODE=1 -e RECURSANT_CONTEXT_BRIDGE_BIN=/src/build/m3-current/recursant -e PYTHONPATH=/bridge:/bridge/tests/integration -w /bridge recursant-v4-dev:local python3 -m unittest test_gateway_bridge_live -v",
+      "result": {
+        "output": "test_companion_opens_tags_exports_to_real_c_interpreter (test_gateway_bridge_live.LiveBridgeTests.test_companion_opens_tags_exports_to_real_c_interpreter) ... ok\ntest_foreign_headers_cannot_bypass_registered_branch_pin (test_gateway_bridge_live.LiveBridgeTests.test_foreign_headers_cannot_bypass_registered_branch_pin) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 1.055s\n\nOK",
+        "exit_code": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "m3-current-asan",
+      "command": "docker run --rm --pull never --network none --user 1000:1000 -v /home/aj/projects/recursant-v4:/src:ro -v /home/aj/projects/recursant-v4-m3-hermes-gateway-bridge:/bridge:ro -e PYTHONDONTWRITEBYTECODE=1 -e RECURSANT_CONTEXT_BRIDGE_BIN=/src/build/m3-current-asan/recursant -e PYTHONPATH=/bridge:/bridge/tests/integration -w /bridge recursant-v4-dev:local python3 -m unittest test_gateway_bridge_live -v",
+      "result": {
+        "output": "test_companion_opens_tags_exports_to_real_c_interpreter (test_gateway_bridge_live.LiveBridgeTests.test_companion_opens_tags_exports_to_real_c_interpreter) ... ok\ntest_foreign_headers_cannot_bypass_registered_branch_pin (test_gateway_bridge_live.LiveBridgeTests.test_foreign_headers_cannot_bypass_registered_branch_pin) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 1.080s\n\nOK",
+        "exit_code": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "hashes_and_legacy_verification",
+      "command": "python3 -c 'import pathlib,hashlib,json,subprocess; b=pathlib.Path(\"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge\"); m=pathlib.Path(\"/home/aj/projects/recursant-v4\"); files=list((b/\"deploy/hermes\").rglob(\"*.py\"))+[b/\"tests/integration/test_gateway_bridge_live.py\", b/\"tests/integration/test_router.py\", b/\"docs/evidence/m3-hermes-gateway-bridge-fixes.md\",b/\"docs/m3-hermes-gateway-bridge.md\",m/\"build/m3-current/recursant\",m/\"build/m3-current-asan/recursant\",pathlib.Path(\"/home/aj/.hermes/hermes-agent/hermes_cli/plugins.py\")]; print(json.dumps({\"sha256\":{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)},\"bridge_sha\":subprocess.check_output([\"git\",\"-C\",str(b),\"rev-parse\",\"HEAD\"],text=True).strip(),\"main_sha\":subprocess.check_output([\"git\",\"-C\",str(m),\"rev-parse\",\"HEAD\"],text=True).strip(),\"bridge_status\":subprocess.check_output([\"git\",\"-C\",str(b),\"status\",\"--porcelain\"],text=True),\"legacy_diff\":subprocess.check_output([\"git\",\"-C\",str(b),\"diff\",\"0a8d976\",\"f0bc656\",\"--\",\"deploy/hermes/context_adapter/__init__.py\"],text=True)},indent=2))'\n",
+      "result": {
+        "output": "{\n  \"sha256\": {\n    \"/home/aj/.hermes/hermes-agent/hermes_cli/plugins.py\": \"accc79459a5936d69b1b9b0773273987dbfcf827997e3cb19147a49397851c33\",\n    \"/home/aj/projects/recursant-v4/build/m3-current/recursant\": \"6cca60a253f1a47599650e6a954b7df961cfee424cfe261a67715813294916f3\",\n    \"/home/aj/projects/recursant-v4/build/m3-current-asan/recursant\": \"cd5eefb2b0431c5cd826f6ad7d50562faeab53bd08b4f76b5320aa6af3cbcf6f\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/context_adapter/__init__.py\": \"7033238e57af838169a9a4a109a948608d820b367906072a4457b8ced27bbbf2\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/context_adapter/gateway.py\": \"e4a9e2337f78460edd96406ee88466315544b98b47e56e833883326865dfc8bd\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/observer/__init__.py\": \"a4ed9ee5fcf691dd973c07bca3128268b95e5c0337d4de2376ca9f5ce6dcaef8\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/run.py\": \"519218723126e570bd65d8ef15bfa2b8103b9d1cdbe0587fec10ca95ce915378\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_context_adapter.py\": \"561a937bff47bd7ced5872d80fd24f11b753895552003c84ddc53b0c31ad4e27\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_gateway_bridge.py\": \"1fd4997507394c21e53ffd8cdeb8b284634c285a0237434f0f0ba97f3d527773\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_observer.py\": \"45dab132944730030d6f9355e1e76518b09b04900f202066b08949d817405d10\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/deploy/hermes/test_smoke.py\": \"c0a79fa6aa63610dc97ae65f31d6feaaf01289c76466dd40ad42661a07f3ee8d\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/docs/evidence/m3-hermes-gateway-bridge-fixes.md\": \"3dfd7abb03531d5ac0827c2b52342780d3718c95939d6f3a9dbf0be244f769c1\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/docs/m3-hermes-gateway-bridge.md\": \"029bc2be9c47c40fbfec16682d1342c5ad80ff6ef1726c03cdc5272400b05384\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/tests/integration/test_gateway_bridge_live.py\": \"121f9d0147bf789aa476718fd496775b9b857fa04697b8cfde38d041d4e1eadb\",\n    \"/home/aj/projects/recursant-v4-m3-hermes-gateway-bridge/tests/integration/test_router.py\": \"5ea2592083fb66741088bda04776dc47b20d8cf6001976b0c10efb401514fbdb\"\n  },\n  \"bridge_sha\": \"f0bc6562516037700ead6b8d3ee079e8ea015fe6\",\n  \"main_sha\": \"bf3cd7e94eb2961ebec47bfa6aba792bc9e42f65\",\n  \"bridge_status\": \"\",\n  \"legacy_diff\": \"\"\n}",
+        "exit_code": 0,
+        "error": null
+      }
+    }
+  ],
+  "review_method": [
+    "Read original main failure report and worktree fixes documentation; inspected production/test diff from 0a8d976 to f0bc656 and surrounding request, invalidation, worker, close and registration code.",
+    "No concerning shell execution, eval/exec, deserialization, credentials disclosure or cross-lifecycle adoption introduced in the production diff.",
+    "Verified git diff --check 0a8d976 f0bc656 exits 0; legacy Adapter comparison empty; reviewed bridge worktree clean.",
+    "Integration explicitly used main build/m3-current/recursant and build/m3-current-asan/recursant, not the older binaries recorded in implementer evidence."
+  ],
+  "limits": [
+    "Approval is restricted to these three bridge findings, not full M3, native AIAgent end-to-end, semantic quality, savings or deployment readiness.",
+    "All model/interpreter requests used synthetic loopback fixtures. No installs, live inference, service/profile changes, credentials-file modifications or pushes. Existing development image ran network-none as owning UID/GID 1000:1000 with read-only repository mounts.",
+    "Malformed non-convertible header containers retain documented explicit-error limitation; arbitrary transport rewriting/first-value-wins normalization is not secured by this fence.",
+    "Legacy contexts returning None cannot support partial-registration rollback; registrations mutated before a host raises without returning a handle are host-owned cleanup. Failing dispose operations cannot guarantee removal; original failure remains fatal to dispatch while bridge attempts remaining cleanup.",
+    "Source API limitations for metadata-only responses, tool text, streaming and outage invalidation remain as documented; successful synthetic integration does not override them."
+  ],
+  "changes": {
+    "project_code_modified": false,
+    "report": "/home/aj/projects/recursant-v4/docs/evidence/m3-hermes-gateway-bridge-review-final.json",
+    "builds_modified": false
+  }
+}
