@@ -128,11 +128,51 @@ enabled configuration with a private API key must fail rather than omit it.
 
 Only nonstreaming plain-text chat with a fully observed `stop` assistant response
 can establish a replayable boundary. Next input must preserve the exact stored
-history including that assistant message; appended new messages must be plain
+role/content history including that assistant message, subject only to the
+bounded inert-envelope equivalence below; appended new messages must be plain
 user text. Tools, opaque provider state, stream, truncation, failures or history
 mismatch permanently pin the branch. No source `replayable=true` is accepted.
 An in-flight generation blocks concurrent branch dispatch. Final M2 may force
 private; if that conflicts with an existing pin, block rather than switch.
+
+### Bounded inert GLM envelope compatibility (review pending)
+
+In addition to the existing root `id/object/created/model/choices/usage` and
+choice `index/message/finish_reason` fields, continuity recognizes only:
+
+| Location | Additional allowed fields | Required value when present |
+| --- | --- | --- |
+| Root | `system_fingerprint` | string |
+| Root | `service_tier`, `prompt_logprobs`, `prompt_token_ids`, `prompt_text`, `kv_transfer_params`, `ec_transfer_params`, `metrics` | JSON null only |
+| Single choice | `stop_reason` | nonnegative integer (diagnostic stop-token ID); `finish_reason` must still be `stop` |
+| Single choice | `logprobs`, `token_ids`, `routed_experts` | JSON null only |
+| Assistant message | `refusal`, `annotations`, `audio`, `function_call` | JSON null only |
+
+Assistant `role` remains `assistant` and `content` remains a string, not null.
+For internal replay comparison only, these four named assistant null fields
+are equivalent to absence. Both stored and incoming messages are validated
+before role/content comparison. Preserving, omitting, or reintroducing those
+null fields therefore does not lose an otherwise replayable boundary. User and
+system messages do not gain optional fields. No request message fields or
+forwarded response bytes are stripped or rewritten by this compatibility code;
+ordinary routing/model rewriting remains unchanged.
+
+Unknown root/choice/message keys, even null-valued, remain pinning. Non-null
+values of the listed null-only fields, tool calls, reasoning/reasoning_content,
+and opaque continuation state remain pinning; later clean exchanges do not
+clear the pin. This does not grant tool or streaming support.
+
+The interpreter response validator also treats `function_call: null` as absent;
+non-null function calls and any `tool_calls` remain rejected. This is necessary
+for the original envelope probe's scripted interpreter response too, not a
+change to the strict trajectory schema or a claim about interpreter portability.
+
+The fixture is metadata shape extracted from the saved
+`evidence/m3-reference-gx10-structured.json`, whose records omit reasoning text.
+It is **not the full original raw wire response**, live inference, or proof that
+actual reasoning-bearing GLM/Hermes traffic is portable. All compatibility tests
+use scripted loopback providers. See `evidence/m3-envelope-compat.md` for the
+RED/GREEN evidence and limits.
 
 ## Shadow authority exception
 

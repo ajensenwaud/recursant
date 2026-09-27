@@ -1,0 +1,37 @@
+test_glm_inert_envelope_allows_role_content_replay (test_gateway_context.GatewayContextTests.test_glm_inert_envelope_allows_role_content_replay) ... FAIL
+test_glm_inert_envelope_preserves_nullable_assistant_replay (test_gateway_context.GatewayContextTests.test_glm_inert_envelope_preserves_nullable_assistant_replay) ... FAIL
+
+======================================================================
+FAIL: test_glm_inert_envelope_allows_role_content_replay (test_gateway_context.GatewayContextTests.test_glm_inert_envelope_allows_role_content_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 184, in test_glm_inert_envelope_allows_role_content_replay
+    self.envelope_exchange(self.glm_envelope())
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/src/tests/integration/test_gateway_context.py", line 172, in envelope_exchange
+    self.assertEqual(sink.seen[-1][2]['model'], expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'frontier' != 'physical'
+- frontier
++ physical
+
+
+======================================================================
+FAIL: test_glm_inert_envelope_preserves_nullable_assistant_replay (test_gateway_context.GatewayContextTests.test_glm_inert_envelope_preserves_nullable_assistant_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/src/tests/integration/test_gateway_context.py", line 187, in test_glm_inert_envelope_preserves_nullable_assistant_replay
+    self.envelope_exchange(self.glm_envelope(), preserve_nulls=True)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/src/tests/integration/test_gateway_context.py", line 172, in envelope_exchange
+    self.assertEqual(sink.seen[-1][2]['model'], expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'frontier' != 'physical'
+- frontier
++ physical
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 1.556s
+
+FAILED (failures=2)

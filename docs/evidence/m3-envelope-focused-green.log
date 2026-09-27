@@ -1,0 +1,38 @@
+[  4%] Built target recursant_policy
+[  8%] Built target recursant_selector
+[ 13%] Built target recursant_context
+[ 17%] Built target recursant_config
+[ 20%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o
+[ 22%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o
+[ 26%] Built target test_egress
+[ 31%] Built target recursant_auth
+[ 35%] Built target recursant-validate
+[ 40%] Built target test_selector
+[ 44%] Built target test_attempts_internal
+[ 48%] Built target test_context
+[ 53%] Built target recursant_attempts
+[ 57%] Built target test_config
+[ 62%] Built target recursant_admission
+[ 66%] Built target test_attempts
+[ 68%] Linking C static library librecursant_interpreter.a
+[ 73%] Built target attempt_probe
+[ 77%] Built target recursant-tracer
+[ 82%] Built target test_admission
+[ 84%] Linking C executable test_interpreter_alloc
+[ 84%] Built target recursant_interpreter
+[ 84%] Built target test_interpreter_alloc
+[ 86%] Linking C executable test_interpreter
+[ 88%] Linking C executable recursant
+[ 91%] Built target test_interpreter
+[100%] Built target recursant
+{"provider": "synthetic; stored GLM metadata shape only", "expected": "physical", "actual": "physical"}
+test_glm_inert_envelope_allows_role_content_replay (test_gateway_context.GatewayContextTests.test_glm_inert_envelope_allows_role_content_replay) ... ok
+test_glm_inert_envelope_preserves_nullable_assistant_replay (test_gateway_context.GatewayContextTests.test_glm_inert_envelope_preserves_nullable_assistant_replay) ... ok
+test_glm_envelope_opaque_response_state_remains_pinned (test_gateway_context.GatewayContextTests.test_glm_envelope_opaque_response_state_remains_pinned) ... ok
+test_glm_envelope_opaque_replay_state_remains_pinned (test_gateway_context.GatewayContextTests.test_glm_envelope_opaque_replay_state_remains_pinned) ... ok
+test_null_function_call_is_not_a_tool_invocation (test_interpreter.Parser.test_null_function_call_is_not_a_tool_invocation) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 31.930s
+
+OK

@@ -1,0 +1,39 @@
+Test project /build
+      Start  1: selector_unit
+ 1/17 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: attempts_unit
+ 2/17 Test  #2: attempts_unit ....................   Passed    0.01 sec
+      Start  3: attempts_overflow
+ 3/17 Test  #3: attempts_overflow ................   Passed    0.01 sec
+      Start  4: interpreter_alloc
+ 4/17 Test  #4: interpreter_alloc ................   Passed    0.19 sec
+      Start  5: context_unit
+ 5/17 Test  #5: context_unit .....................   Passed    0.01 sec
+      Start  6: egress_policy
+ 6/17 Test  #6: egress_policy ....................   Passed    0.01 sec
+      Start  7: config_strict
+ 7/17 Test  #7: config_strict ....................   Passed    0.01 sec
+      Start  8: admission_unit
+ 8/17 Test  #8: admission_unit ...................   Passed    0.01 sec
+      Start  9: interpreter_loopback
+ 9/17 Test  #9: interpreter_loopback .............   Passed   11.16 sec
+      Start 10: gateway_context_integration
+10/17 Test #10: gateway_context_integration ......   Passed   58.62 sec
+      Start 11: hermes_observer
+11/17 Test #11: hermes_observer ..................   Passed    0.13 sec
+      Start 12: compliance_integration
+12/17 Test #12: compliance_integration ...........   Passed   19.89 sec
+      Start 13: router_integration
+13/17 Test #13: router_integration ...............   Passed   24.10 sec
+      Start 14: transport_integration
+14/17 Test #14: transport_integration ............   Passed    1.54 sec
+      Start 15: admission_integration
+15/17 Test #15: admission_integration ............   Passed    0.39 sec
+      Start 16: trajectory_reference
+16/17 Test #16: trajectory_reference .............   Passed    3.43 sec
+      Start 17: accounting
+17/17 Test #17: accounting .......................   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 17
+
+Total Test time (real) = 119.65 sec

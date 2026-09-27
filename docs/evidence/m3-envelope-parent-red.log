@@ -1,0 +1,93 @@
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libcurl;jansson'
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.7s)
+-- Generating done (0.0s)
+-- Build files have been written to: /build
+[  2%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[  4%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[  6%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[  8%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o
+[ 11%] Linking C static library librecursant_context.a
+[ 13%] Linking C static library librecursant_policy.a
+[ 15%] Linking C static library librecursant_selector.a
+[ 17%] Linking C static library librecursant_config.a
+[ 17%] Built target recursant_policy
+[ 17%] Built target recursant_context
+[ 17%] Built target recursant_selector
+[ 17%] Built target recursant_config
+[ 20%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 22%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o
+[ 24%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o
+[ 26%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 28%] Linking C executable test_egress
+[ 28%] Built target test_egress
+[ 31%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 33%] Linking C executable test_context
+[ 35%] Linking C static library librecursant_interpreter.a
+[ 35%] Built target test_context
+[ 37%] Linking C executable test_config
+[ 37%] Built target recursant_interpreter
+[ 40%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 42%] Linking C executable test_interpreter_alloc
+[ 44%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 44%] Built target test_config
+[ 46%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 48%] Linking C static library librecursant_auth.a
+[ 48%] Built target test_interpreter_alloc
+[ 51%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o
+[ 53%] Linking C executable recursant-validate
+[ 53%] Built target recursant_auth
+[ 55%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o
+[ 55%] Built target recursant-validate
+[ 57%] Linking C executable test_interpreter
+[ 60%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 62%] Linking C executable test_selector
+[ 64%] Linking C static library librecursant_attempts.a
+[ 66%] Linking C static library librecursant_admission.a
+[ 66%] Built target test_selector
+[ 66%] Built target recursant_attempts
+[ 68%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o
+[ 71%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 71%] Built target test_interpreter
+[ 71%] Built target recursant_admission
+[ 73%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o
+[ 75%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o
+[ 77%] Linking C executable test_attempts_internal
+[ 80%] Linking C shared library libattempt_probe.so
+[ 80%] Built target test_attempts_internal
+[ 80%] Built target attempt_probe
+[ 82%] Linking C executable test_attempts
+[ 86%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 86%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 88%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 88%] Built target test_attempts
+[ 91%] Linking C executable test_admission
+[ 93%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 95%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 95%] Built target test_admission
+[ 97%] Linking C executable recursant-tracer
+[100%] Linking C executable recursant
+[100%] Built target recursant-tracer
+[100%] Built target recursant
+{"provider": "synthetic; stored GLM metadata shape only", "expected": "physical", "actual": "frontier"}
+Traceback (most recent call last):
+  File "/src/docs/evidence/m3-gateway-envelope-probe.py", line 55, in <module>
+    assert actual == 'physical', 'Known inert provider metadata permanently disabled safe selection'
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: Known inert provider metadata permanently disabled safe selection

@@ -1,0 +1,24 @@
+{
+  "root": {
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.1.dev20051+g487ecf187-tp2-be98b5a3",
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  },
+  "choice": {
+    "logprobs": null,
+    "stop_reason": 154827,
+    "token_ids": null,
+    "routed_experts": null
+  },
+  "message": {
+    "refusal": null,
+    "annotations": null,
+    "audio": null,
+    "function_call": null
+  }
+}

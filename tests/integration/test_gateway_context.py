@@ -6,6 +6,8 @@ import time
 import test_router
 import contextlib
 import os
+import copy
+from pathlib import Path
 from unittest.mock import patch
 
 class ContextSink(test_router.Sink):
@@ -32,8 +34,15 @@ class ContextSink(test_router.Sink):
             message = {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'call-1', 'type': 'function', 'function': {'name': 'f', 'arguments': '{}'}}]}
             finish = 'tool_calls'
         answer = {'choices': [{'index': 0, 'finish_reason': finish, 'message': message}]}
+        if 'response_format' not in body:
+            envelope = getattr(self.server, 'envelope', {})
+            answer.update(copy.deepcopy(envelope.get('root', {})))
+            answer['choices'][0].update(copy.deepcopy(envelope.get('choice', {})))
+            answer['choices'][0]['message'].update(copy.deepcopy(envelope.get('message', {})))
+        wire = json.dumps(answer).encode()
+        self.server.last_response_wire = wire
         self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers()
-        try: self.wfile.write(json.dumps(answer).encode())
+        try: self.wfile.write(wire)
         except (BrokenPipeError, ConnectionResetError): pass
 
 class GatewayContextTests(unittest.TestCase):
@@ -135,6 +144,76 @@ class GatewayContextTests(unittest.TestCase):
             history.append({'role': 'user', 'content': 'continue'})
             self.turn(p, scope, 3, history)
             self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+
+    @staticmethod
+    def glm_envelope():
+        # Synthetic shape only: the saved reference omits reasoning text and is
+        # NOT a full original raw wire response or live inference portability proof.
+        return json.loads((Path(__file__).parents[1] / 'fixtures/glm-inert-envelope.json').read_text())
+
+    def envelope_exchange(self, envelope, preserve_nulls=False, expected='physical', replay_extra=None):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+            s.envelope = envelope
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p)
+            history = [{'role': 'user', 'content': 'start'}]
+            wire = self.turn(p, scope, 1, history)
+            self.assertEqual(wire, sink.last_response_wire)  # response bytes unchanged
+            if not preserve_nulls:
+                history[-1] = {k: history[-1][k] for k in ('role', 'content')}
+            if replay_extra:
+                history[-1].update(replay_extra)
+            self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+            time.sleep(.25)  # scripted fixture scheduling, not a readiness claim
+            history.append({'role': 'user', 'content': 'continue'})
+            sent = copy.deepcopy(history)
+            self.turn(p, scope, 2, history)
+            self.assertEqual(sink.seen[-1][2]['model'], expected)
+            self.assertEqual(sink.seen[-1][2]['messages'], sent)  # no egress normalization
+            # Clean responses/replay cannot erase a previous opaque-state pin.
+            sink.envelope = {}
+            history[-1] = {k: history[-1][k] for k in ('role', 'content')}
+            self.assertEqual(self.ingest(p, self.event(scope, 2, 2)), 202)
+            time.sleep(.25)
+            history.append({'role': 'user', 'content': 'again'})
+            self.turn(p, scope, 3, history)
+            self.assertEqual(sink.seen[-1][2]['model'], expected)
+
+    def test_glm_inert_envelope_allows_role_content_replay(self):
+        self.envelope_exchange(self.glm_envelope())
+
+    def test_glm_inert_envelope_preserves_nullable_assistant_replay(self):
+        self.envelope_exchange(self.glm_envelope(), preserve_nulls=True)
+
+    def test_glm_envelope_opaque_response_state_remains_pinned(self):
+        cases = []
+        envelope = self.glm_envelope()
+        # Every newly recognized null-only field remains unsafe when non-null.
+        for level, fields in envelope.items():
+            for key, value in fields.items():
+                if value is None:
+                    cases.append((level, key, {'opaque': 'state'}))
+        for level in ('root', 'choice', 'message'):
+            for value in (None, 'opaque'):
+                cases.append((level, 'unknown_state', value))
+        cases += [('message', 'reasoning', 'private reasoning'),
+                  ('message', 'reasoning_content', 'private reasoning'),
+                  ('message', 'tool_calls', []),
+                  ('root', 'system_fingerprint', {'state': 'opaque'}),
+                  ('choice', 'stop_reason', {'state': 'opaque'})]
+        for level, key, value in cases:
+            with self.subTest(level=level, key=key, value=value):
+                fixture = self.glm_envelope()
+                fixture[level][key] = value
+                self.envelope_exchange(fixture, expected='frontier')
+
+    def test_glm_envelope_opaque_replay_state_remains_pinned(self):
+        for extra in ({'unknown_state': None}, {'reasoning_content': 'hidden'},
+                      {'function_call': {'name': 'f'}}, {'annotations': []},
+                      {'content': 'changed'}, {'content': None}, {'role': 'user'}):
+            with self.subTest(extra=extra):
+                self.envelope_exchange(self.glm_envelope(), expected='frontier', replay_extra=extra)
 
     def test_sensitive_source_cannot_send_derived_selection_public(self):
         def edit(c, s):

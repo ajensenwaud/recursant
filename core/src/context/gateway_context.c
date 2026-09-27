@@ -224,9 +224,22 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
 done:
     pthread_mutex_unlock(&g->lock);return status;
 }
+/* Only named, null optional fields are absent for continuity comparison.
+ * Never mutate the caller's request or the forwarded response. */
+static bool nullable_keys(json_t *o,const char *ordinary,const char *nullable) {
+    if(!json_is_object(o))return false;
+    const char *k;json_t *v;
+    json_object_foreach(o,k,v){
+        char b[128];
+        if(strchr(k,'|')||snprintf(b,sizeof b,"|%s|",k)>=(int)sizeof b)return false;
+        if(!strstr(ordinary,b)&&(!strstr(nullable,b)||!json_is_null(v)))return false;
+    }
+    return true;
+}
 static bool plain_message(json_t *m) {
     json_t *v=json_object_get(m,"content");
-    return keys(m,"|role||content|")&&json_object_size(m)==2&&json_is_string(v)&&json_string_length(v)==strlen(json_string_value(v));
+    const char *nullable=eq(m,"role","assistant")?"|refusal||annotations||audio||function_call|":"";
+    return nullable_keys(m,"|role||content|",nullable)&&json_is_string(json_object_get(m,"role"))&&json_is_string(v)&&json_string_length(v)==strlen(json_string_value(v));
 }
 static bool replayable(struct scope *s,json_t *body) {
     if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream|"))return false;
@@ -236,7 +249,10 @@ static bool replayable(struct scope *s,json_t *body) {
     if(!json_is_array(messages)||!n||n>256||n<=prior)return false;
     for(size_t i=0;i<n;i++){
         json_t *m=json_array_get(messages,i);if(!plain_message(m))return false;
-        if(i<prior){if(!json_equal(m,json_array_get(s->history,i)))return false;}
+        if(i<prior){
+            json_t *old=json_array_get(s->history,i);
+            if(!plain_message(old)||!json_equal(json_object_get(m,"role"),json_object_get(old,"role"))||!json_equal(json_object_get(m,"content"),json_object_get(old,"content")))return false;
+        }
         else if(!eq(m,"role","user") && !(i==0&&!s->owner&&eq(m,"role","system")))return false;
     }
     char *serialized=json_dumps(messages,JSON_COMPACT);if(!serialized)return false;
@@ -330,7 +346,13 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
         struct scope *s=&g->scopes[ticket->scope];s->inflight=false;
         json_error_t error;json_t *root=complete&&!sse&&response&&length?json_loadb(response,length,JSON_REJECT_DUPLICATES,&error):NULL;
         json_t *choices=json_object_get(root,"choices"),*choice=json_array_get(choices,0),*message=json_object_get(choice,"message");
-        bool safe=keys(root,"|id||object||created||model||choices||usage|")&&json_array_size(choices)==1&&keys(choice,"|index||message||finish_reason|")&&eq(choice,"finish_reason","stop")&&plain_message(message)&&eq(message,"role","assistant");
+        json_t *fingerprint=json_object_get(root,"system_fingerprint"),*stop=json_object_get(choice,"stop_reason");
+        bool safe=nullable_keys(root,"|id||object||created||model||choices||usage||system_fingerprint|",
+                                "|service_tier||prompt_logprobs||prompt_token_ids||prompt_text||kv_transfer_params||ec_transfer_params||metrics|")&&
+            (!fingerprint||json_is_string(fingerprint))&&json_array_size(choices)==1&&
+            nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
+            (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0))&&
+            eq(choice,"finish_reason","stop")&&plain_message(message)&&eq(message,"role","assistant");
         if(!safe||!s->pending||json_array_append(s->pending,message))s->pinned=true;
         if(!s->pinned){json_decref(s->history);s->history=s->pending;s->pending=NULL;}
         json_decref(s->pending);s->pending=NULL;json_decref(root);

@@ -17,6 +17,14 @@ class Parser(unittest.TestCase):
         self.assertEqual(p.returncode, 0 if valid else 1, p.stderr)
     def test_valid(self):
         self.check(response(), True)
+    def test_null_function_call_is_not_a_tool_invocation(self):
+        outer = json.loads(response())
+        outer['choices'][0]['message']['function_call'] = None
+        self.check(json.dumps(outer), True)
+        for value in ({'name': 'f', 'arguments': '{}'}, [], '', False):
+            outer['choices'][0]['message']['function_call'] = value
+            self.check(json.dumps(outer), False)
+
     def test_schema_edges(self):
         for key in STATE:
             state = dict(STATE); del state[key]

@@ -1,0 +1,29 @@
+[  4%] Built target recursant_context
+[  8%] Built target recursant_config
+[ 13%] Built target recursant_policy
+[ 17%] Built target recursant_selector
+[ 26%] Built target test_egress
+[ 26%] Built target recursant_interpreter
+[ 31%] Built target test_interpreter_alloc
+[ 35%] Built target test_context
+[ 40%] Built target test_config
+[ 44%] Built target recursant_auth
+[ 48%] Built target recursant-validate
+[ 53%] Built target test_selector
+[ 57%] Built target test_interpreter
+[ 62%] Built target recursant_attempts
+[ 66%] Built target recursant_admission
+[ 71%] Built target test_attempts_internal
+[ 75%] Built target attempt_probe
+[ 80%] Built target test_attempts
+[ 82%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 86%] Built target test_admission
+[ 91%] Built target recursant-tracer
+[ 93%] Linking C executable recursant
+[100%] Built target recursant
+{"provider": "synthetic; stored GLM metadata shape only", "expected": "physical", "actual": "frontier"}
+Traceback (most recent call last):
+  File "/src/docs/evidence/m3-gateway-envelope-probe.py", line 55, in <module>
+    assert actual == 'physical', 'Known inert provider metadata permanently disabled safe selection'
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: Known inert provider metadata permanently disabled safe selection

@@ -25,9 +25,10 @@ bool rc_interpreter_validate(const char *body,size_t len,
     json_t *choices=json_object_get(root,"choices");
     if(!json_is_array(choices) || json_array_size(choices)!=1) goto done;
     json_t *choice=json_array_get(choices,0), *msg=json_object_get(choice,"message");
+    json_t *function_call=json_object_get(msg,"function_call");
     if(!eq(json_object_get(choice,"finish_reason"),"stop") ||
        !eq(json_object_get(msg,"role"),"assistant") ||
-       json_object_get(msg,"tool_calls") || json_object_get(msg,"function_call")) goto done;
+       json_object_get(msg,"tool_calls") || (function_call&&!json_is_null(function_call))) goto done;
     json_t *content=json_object_get(msg,"content");
     if(!json_is_string(content) || json_string_length(content)>16384) goto done;
     state=json_loadb(json_string_value(content),json_string_length(content),JSON_REJECT_DUPLICATES,&error);
