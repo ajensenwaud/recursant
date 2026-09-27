@@ -114,7 +114,7 @@ static bool known_keys(json_t *o,const char *allowed) {
     const char *k;json_t *v;
     json_object_foreach(o,k,v) {
         char token[128];
-        if(strchr(k,'|') || strlen(k)>120)return false;
+        if(!*k || strchr(k,'|') || strlen(k)>120)return false;
         token[0]='|';strcpy(token+1,k);strcat(token,"|");
         if(!strstr(allowed,token))return false;
     }

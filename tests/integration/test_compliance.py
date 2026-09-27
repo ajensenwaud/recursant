@@ -90,6 +90,22 @@ class ComplianceTests(unittest.TestCase):
         self.assertEqual(public.bytes_seen, 0)
         self.assertEqual(public.connections, 0)
 
+    def test_empty_protocol_property_is_unknown_and_private(self):
+        bodies = [
+            {'messages': [{'role': 'user', 'content': 'clean text'}], '': None},
+            {'messages': [{'role': 'user', 'content': 'clean text', '': {}}]},
+            {'messages': [], 'provider': {'': None}},
+            {'messages': [], 'tools': [{'type': 'function', 'function': {'name': 'f'}, '': None}]},
+            {'messages': [], 'tools': [{'type': 'function', 'function': {'name': 'f', '': None}}]},
+            {'messages': [{'role': 'assistant', 'tool_calls': [{'id': 'c', 'type': 'function', 'function': {'name': 'f', 'arguments': '{}'}, '': None}]}]},
+            {'messages': [{'role': 'assistant', 'tool_calls': [{'id': 'c', 'type': 'function', 'function': {'name': 'f', 'arguments': '{}', '': None}}]}]},
+            {'messages': [{'role': 'user', 'content': [{'type': 'text', 'text': 'clean', '': None}]}]},
+        ]
+        with self.router() as (p, private, public):
+            for index, body in enumerate(bodies):
+                with self.subTest(protocol_position=index):
+                    self.private_only(p, private, public, {'model': 'alias', **body})
+
     def test_01_email_public_alias_is_private_only(self):
         with self.router() as (p, private, public):
             self.private_only(p, private, public, {'model': 'alias', 'messages': [{'role': 'user', 'content': 'synthetic@example.test'}]})
