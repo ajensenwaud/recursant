@@ -67,9 +67,10 @@ static bool key(const row *r, long p, const rc_attempt_headers *h) {
 static bool same(rc_attempt_id a, rc_attempt_id b) { return a.serial==b.serial && a.boot[0]==b.boot[0] && a.boot[1]==b.boot[1]; }
 rc_attempt_result rc_attempt_begin(rc_attempt_ledger *l, const char *authorization, const rc_attempt_headers *h, uint64_t now, rc_attempt_id *id) {
     if (id) memset(id,0,sizeof *id);
-    if (!l || !id) return RC_ATTEMPT_UNTRACKED;
+    if (!l) return RC_ATTEMPT_UNTRACKED;
     long p=rc_auth_bearer(l->auth,authorization);
     if (p<0) return RC_ATTEMPT_UNAUTHORIZED;
+    if (!id) { l->lost=true; return RC_ATTEMPT_UNTRACKED; }
     if (l->serial==UINT64_MAX) { l->lost=true; return RC_ATTEMPT_UNTRACKED; }
     *id=(rc_attempt_id){{l->boot[0],l->boot[1]},++l->serial};
     if (!clock_ok(l,now)) return RC_ATTEMPT_UNTRACKED;

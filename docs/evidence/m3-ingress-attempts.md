@@ -116,3 +116,56 @@ SyntaxWarning remains present and is not a new source change.
 
 The runnable probe and contract preserve the workflow in-repository without
 modifying personal Hermes skills/profiles or another worktree.
+
+## INGRESS-001 follow-up: missing output ID fails closed
+
+Starting at `9814d844607b862495d67e579312f8a514138b54`, addressed only the
+blocking finding in the main checkout's `docs/evidence/m3-ingress-review.json`.
+For an enabled ledger, `rc_attempt_begin` now authenticates before handling a
+null ID output. An authenticated accepted dispatch with no output ID marks
+sticky generation loss and returns UNTRACKED; unauthorized calls return
+UNAUTHORIZED without touching ledger time, rows, serial or loss. No public API
+or borrowed-auth ownership/lifetime change; disabled-ledger behavior is unchanged.
+
+Strict test-first execution:
+
+1. Added `missing_id_contract` with an initially exact/count-known row, an
+   unauthorized null-ID call at `UINT64_MAX`, and an authenticated null-ID call.
+   [First RED](m3-ingress-null-id-red.log), CTest exit 8: authenticated null ID
+   incorrectly left the existing row exact/count-known.
+2. Moved the already-written unauthorized status assertion ahead of the
+   authenticated case, without changing production code.
+   [Second RED](m3-ingress-null-id-auth-red.log), CTest exit 8: unauthorized null
+   ID returned UNTRACKED rather than UNAUTHORIZED. The prior read at time 2
+   also checks that an unauthorized huge timestamp cannot poison clock/loss.
+3. Changed only the early return and added the authenticated null-ID loss fence.
+   [GREEN](m3-ingress-null-id-green.log): targeted `attempts_unit` passes,
+   then all **13/13 normal CTest groups pass**. The regression also proves
+   repeated source completion and a later different-key row cannot heal loss.
+4. [ASan+UBSan build](m3-ingress-null-id-sanitizer.log): **13/13 groups pass**.
+   Instrumentation scope is unchanged from the foundation, not a claim of
+   newly instrumenting every pre-existing target.
+5. [Actual pinned-Hermes rerun](m3-ingress-null-id-runtime.log):
+   `INGRESS_CONTRACT_PASS`, three unique physical IDs, counts `[2,2,1]`,
+   ambiguity `[true,true,false]`, exactness `[false,false,true]`, all counts
+   known, two Relay spans and two real source datagrams. This is the existing
+   real retry proof against the rebuilt C shared library, not simulated output.
+   The null-pointer caller-misuse path is covered by the C regression, not by
+   the runtime bridge, which always supplies an output pointer.
+
+C builds/tests ran in the existing `recursant-v4-dev:local` image
+(`sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7`),
+using `docker run --rm --pull never --network none --user "$(id -u):$(id -g)"
+--cap-drop ALL --security-opt no-new-privileges -v "$PWD:$PWD" -w "$PWD"`.
+The normal and sanitizer commands inside were the reproduction commands above;
+RED built target `test_attempts` then ran
+`ctest --test-dir build-attempts -R '^attempts_unit$' --output-on-failure`.
+The runtime command was unchanged: `sh bench/run_hermes_ingress_probe.sh`.
+Its clean pinned source assertion, isolated tmpfs homes, scoped read-only
+mounts, image, no-network/no-pull and sandbox restrictions remain unchanged.
+No installs, inference calls, host profile changes, service changes or bypasses.
+
+Only the pre-existing upstream `pm/shell.py` invalid-escape SyntaxWarning was
+observed. Nonblocking probe/docstring suggestions were left untouched to keep
+this a separate minimal integration fix. All prior production-integration,
+source-before-next-dispatch, quality/cost and full-M3 limitations still apply.

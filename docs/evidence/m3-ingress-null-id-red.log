@@ -1,0 +1,25 @@
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/aj/projects/recursant-v4-m3-ingress-attempts/build-attempts
+[ 12%] Linking C static library librecursant_config.a
+[ 25%] Built target recursant_config
+[ 37%] Linking C static library librecursant_auth.a
+[ 50%] Built target recursant_auth
+[ 62%] Linking C static library librecursant_attempts.a
+[ 75%] Built target recursant_attempts
+[ 87%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o
+[100%] Linking C executable test_attempts
+[100%] Built target test_attempts
+Test project /home/aj/projects/recursant-v4-m3-ingress-attempts/build-attempts
+    Start 1: attempts_unit
+1/1 Test #1: attempts_unit ....................Subprocess aborted***Exception:   0.12 sec
+test_attempts: /home/aj/projects/recursant-v4-m3-ingress-attempts/tests/unit/test_attempts.c:116: missing_id_contract: Assertion `rc_attempt_get(l,"Bearer synthetic-a",&h,a,3,&v) && !v.exact && !v.count_known' failed.
+
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =   0.12 sec
+
+The following tests FAILED:
+	  1 - attempts_unit (Subprocess aborted)
+Errors while running CTest

@@ -101,8 +101,31 @@ static void safety_contract(void) {
     assert(rc_attempt_begin(l,"Bearer synthetic-a",&h,1,&a)==RC_ATTEMPT_UNTRACKED);
     rc_attempt_destroy(l);
 }
+static void missing_id_contract(void) {
+    rc_attempt_ledger *l=rc_attempt_create(&auth,8,100);
+    rc_attempt_headers h=headers(); rc_attempt_id a,b; rc_attempt_view v;
+    assert(l);
+    assert(rc_attempt_begin(l,"Bearer synthetic-a",&h,1,&a)==RC_ATTEMPT_TRACKED);
+    rc_attempt_finish(l,a,true,2); rc_attempt_source_complete(l,"Bearer synthetic-a",&h,2);
+    assert(rc_attempt_get(l,"Bearer synthetic-a",&h,a,2,&v) && v.exact && v.count_known && v.physical_count==1);
+    /* Unauthorized null output must not advance time, consume rows, or fence loss. */
+    rc_attempt_result rejected=rc_attempt_begin(l,"Bearer wrong",&h,UINT64_MAX,NULL);
+    assert(rc_attempt_get(l,"Bearer synthetic-a",&h,a,2,&v) && v.exact && v.count_known && v.physical_count==1);
+    assert(rejected==RC_ATTEMPT_UNAUTHORIZED);
+    /* An authenticated accepted dispatch without a retained ID loses coverage. */
+    assert(rc_attempt_begin(l,"Bearer synthetic-a",&h,3,NULL)==RC_ATTEMPT_UNTRACKED);
+    assert(rc_attempt_get(l,"Bearer synthetic-a",&h,a,3,&v) && !v.exact && !v.count_known);
+    /* Source completion and a different key cannot heal this generation. */
+    rc_attempt_source_complete(l,"Bearer synthetic-a",&h,4);
+    assert(rc_attempt_get(l,"Bearer synthetic-a",&h,a,4,&v) && !v.exact && !v.count_known);
+    h.values[0][0]='X';
+    assert(rc_attempt_begin(l,"Bearer synthetic-a",&h,5,&b)==RC_ATTEMPT_TRACKED);
+    rc_attempt_finish(l,b,true,6); rc_attempt_source_complete(l,"Bearer synthetic-a",&h,6);
+    assert(rc_attempt_get(l,"Bearer synthetic-a",&h,b,6,&v) && !v.exact && !v.count_known);
+    rc_attempt_destroy(l);
+}
 int main(void) {
-    header_contract(); retention_contract(); safety_contract();
+    header_contract(); retention_contract(); safety_contract(); missing_id_contract();
     rc_attempt_ledger *l = rc_attempt_create(&auth, 8, 100);
     assert(l);
     rc_attempt_headers h = headers();

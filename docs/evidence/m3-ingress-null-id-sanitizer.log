@@ -1,0 +1,69 @@
+-- Configuring done (0.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/aj/projects/recursant-v4-m3-ingress-attempts/build-attempts-san
+[  8%] Linking C static library librecursant_context.a
+[  8%] Linking C static library librecursant_policy.a
+[  8%] Linking C static library librecursant_config.a
+[ 17%] Built target recursant_policy
+[ 17%] Built target recursant_context
+[ 17%] Built target recursant_config
+[ 20%] Linking C executable test_context
+[ 23%] Linking C static library librecursant_auth.a
+[ 26%] Linking C executable recursant
+[ 29%] Linking C executable recursant-validate
+[ 32%] Built target recursant_auth
+[ 35%] Built target test_context
+[ 38%] Built target recursant-validate
+[ 41%] Linking C executable test_egress
+[ 44%] Linking C executable test_config
+[ 47%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o
+[ 55%] Built target recursant
+[ 58%] Built target test_config
+[ 61%] Linking C static library librecursant_admission.a
+[ 64%] Built target test_egress
+[ 67%] Linking C static library librecursant_attempts.a
+[ 70%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o
+[ 73%] Built target recursant_admission
+[ 73%] Built target recursant_attempts
+[ 76%] Linking C executable recursant-tracer
+[ 79%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o
+[ 82%] Linking C executable test_admission
+[ 85%] Linking C executable test_attempts_internal
+[ 88%] Built target recursant-tracer
+[ 91%] Linking C executable test_attempts
+[ 94%] Linking C shared library libattempt_probe.so
+[ 97%] Built target test_admission
+[100%] Built target attempt_probe
+[100%] Built target test_attempts_internal
+[100%] Built target test_attempts
+Test project /home/aj/projects/recursant-v4-m3-ingress-attempts/build-attempts-san
+      Start  1: attempts_unit
+ 1/13 Test  #1: attempts_unit ....................   Passed    0.01 sec
+      Start  2: attempts_overflow
+ 2/13 Test  #2: attempts_overflow ................   Passed    0.03 sec
+      Start  3: context_unit
+ 3/13 Test  #3: context_unit .....................   Passed    0.01 sec
+      Start  4: egress_policy
+ 4/13 Test  #4: egress_policy ....................   Passed    0.01 sec
+      Start  5: config_strict
+ 5/13 Test  #5: config_strict ....................   Passed    0.02 sec
+      Start  6: admission_unit
+ 6/13 Test  #6: admission_unit ...................   Passed    0.01 sec
+      Start  7: hermes_observer
+ 7/13 Test  #7: hermes_observer ..................   Passed    0.12 sec
+      Start  8: compliance_integration
+ 8/13 Test  #8: compliance_integration ...........   Passed   19.87 sec
+      Start  9: router_integration
+ 9/13 Test  #9: router_integration ...............   Passed   24.07 sec
+      Start 10: transport_integration
+10/13 Test #10: transport_integration ............   Passed    1.53 sec
+      Start 11: admission_integration
+11/13 Test #11: admission_integration ............   Passed    0.40 sec
+      Start 12: trajectory_reference
+12/13 Test #12: trajectory_reference .............   Passed    3.58 sec
+      Start 13: accounting
+13/13 Test #13: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 13
+
+Total Test time (real) =  49.78 sec
