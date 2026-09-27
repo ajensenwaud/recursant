@@ -185,14 +185,15 @@ class GatewayBridge(Adapter):
         if text is not None:
             truncated = event.get('text_truncated', {})
             try:
-                valid_text = (bool(text) and set(text) <= {'assistant_plan', 'reasoning'} and
+                allowed = {'tool_result'} if event.get('kind') == 'tool' else {'assistant_plan', 'reasoning'}
+                valid_text = (bool(text) and set(text) <= allowed and
                     set(truncated) == set(text) and all(
                         isinstance(value, str) and 0 < len(value.encode('utf-8')) <= 1024 and
                         '\x00' not in value and truncated[name] is False
                         for name, value in text.items()))
             except (UnicodeError, TypeError, AttributeError):
                 valid_text = False
-        if event.get('kind') not in ('response', 'invalidation') or not valid_text:
+        if event.get('kind') not in ('response', 'tool', 'invalidation') or not valid_text:
             self._record_loss(event)
             return
         event = dict(event, sequence=self.sequence, dropped=self.dropped,

@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include "recursant/tool_boundary.h"
 #include "recursant/gateway_context.h"
 #include "recursant/selector.h"
 #include "recursant/interpreter.h"
@@ -16,7 +17,12 @@ struct scope {
     char task[64], session[64], branch[64], generation[33];
     bool inflight, pinned, owner, private_only;
     rc_endpoint endpoint;char model[129];
-    json_t *history, *pending;
+    json_t *history, *pending, *pending_tools, *observed_calls;
+    bool callback_seen[RC_TOOL_MAX_CALLS];
+    rc_tool_boundary *boundary;
+    uint32_t requirements;
+    bool pending_parallel;
+    json_t *pending_choice;
     int last_row, evidence_row;
     uint64_t revision, sequence, observed;
     rc_context_key key;rc_interpreter_result interpretation;
@@ -30,6 +36,7 @@ struct rc_gateway_context {
     uint64_t ttl, boot;
     rc_candidate candidates[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];
+    uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
     rc_config auth_config;rc_auth_table auth;char *authorization;
@@ -76,7 +83,18 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     bool found=false;
     for(size_t i=0;i<g->count;i++) {
         json_t *v=json_array_get(list,i);const char *a=token(v,"alias",128);
-        if(!keys(v,"|alias||quality_evidence||qualified_tasks||context_limit||expected_task_cost|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        if(!keys(v,"|alias||quality_evidence||qualified_tasks||context_limit||expected_task_cost||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        json_t *caps=json_object_get(v,"capabilities");
+        if(caps){
+            if(!keys(caps,"|tool_history||function_tools||parallel_tools|"))return false;
+            static const char *names[]={"tool_history","function_tools","parallel_tools"};
+            for(unsigned bit=0;bit<3;bit++){
+                json_t *value=json_object_get(caps,names[bit]);if(!value)continue;
+                if(!json_is_boolean(value))return false;
+                g->cap_known[i]|=1u<<bit;
+                if(json_is_true(value))g->cap_supported[i]|=1u<<bit;
+            }
+        }
         json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>1)return false;
         if(json_array_size(tasks)){json_t *t=json_array_get(tasks,0);if(!json_is_string(t)||json_string_length(t)!=13||strcmp(json_string_value(t),"format_simple"))return false;g->candidates[i].qualified_tasks=1;}
         json_t *cost=json_object_get(v,"expected_task_cost");double d=json_number_value(cost);
@@ -104,7 +122,12 @@ bool rc_gateway_start(rc_runtime *rt) {
 void rc_gateway_destroy(rc_runtime *rt) {
     struct rc_gateway_context *g=rt->gateway;if(!g)return;
     rc_interpreter_destroy(g->worker);rc_context_destroy(g->contexts);rc_attempt_destroy(g->ledger);
-    for(size_t i=0;i<g->used;i++){json_decref(g->scopes[i].history);json_decref(g->scopes[i].pending);}
+    pthread_mutex_lock(&g->lock);
+    for(size_t i=0;i<g->used;i++){
+        json_decref(g->scopes[i].history);json_decref(g->scopes[i].pending);
+        json_decref(g->scopes[i].pending_choice);json_decref(g->scopes[i].pending_tools);json_decref(g->scopes[i].observed_calls);rc_tool_boundary_free(g->scopes[i].boundary);
+    }
+    pthread_mutex_unlock(&g->lock);
     free(g->authorization);rc_candidates_destroy(g->registry);pthread_mutex_destroy(&g->lock);free(g);rt->gateway=NULL;
 }
 static unsigned ingest(rc_runtime *,json_t *);
@@ -180,12 +203,16 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     int slot=scope_find(g,generation,branch);if(slot<0){status=403;goto done;}
     struct scope *s=&g->scopes[slot];json_t *event=json_object_get(body,"event");
     if(revision>s->revision){s->evidence_row=-1;memset(&s->interpretation,0,sizeof s->interpretation);}
-    if(!keys(event,"|schema||kind||task_id||session_id||turn_id||api_request_id||attempt||sequence||dropped||upstream_gaps||association||routing_eligible||association_scope||physical_routing_eligible||physical_attempt_uniqueness||stream_association||text||text_truncated|"))goto done;
+    bool tool_event=eq(event,"kind","tool");
+    const char *event_keys=tool_event?
+        "|schema||kind||task_id||session_id||turn_id||api_request_id||attempt||sequence||dropped||upstream_gaps||association||routing_eligible||association_scope||physical_routing_eligible||physical_attempt_uniqueness||tool_call_id||status||text||text_truncated|":
+        "|schema||kind||task_id||session_id||turn_id||api_request_id||attempt||sequence||dropped||upstream_gaps||association||routing_eligible||association_scope||physical_routing_eligible||physical_attempt_uniqueness||stream_association||text||text_truncated|";
+    if(!keys(event,event_keys))goto done;
     if(!eq(event,"schema","recursant.context.v1")||!eq(event,"task_id",s->task)||!eq(event,"session_id",s->session)) {status=403;goto done;}
     json_t *drops=json_object_get(event,"dropped");
     if(!json_is_integer(drops)||json_integer_value(drops)!=0||eq(event,"kind","invalidation")) {rc_attempt_lost(g->ledger);status=409;goto done;}
     if(!integer(event,"sequence",9007199254740991ULL,&sequence)||revision<=s->revision||sequence<=s->sequence){status=409;goto done;}
-    if(!eq(event,"kind","response")||!eq(event,"upstream_gaps","unknown")||!eq(event,"association","exact")||!json_is_true(json_object_get(event,"routing_eligible"))||!eq(event,"association_scope","middleware_invocation")||!json_is_false(json_object_get(event,"physical_routing_eligible"))||!eq(event,"physical_attempt_uniqueness","unproven")||!eq(event,"stream_association","unsupported"))goto done;
+    if((!tool_event&&!eq(event,"kind","response"))||!eq(event,"upstream_gaps","unknown")||!eq(event,"association","exact")||!json_is_true(json_object_get(event,"routing_eligible"))||!eq(event,"association_scope","middleware_invocation")||!json_is_false(json_object_get(event,"physical_routing_eligible"))||!eq(event,"physical_attempt_uniqueness","unproven")||(!tool_event&&!eq(event,"stream_association","unsupported")))goto done;
     static const char *names[]={"task_id","session_id","turn_id","api_request_id","attempt"};
     rc_attempt_headers h={.mask=31};
     for(size_t i=0;i<5;i++){const char *v=token(event,names[i],128);if(!v)goto done;strcpy(h.values[i],v);}
@@ -195,13 +222,28 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     }
     if(row<0||g->rows[row].scope!=slot){status=403;goto done;}
     if(s->inflight||!g->rows[row].complete||row!=s->last_row){status=409;goto done;}
+    size_t callback=RC_TOOL_MAX_CALLS;
+    if(tool_event){
+        json_t *id=json_object_get(event,"tool_call_id");
+        if(!json_is_string(id)||!json_string_length(id)||json_string_length(id)>RC_TOOL_MAX_ID_BYTES||
+           !(eq(event,"status","ok")||eq(event,"status","success")||eq(event,"status","error")||eq(event,"status","blocked")||eq(event,"status","cancelled")||eq(event,"status","unknown")))goto done;
+        for(size_t i=0;i<json_array_size(s->observed_calls);i++)
+            if(json_equal(id,json_object_get(json_array_get(s->observed_calls,i),"id")))callback=i;
+        if(!s->boundary||callback==RC_TOOL_MAX_CALLS){status=403;goto done;}
+        if(s->callback_seen[callback]){status=409;goto done;}
+    }
     json_t *text=json_object_get(event,"text"),*truncated=json_object_get(event,"text_truncated");
     bool metadata_only=!text&&!truncated;
-    if(!metadata_only&&(!keys(text,"|assistant_plan||reasoning|")||!keys(truncated,"|assistant_plan||reasoning|")||!json_object_size(text)||json_object_size(text)!=json_object_size(truncated)))goto done;
+    const char *text_keys=tool_event?"|tool_result|":"|assistant_plan||reasoning|";
+    if(!metadata_only&&(!keys(text,text_keys)||!keys(truncated,text_keys)||!json_object_size(text)||json_object_size(text)!=json_object_size(truncated)))goto done;
     rc_interpreter_input in={.key=s->key,.revision=revision};const char *k;json_t *v;
     json_object_foreach(text,k,v){
         if(!json_is_string(v)||!json_string_length(v)||json_string_length(v)>1024||strlen(json_string_value(v))!=json_string_length(v)||!json_is_false(json_object_get(truncated,k)))goto done;
-        rc_interpreter_evidence *e=&in.evidence[in.evidence_count++];strcpy(e->id,k);strcpy(e->source,"model_claim");strcpy(e->text,json_string_value(v));
+        rc_interpreter_evidence *e=&in.evidence[in.evidence_count++];strcpy(e->id,k);strcpy(e->source,tool_event?"executor":"model_claim");strcpy(e->text,json_string_value(v));
+    }
+    if(tool_event&&!metadata_only){
+        rc_interpreter_evidence *e=&in.evidence[in.evidence_count++];
+        strcpy(e->id,"tool_status");strcpy(e->source,"executor");strcpy(e->text,json_string_value(json_object_get(event,"status")));
     }
     /* Source text never leaves the configured private interpreter. Its M2
      * placement restriction also survives as scope authority, not advisory TTL. */
@@ -220,6 +262,7 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     rc_attempt_source_complete(g->ledger,g->authorization,&h,now);
     if(!exact(g,row,now)){status=409;goto done;}
     if(rc_context_put(g->contexts,&s->key,revision,now,g->ttl,"authorized source response",false)!=RC_CONTEXT_OK){status=409;goto done;}
+    if(tool_event)s->callback_seen[callback]=true;
     s->revision=revision;s->sequence=sequence;s->observed=now;s->evidence_row=row;memset(&s->interpretation,0,sizeof s->interpretation);
     status=metadata_only?202:(rc_interpreter_try_submit(g->worker,&in)?202:503);
 done:
@@ -242,17 +285,78 @@ static bool plain_message(json_t *m) {
     const char *nullable=eq(m,"role","assistant")?"|refusal||annotations||audio||function_call|":"";
     return nullable_keys(m,"|role||content|",nullable)&&json_is_string(json_object_get(m,"role"))&&json_is_string(v)&&json_string_length(v)==strlen(json_string_value(v));
 }
-static bool replayable(struct scope *s,json_t *body) {
-    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream||stream_options|"))return false;
+/* This slice intentionally supports flat primitive object parameters only. */
+static bool parameters(json_t *p) {
+    if(!keys(p,"|type||properties||additionalProperties||required|")||!eq(p,"type","object")||
+       !json_is_false(json_object_get(p,"additionalProperties")))return false;
+    json_t *props=json_object_get(p,"properties"),*required=json_object_get(p,"required");
+    if(!json_is_object(props)||json_object_size(props)>32)return false;
+    const char *name;json_t *value;
+    json_object_foreach(props,name,value){
+        json_t *d=json_object_get(value,"description");
+        if(!*name||strlen(name)>64||!keys(value,"|type||description|")||
+           !(eq(value,"type","string")||eq(value,"type","integer")||eq(value,"type","number")||eq(value,"type","boolean"))||
+           (d&&(!json_is_string(d)||json_string_length(d)>4096)))return false;
+    }
+    if(required){
+        if(!json_is_array(required)||json_array_size(required)>32)return false;
+        for(size_t i=0;i<json_array_size(required);i++){
+            const char *key=json_string_value(json_array_get(required,i));
+            if(!key||!json_object_get(props,key))return false;
+            for(size_t j=0;j<i;j++)if(json_equal(json_array_get(required,i),json_array_get(required,j)))return false;
+        }
+    }
+    return true;
+}
+/* Narrow function-definition contract; never strip unknown options. */
+static bool tool_definitions(json_t *body,uint32_t *requirements) {
+    json_t *tools=json_object_get(body,"tools"),*choice=json_object_get(body,"tool_choice"),*parallel=json_object_get(body,"parallel_tool_calls");
+    if(!tools)return !choice&&!parallel;
+    if(json_is_true(json_object_get(body,"stream"))||!json_is_array(tools)||!json_array_size(tools)||json_array_size(tools)>32)return false;
+    char *wire=json_dumps(tools,JSON_COMPACT);bool bounded=wire&&strlen(wire)<=16384;free(wire);if(!bounded)return false;
+    for(size_t i=0;i<json_array_size(tools);i++){
+        json_t *t=json_array_get(tools,i),*f=json_object_get(t,"function"),*p=json_object_get(f,"parameters"),*d=json_object_get(f,"description");
+        const char *name=token(f,"name",64);
+        if(!keys(t,"|type||function|")||!eq(t,"type","function")||!keys(f,"|name||description||parameters|")||!name||
+           (d&&(!json_is_string(d)||json_string_length(d)>4096))||
+           !parameters(p))return false;
+        for(size_t j=0;j<i;j++)if(eq(json_object_get(json_array_get(tools,j),"function"),"name",name))return false;
+    }
+    if(choice&&!eq(body,"tool_choice","auto")&&!eq(body,"tool_choice","none")&&!eq(body,"tool_choice","required")){
+        json_t *f=json_object_get(choice,"function");const char *name=token(f,"name",64);bool found=false;
+        if(!keys(choice,"|type||function|")||!eq(choice,"type","function")||!keys(f,"|name|")||!name)return false;
+        for(size_t i=0;i<json_array_size(tools);i++)if(eq(json_object_get(json_array_get(tools,i),"function"),"name",name))found=true;
+        if(!found)return false;
+    }
+    if(parallel&&!json_is_boolean(parallel))return false;
+    *requirements|=RC_TOOL_CAP_FUNCTIONS;
+    if(!json_is_false(parallel))*requirements|=RC_TOOL_CAP_PARALLEL;
+    return true;
+}
+static bool request_options(json_t *body,uint32_t *requirements) {
+    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls|"))return false;
     json_t *stream=json_object_get(body,"stream");if(stream&&!json_is_boolean(stream))return false;
     json_t *options=json_object_get(body,"stream_options");
     if(options&&(!json_is_true(stream)||!keys(options,"|include_usage|")||
                  !json_is_boolean(json_object_get(options,"include_usage"))))return false;
     uint64_t output;if(!integer(body,"max_tokens",100000,&output))return false;
+    const char *names[]={"temperature","top_p"};
+    for(size_t i=0;i<2;i++){
+        json_t *v=json_object_get(body,names[i]);double n=json_number_value(v);
+        if(v&&(!json_is_number(v)||!isfinite(n)||n<0||n>(i?1:2)))return false;
+    }
+    return tool_definitions(body,requirements);
+}
+static bool replayable(struct scope *s,json_t *body) {
     json_t *messages=json_object_get(body,"messages");size_t n=json_array_size(messages),prior=json_array_size(s->history);
     if(!json_is_array(messages)||!n||n>256||n<=prior)return false;
     for(size_t i=0;i<n;i++){
-        json_t *m=json_array_get(messages,i);if(!plain_message(m))return false;
+        json_t *m=json_array_get(messages,i);
+        if(i<prior&&(s->requirements&RC_TOOL_CAP_HISTORY)){
+            if(!json_equal(m,json_array_get(s->history,i)))return false;
+            continue;
+        }
+        if(!plain_message(m))return false;
         if(i<prior){
             json_t *old=json_array_get(s->history,i);
             if(!plain_message(old)||!json_equal(json_object_get(m,"role"),json_object_get(old,"role"))||!json_equal(json_object_get(m,"content"),json_object_get(old,"content")))return false;
@@ -280,7 +384,16 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(strcmp(s->task,h->invocation.values[0])||strcmp(s->session,h->invocation.values[1])){status=403;goto done;}
         if(s->inflight){status=409;goto done;}
         ticket->scope=slot;
-        if(!replayable(s,body))s->pinned=true;
+        uint32_t required=s->requirements;
+        if(!request_options(body,&required))s->pinned=true;
+        if(!s->pinned&&s->boundary){
+            char *wire=json_dumps(json_object_get(body,"messages"),JSON_COMPACT);
+            rc_tool_status replay=wire?rc_tool_boundary_replay(s->boundary,wire,strlen(wire)):RC_TOOL_NOMEM;free(wire);
+            if(replay==RC_TOOL_INCOMPLETE){status=409;goto done;}
+            if(replay!=RC_TOOL_COMPLETE)s->pinned=true;
+            required|=rc_tool_boundary_requirements(s->boundary);
+        }else if(!s->pinned&&!replayable(s,body))s->pinned=true;
+        s->requirements=required;
         if(automatic&&s->pinned&&s->owner){*endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}}
         else if(automatic) {
             rc_context_snapshot snapshot;bool usable=rc_context_get(g->contexts,&s->key,now,&snapshot)==RC_CONTEXT_OK&&snapshot.has_interpretation&&snapshot.revision==s->interpretation.revision&&exact(g,s->evidence_row,now)&&s->evidence_row==s->last_row;
@@ -297,6 +410,8 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
                     (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
                 if(g->candidates[i].alias_index==g->baseline)baseline_permitted=quotes[i].permitted;
+                else if((g->cap_known[i]&s->requirements)!=s->requirements||
+                        (g->cap_supported[i]&s->requirements)!=s->requirements)quotes[i].permitted=false;
                 json_decref(probe);
             }
             /* A baseline placement veto belongs to final M2, not to inferred
@@ -311,7 +426,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     /* Explicit scoped aliases are never silently retargeted by authority.
      * Run final M2, then reject a conflict instead of changing the alias. */
     rc_endpoint requested_endpoint=*endpoint;char requested_model[129]={0};
-    if(s&&!automatic){
+    if(s){
         const char *requested=json_string_value(json_object_get(body,"model"));
         if(!requested||strlen(requested)>128){status=403;goto done;}
         strcpy(requested_model,requested);
@@ -327,11 +442,23 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     const char *model=json_string_value(json_object_get(body,"model"));
     if(s){
         if(!model||strlen(model)>128){status=403;goto done;}
-        if(!automatic&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
+        if((!automatic||(s->requirements&&s->owner))&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
+        if(!automatic&&s->requirements&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
         if(s->pinned&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
         s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;
+        rc_tool_boundary_free(s->boundary);s->boundary=NULL;
+        json_decref(s->observed_calls);s->observed_calls=NULL;memset(s->callback_seen,0,sizeof s->callback_seen);
         if(s->pinned){json_decref(s->history);s->history=NULL;}
-        else {s->pending=json_deep_copy(json_object_get(body,"messages"));if(!s->pending)s->pinned=true;}
+        else {
+            s->pending=json_deep_copy(json_object_get(body,"messages"));
+            json_t *tools=json_object_get(body,"tools");
+            s->pending_tools=tools?json_deep_copy(tools):NULL;
+            json_t *choice=json_object_get(body,"tool_choice");
+            s->pending_choice=choice?json_deep_copy(choice):NULL;
+            if(choice&&!s->pending_choice)s->pinned=true;
+            s->pending_parallel=!json_is_false(json_object_get(body,"parallel_tool_calls"));
+            if(!s->pending||(tools&&!s->pending_tools))s->pinned=true;
+        }
     }
     rc_attempt_result recorded=rc_attempt_begin(g->ledger,g->authorization,&h->invocation,now,&ticket->id);ticket->begun=true;
     if(recorded==RC_ATTEMPT_TRACKED&&g->rows_used<RC_ATTEMPT_MAX_ROWS){
@@ -340,6 +467,27 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     if(s)s->last_row=ticket->row;
 done:
     pthread_mutex_unlock(&g->lock);return status;
+}
+static bool counters(json_t *o,const char *allowed) {
+    if(!keys(o,allowed))return false;
+    const char *k;json_t *v;
+    json_object_foreach(o,k,v){(void)k;if(!json_is_integer(v)||json_integer_value(v)<0)return false;}
+    return true;
+}
+static bool tool_envelope(json_t *root,json_t *choice) {
+    json_t *index=json_object_get(choice,"index"),*created=json_object_get(root,"created"),*usage=json_object_get(root,"usage");
+    if(!json_is_integer(index)||json_integer_value(index)!=0)return false;
+    if(json_object_get(root,"id")&&!token(root,"id",128))return false;
+    if(json_object_get(root,"model")&&!token(root,"model",128))return false;
+    if(json_object_get(root,"object")&&!eq(root,"object","chat.completion"))return false;
+    if(created&&(!json_is_integer(created)||json_integer_value(created)<0))return false;
+    if(!usage||json_is_null(usage))return true;
+    if(!keys(usage,"|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details|"))return false;
+    const char *names[]={"prompt_tokens","completion_tokens","total_tokens"};
+    for(size_t i=0;i<3;i++){json_t *v=json_object_get(usage,names[i]);if(!json_is_integer(v)||json_integer_value(v)<0)return false;}
+    json_t *p=json_object_get(usage,"prompt_tokens_details"),*c=json_object_get(usage,"completion_tokens_details");
+    return (!p||json_is_null(p)||counters(p,"|cached_tokens||audio_tokens|"))&&
+        (!c||json_is_null(c)||counters(c,"|reasoning_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
 }
 void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bool sse,const char *response,size_t length,const rc_response_observer *observer) {
     struct rc_gateway_context *g=rt->gateway;if(!g||!ticket->begun)return;
@@ -355,12 +503,36 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
                                 "|service_tier||prompt_logprobs||prompt_token_ids||prompt_text||kv_transfer_params||ec_transfer_params||metrics|")&&
             (!fingerprint||json_is_string(fingerprint))&&json_array_size(choices)==1&&
             nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
-            (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0))&&
-            eq(choice,"finish_reason","stop")&&plain_message(message)&&eq(message,"role","assistant");
+            (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0));
+        if(s->requirements)safe=safe&&tool_envelope(root,choice);
+        bool tool=safe&&eq(choice,"finish_reason","tool_calls")&&tool_envelope(root,choice)&&!s->pinned&&s->pending&&s->pending_tools;
+        if(tool){
+            json_t *calls=json_object_get(message,"tool_calls");
+            tool=json_array_size(calls)>0&&(s->pending_parallel||json_array_size(calls)==1)&&
+                !(json_is_string(s->pending_choice)&&!strcmp(json_string_value(s->pending_choice),"none"));
+            for(size_t i=0;tool&&i<json_array_size(calls);i++){
+                const char *name=token(json_object_get(json_array_get(calls,i),"function"),"name",64);bool found=false;
+                for(size_t j=0;name&&j<json_array_size(s->pending_tools);j++)
+                    if(eq(json_object_get(json_array_get(s->pending_tools,j),"function"),"name",name))found=true;
+                if(!found)tool=false;
+                if(json_is_object(s->pending_choice)&&(!name||!eq(json_object_get(s->pending_choice,"function"),"name",name)))tool=false;
+            }
+            char *history=tool?json_dumps(s->pending,JSON_COMPACT):NULL,*assistant=tool?json_dumps(message,JSON_COMPACT):NULL;
+            tool=history&&assistant&&rc_tool_boundary_capture(history,strlen(history),assistant,strlen(assistant),&s->boundary)==RC_TOOL_COMPLETE;
+            free(history);free(assistant);
+            if(tool){
+                s->requirements|=rc_tool_boundary_requirements(s->boundary);
+                s->observed_calls=json_deep_copy(calls);
+                if(!s->observed_calls){tool=false;rc_tool_boundary_free(s->boundary);s->boundary=NULL;}
+            }
+        }
+        safe=safe&&eq(choice,"finish_reason","stop")&&plain_message(message)&&eq(message,"role","assistant");
         json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
         if(sse){message=stream_message;safe=message!=NULL;}
-        if(!safe||!s->pending||json_array_append(s->pending,message))s->pinned=true;
-        if(!s->pinned){json_decref(s->history);s->history=s->pending;s->pending=NULL;}
+        if(!tool&&(!safe||!s->pending||json_array_append(s->pending,message)))s->pinned=true;
+        if(!s->pinned&&!tool){json_decref(s->history);s->history=s->pending;s->pending=NULL;}
+        json_decref(s->pending_choice);s->pending_choice=NULL;
+        json_decref(s->pending_tools);s->pending_tools=NULL;
         json_decref(s->pending);s->pending=NULL;json_decref(root);json_decref(stream_message);
     }
     ticket->begun=false;pthread_mutex_unlock(&g->lock);
