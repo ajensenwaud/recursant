@@ -1,0 +1,134 @@
+#include "recursant/response_observer.h"
+#include <string.h>
+#include <stdio.h>
+
+static bool keys(json_t *o, const char *ordinary, const char *nullable) {
+    if(!json_is_object(o))return false;
+    const char *k;json_t *v;
+    json_object_foreach(o,k,v){
+        char b[128];
+        if(!*k||strchr(k,'|')||snprintf(b,sizeof b,"|%s|",k)>=(int)sizeof b)return false;
+        if(!strstr(ordinary,b)&&(!strstr(nullable,b)||!json_is_null(v)))return false;
+    }
+    return true;
+}
+static bool string_is(json_t *v,const char *s) {
+    return json_is_string(v)&&json_string_length(v)==strlen(s)&&!strcmp(json_string_value(v),s);
+}
+static bool counts(json_t *v,const char *allowed) {
+    if(!keys(v,allowed,""))return false;
+    const char *k;json_t *n;
+    json_object_foreach(v,k,n){(void)k;if(!json_is_integer(n)||json_integer_value(n)<0)return false;}
+    return true;
+}
+static bool usage(json_t *v) {
+    if(!keys(v,"|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details|",""))return false;
+    const char *required[]={"prompt_tokens","completion_tokens","total_tokens"};
+    for(size_t i=0;i<3;i++){
+        json_t *n=json_object_get(v,required[i]);
+        if(!json_is_integer(n)||json_integer_value(n)<0)return false;
+    }
+    json_t *prompt=json_object_get(v,"prompt_tokens_details"),*completion=json_object_get(v,"completion_tokens_details");
+    return (!prompt||json_is_null(prompt)||counts(prompt,"|cached_tokens||audio_tokens|"))&&
+        (!completion||json_is_null(completion)||counts(completion,"|reasoning_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
+}
+static bool identity(char stored[129],json_t *v) {
+    if(!v)return true;
+    if(!json_is_string(v)||!json_string_length(v)||json_string_length(v)>128)return false;
+    const char *s=json_string_value(v);
+    if(strlen(s)!=json_string_length(v)||(stored[0]&&strcmp(stored,s)))return false;
+    strcpy(stored,s);return true;
+}
+static bool chunk(rc_response_observer *o,json_t *root) {
+    if(!keys(root,"|id||object||created||model||choices||usage||system_fingerprint|",
+             "|service_tier||prompt_logprobs||prompt_token_ids||prompt_text||kv_transfer_params||ec_transfer_params||metrics|"))return false;
+    json_t *id=json_object_get(root,"id"),*model=json_object_get(root,"model");
+    json_t *object=json_object_get(root,"object"),*created=json_object_get(root,"created");
+    if(!identity(o->id,id)||!identity(o->model,model)||
+       (object&&!string_is(object,"chat.completion.chunk"))||
+       (created&&(!json_is_integer(created)||json_integer_value(created)<0)))return false;
+    if(created){
+        if(o->has_created&&o->created!=json_integer_value(created))return false;
+        o->created=json_integer_value(created);o->has_created=true;
+    }
+    json_t *fingerprint=json_object_get(root,"system_fingerprint");
+    if(fingerprint&&!json_is_string(fingerprint))return false;
+    json_t *choices=json_object_get(root,"choices"),*c=json_array_get(choices,0);
+    json_t *u=json_object_get(root,"usage");
+    if(u&&!json_is_null(u)&&!usage(u))return false;
+    if(json_is_array(choices)&&!json_array_size(choices))return o->finished&&usage(u);
+    if(!json_is_array(choices)||json_array_size(choices)!=1||o->finished)return false;
+    if(!keys(c,"|index||delta||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|"))return false;
+    json_t *index=json_object_get(c,"index"),*stop=json_object_get(c,"stop_reason");
+    if(!json_is_integer(index)||json_integer_value(index)!=0||
+       (stop&&(!json_is_integer(stop)||json_integer_value(stop)<0)))return false;
+    json_t *delta=json_object_get(c,"delta"),*finish=json_object_get(c,"finish_reason");
+    if(!keys(delta,"|role||content|","|refusal||annotations||audio||function_call|"))return false;
+    json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
+    if(role){if(o->role||!string_is(role,"assistant"))return false;o->role=true;}
+    if(!o->role)return false;
+    if(text&&!json_is_null(text)){
+        if(!json_is_string(text))return false;
+        size_t n=json_string_length(text);
+        if(n!=strlen(json_string_value(text))||n>RC_RESPONSE_LIMIT-o->text_used)return false;
+        memcpy(o->text+o->text_used,json_string_value(text),n);o->text_used+=n;
+    }
+    if(!finish)return false;
+    if(!json_is_null(finish)){
+        if(!string_is(finish,"stop"))return false;
+        o->finished=true;
+    }
+    return true;
+}
+static void event(rc_response_observer *o) {
+    if(!o->event_used)return;
+    /* Each data line contributes a final newline; SSE removes the last one. */
+    size_t n=o->event_used-1;
+    if(o->done)o->failed=true;
+    else if(n==6&&!memcmp(o->event,"[DONE]",6)){
+        if(!o->finished)o->failed=true;
+        else o->done=true;
+    }else{
+        json_error_t error;
+        json_t *root=json_loadb(o->event,n,JSON_REJECT_DUPLICATES,&error);
+        if(!chunk(o,root))o->failed=true;
+        json_decref(root);
+    }
+    o->event_used=0;
+}
+static void line(rc_response_observer *o) {
+    size_t n=o->line_used;
+    if(!n)event(o);
+    else if(o->line[0]==':'){
+        /* Ignored SSE keepalives still must be valid UTF-8. */
+        json_t *comment=json_stringn(o->line,n);
+        if(!comment)o->failed=true;
+        json_decref(comment);
+    }
+    else if(n>=5&&!memcmp(o->line,"data:",5)){
+        size_t start=5;if(n>start&&o->line[start]==' ')start++;
+        size_t bytes=n-start;
+        if(bytes+1>RC_RESPONSE_LIMIT-o->event_used)o->failed=true;
+        else{
+            memcpy(o->event+o->event_used,o->line+start,bytes);o->event_used+=bytes;
+            o->event[o->event_used++]='\n';
+        }
+    }else o->failed=true; /* Unknown SSE fields are not portable state. */
+    o->line_used=0;
+}
+void rc_response_observer_feed(rc_response_observer *o,const char *data,size_t n) {
+    if(o->failed)return;
+    if(n>RC_RESPONSE_LIMIT-o->total){o->failed=true;return;}
+    o->total+=n;
+    for(size_t i=0;i<n&&!o->failed;i++){
+        unsigned char c=(unsigned char)data[i];
+        if(!c){o->failed=true;break;}
+        if(o->cr){o->cr=false;if(c=='\n')continue;}
+        if(c=='\r'||c=='\n'){line(o);o->cr=c=='\r';}
+        else o->line[o->line_used++]=(char)c;
+    }
+}
+json_t *rc_response_observer_message(const rc_response_observer *o) {
+    if(!o||o->failed||!o->done||!o->finished||!o->role||o->line_used||o->event_used)return NULL;
+    return json_pack("{s:s,s:s#}","role","assistant","content",o->text,(int)o->text_used);
+}

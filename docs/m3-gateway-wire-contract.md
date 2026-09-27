@@ -126,14 +126,55 @@ enabled configuration with a private API key must fail rather than omit it.
 
 ## Conservative supported continuity
 
-Only nonstreaming plain-text chat with a fully observed `stop` assistant response
+Plain-text chat with a fully observed `stop` assistant response
 can establish a replayable boundary. Next input must preserve the exact stored
 role/content history including that assistant message, subject only to the
 bounded inert-envelope equivalence below; appended new messages must be plain
-user text. Tools, opaque provider state, stream, truncation, failures or history
+user text. Tools, opaque provider state, truncation, failures or history
 mismatch permanently pin the branch. No source `replayable=true` is accepted.
 An in-flight generation blocks concurrent branch dispatch. Final M2 may force
 private; if that conflicts with an existing pin, block rather than switch.
+
+### Native SSE observation (independent review pending)
+
+`stream: true` is not inherently pinning. The actual upstream callback feeds a
+bounded incremental observer without changing forwarded body bytes. The supported
+subset is one index-0 assistant, one initial assistant role, plain content deltas,
+`finish_reason: stop`, followed by a separately delimited `[DONE]` event. UTF-8
+and SSE lines/events can span arbitrary receive chunks; LF, CRLF and CR framing,
+multiline data and comments are handled. Unknown SSE fields pin. No result is
+portable until both upstream HTTP and downstream MHD completion succeed. Errors,
+cancellation (even after DONE), missing stop/DONE/delimiters, invalid JSON/UTF-8,
+duplicate JSON keys, excess choices and observation overflow permanently pin.
+
+The SSE root allows the same inert envelope fields listed below; when present,
+`id` and `model` must be nonempty strings <=128 bytes and consistent throughout,
+`object` must be `chat.completion.chunk`, and `created` a stable nonnegative
+integer. Choice uses `delta` instead of `message`; null content in a role chunk
+is permitted. Unknown delta keys, tool calls and non-null reasoning/continuation
+state remain pinning. Normalized text is used only for internal history replay.
+
+Request `stream_options` is supported only with `stream: true`, exactly one
+boolean `include_usage` field, and no unknown fields. A trailing empty-choice
+usage event is permitted after stop and before DONE. Usage, when non-null, must
+contain nonnegative integer `prompt_tokens`, `completion_tokens`, `total_tokens`;
+optional null/object `prompt_tokens_details` allows only `cached_tokens` and
+`audio_tokens`, and `completion_tokens_details` allows only `reasoning_tokens`,
+`audio_tokens`, `accepted_prediction_tokens`, `rejected_prediction_tokens`.
+Every detail value must be a nonnegative integer. These are inert diagnostics,
+not a claim of billing accuracy or replayable reasoning state.
+
+Total observed SSE input is limited to64KiB (including comments and framing).
+The observer is allocated only for associated SSE traffic; allocation failure
+pins rather than interfering with wire forwarding. See
+[`m3-response-observation-api.md`](m3-response-observation-api.md) for the owned
+normalized-message handoff. No source-ingestion, bridge or attribution contract
+is relaxed by observing a stream.
+
+Native Hermes requests containing `tools`, `reasoning_effort`, assistant
+`tool_calls`, tool-result `tool_call_id` or other extra parameters **still pin**.
+Tool definitions cannot be added to the request allowlist without explicit
+protocol and candidate-capability validation in the next integration slice.
 
 ### Bounded inert GLM envelope compatibility (review pending)
 
@@ -160,7 +201,8 @@ ordinary routing/model rewriting remains unchanged.
 Unknown root/choice/message keys, even null-valued, remain pinning. Non-null
 values of the listed null-only fields, tool calls, reasoning/reasoning_content,
 and opaque continuation state remain pinning; later clean exchanges do not
-clear the pin. This does not grant tool or streaming support.
+clear the pin. This does not grant tool support; streaming is limited to the
+separately specified subset above.
 
 The interpreter response validator also treats `function_call: null` as absent;
 non-null function calls and any `tool_calls` remain rejected. This is necessary

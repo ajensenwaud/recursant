@@ -243,8 +243,11 @@ static bool plain_message(json_t *m) {
     return nullable_keys(m,"|role||content|",nullable)&&json_is_string(json_object_get(m,"role"))&&json_is_string(v)&&json_string_length(v)==strlen(json_string_value(v));
 }
 static bool replayable(struct scope *s,json_t *body) {
-    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream|"))return false;
-    json_t *stream=json_object_get(body,"stream");if(stream&&!json_is_false(stream))return false;
+    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream||stream_options|"))return false;
+    json_t *stream=json_object_get(body,"stream");if(stream&&!json_is_boolean(stream))return false;
+    json_t *options=json_object_get(body,"stream_options");
+    if(options&&(!json_is_true(stream)||!keys(options,"|include_usage|")||
+                 !json_is_boolean(json_object_get(options,"include_usage"))))return false;
     uint64_t output;if(!integer(body,"max_tokens",100000,&output))return false;
     json_t *messages=json_object_get(body,"messages");size_t n=json_array_size(messages),prior=json_array_size(s->history);
     if(!json_is_array(messages)||!n||n>256||n<=prior)return false;
@@ -338,7 +341,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
 done:
     pthread_mutex_unlock(&g->lock);return status;
 }
-void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bool sse,const char *response,size_t length) {
+void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bool sse,const char *response,size_t length,const rc_response_observer *observer) {
     struct rc_gateway_context *g=rt->gateway;if(!g||!ticket->begun)return;
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();
     rc_attempt_finish(g->ledger,ticket->id,complete,now);
@@ -354,9 +357,11 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
             (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0))&&
             eq(choice,"finish_reason","stop")&&plain_message(message)&&eq(message,"role","assistant");
+        json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
+        if(sse){message=stream_message;safe=message!=NULL;}
         if(!safe||!s->pending||json_array_append(s->pending,message))s->pinned=true;
         if(!s->pinned){json_decref(s->history);s->history=s->pending;s->pending=NULL;}
-        json_decref(s->pending);s->pending=NULL;json_decref(root);
+        json_decref(s->pending);s->pending=NULL;json_decref(root);json_decref(stream_message);
     }
     ticket->begun=false;pthread_mutex_unlock(&g->lock);
 }
