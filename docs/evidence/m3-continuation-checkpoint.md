@@ -18,6 +18,10 @@ Independent rubric work and blind adjudication agreed on all five expected field
 
 The three bridge findings below were independently re-reviewed at `f0bc656` and resolved. The corrected bridge is now integrated as `9178f48`. Parent verified reviewed hashes before landing and reran 31/31 full Hermes tests plus 2/2 actual C integration tests against each current normal and sanitizer binary on the combined checkout. The initial failed review remains preserved; final approval is `m3-hermes-gateway-bridge-review-final.json`. This does not resolve native streaming/tool support or demonstrate model quality/savings.
 
+## Subsequent inert-envelope integration
+
+The bounded inert-envelope compatibility change and its empty-key safety correction passed independent re-review at `9c6b31f` and are integrated through `7322880`. Parent verified the reviewed hashes, rebuilt the combined checkout, and reproduced 17/17 normal and 17/17 ASan/UBSan suites, plus 2/2 actual-C bridge tests against each rebuilt binary. Evidence: `m3-envelope-integrated-normal.xml`, `m3-envelope-integrated-sanitizer.xml`, and `m3-envelope-compat-review-final.json`. Unknown/non-null opaque state remains pinning; outgoing request messages and response bytes are unchanged. This closes the recorded inert/null envelope gap, not native streaming/tool switching or live portability acceptance.
+
 ## Open engineering gaps and historical findings—do not call M3 complete
 
 - The supported Hermes HTTP bridge was implemented and its basic unit/real-C loopback tests passed, but independent review found lifecycle-header substitution, duplicate-header occurrence loss and install-failure cleanup defects. It is **not landed**; a fresh fix workstream owns these findings.

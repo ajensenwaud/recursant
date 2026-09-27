@@ -1,0 +1,416 @@
+{
+  "passed": false,
+  "reviewed_sha": "dbc28c3b1f3917b7a763039d866fd73950eaede2",
+  "base_sha": "8e6e07638169a5abd6081c4a274f8d53d101087e",
+  "scope": "Independent read-only pre-landing review of bounded inert GLM envelope compatibility; no approval of full M3 or live portability.",
+  "security_concerns": [
+    {
+      "finding_id": "M3-ENVELOPE-COMPAT-001",
+      "summary": "Fail-closed continuity allowlist bypass for empty-name opaque assistant metadata; routing-state integrity regression, not a demonstrated M2/auth bypass."
+    }
+  ],
+  "logic_errors": [
+    {
+      "id": "M3-ENVELOPE-COMPAT-001",
+      "severity": "high",
+      "location": "core/src/context/gateway_context.c:229-254,350-355",
+      "title": "Empty JSON property name bypasses nullable allowlist and assistant replay continuity",
+      "cause": "For key \"\", snprintf creates \"||\". Every multi-key ordinary allowlist contains that separator, so strstr(ordinary,b) succeeds regardless of the value. Removing json_object_size(m)==2 admits this previously rejected assistant property; comparing only role/content then ignores it.",
+      "reproduction": "Scripted assistant response with message[\"\"]={\"opaque\":\"continuation\"}, or adding replay assistant[\"\"]=null/object, downshifts to physical after valid advice; must remain frontier. Root and choice empty-name properties also fail the documented unknown-key fence.",
+      "observed": "Five failing subcases in both normal and ASan/UBSan: response empty key at root/choice/message, plus replay empty key with null/object. All observed physical rather than frontier.",
+      "baseline": "Fresh 8e6e076 build pins empty-key assistant response and both empty-key replay values (three PASS results). Parent keys() already has the root/choice separator flaw, but parent plain_message exact object-size and json_equal prevent the new assistant acceptance/ignored-state regression.",
+      "impact": "Violates fail-closed continuity and ONLY named inert/null metadata requirements. Opaque non-null assistant state can be ignored during a route switch. This does not demonstrate bypass of final M2, authorization, or actual exfiltration.",
+      "required_fix": "Reject empty names before membership matching (or use exact-key tables); add empty-key null/non-null cases at all envelope levels and assistant replay, including pin permanence. Consider hardening the existing keys() helper too. Re-run normal/sanitizer suites and parent probe before approval."
+    }
+  ],
+  "summary": "Do not land dbc28c3 as-is: standard suites and original regression probe pass, but an independently reproduced new assistant empty-key allowlist/continuity bypass blocks approval.",
+  "verified_positive": [
+    "Normal and ASan/UBSan fresh builds each pass all 17 CTest entries; unchanged MAIN parent probe selects physical in both.",
+    "Interpreter function_call:null accepted; absent unchanged; every sampled non-null JSON type rejected. tool_calls remains rejected even when null and combined with function_call:null; duplicate function_call rejected.",
+    "Named non-null reasoning/tools/continuation metadata remain pinned in standard and additional adversarial samples. Negative stop_reason values/types, fingerprint invalid types, pipe/long names, non-null function_call scalars are rejected or pin as expected.",
+    "Role/content-only replay, preserved optional nulls, and null fields reintroduced after a plain response work. Existing positive assertions verify exact downstream response bytes and provider-bound message equality; source diff adds no request-message/response mutation.",
+    "Git diff --check clean; reviewed worktree remains clean and HEAD unchanged."
+  ],
+  "hashes_sha256": {
+    "core/src/context/gateway_context.c": "4ec1aa8234a60e8f748024ef5ad90dca9c1c90263611124c4bdc4ae06dda5287",
+    "core/src/context/interpreter.c": "d3e4d3aa580b9fcbf4ac3ee3555a6b38940d36ff4f51d5b6b3cbed71827b13aa",
+    "tests/integration/test_gateway_context.py": "d5bb3a29b0ee2752a3fa327ead44d596717965e2b4531e106bfaf79ace0253a9",
+    "tests/integration/test_interpreter.py": "08a0bbe36732b0ff71cc15108610eb97b6af6a912e22c43f1ba40a137c735c70",
+    "tests/fixtures/glm-inert-envelope.json": "1f8a470d2455646aa7571de5866326679450691f8f799b0197cb46465c55dcec",
+    "docs/m3-gateway-wire-contract.md": "df05ca858cb5ff0d76dc960d9a99f0c94988ca2e60f870bccf5858baa91aa6df",
+    "docs/evidence/m3-envelope-compat.md": "95c20d52ded8918bba26c3f2e237ef2521b74516d70eea355d8856560cf42036"
+  },
+  "parent_artifacts_sha256": {
+    "m3-gateway-envelope-review.json": "d83340ba0c564d759cd669ea70bc1fc5f82f82ad64590e21188051f68ac7a4a7",
+    "m3-gateway-envelope-probe.py": "c33fdf336f0e4411fc8d722f02113c6e0b49c28cfe52897971d6167d387fe977",
+    "m3-reference-gx10-structured.json": "ea83f87ef43a35f9d3261e2671afd58f45932058a99b94ce83e456990419bd71"
+  },
+  "image": {
+    "tag": "recursant-v4-dev:local",
+    "id": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7"
+  },
+  "commands_and_results": [
+    {
+      "mode": "normal",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-v",
+        "/home/aj/projects/recursant-v4-m3-envelope-compat:/src:ro",
+        "-v",
+        "/tmp/m3-envelope-independent-review/normal:/build",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-gateway-envelope-probe.py:/parent-probe.py:ro",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-reference-gx10-structured.json:/saved.json:ro",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        "RECURSANT_BIN=/build/recursant",
+        "recursant-v4-dev:local",
+        "sh",
+        "-c",
+        "cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Debug && cmake --build /build -j4 && ctest --test-dir /build --output-on-failure --output-junit /build/results.xml && python3 /parent-probe.py"
+      ],
+      "exit_code": 0,
+      "log": "/tmp/m3-envelope-independent-review/normal.log",
+      "label": "normal",
+      "log_sha256": "ddb75e9d254e1f87e44ed348c9ad9296828c27c7eccf0e73104b66bfece4b004",
+      "log_text": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.6s)\n-- Generating done (0.0s)\n-- Build files have been written to: /build\n[  2%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[  4%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[  6%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o\n[  8%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[ 11%] Linking C static library librecursant_selector.a\n[ 15%] Linking C static library librecursant_context.a\n[ 15%] Linking C static library librecursant_policy.a\n[ 15%] Built target recursant_selector\n[ 15%] Built target recursant_policy\n[ 17%] Linking C static library librecursant_config.a\n[ 20%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o\n[ 20%] Built target recursant_context\n[ 22%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 22%] Built target recursant_config\n[ 24%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o\n[ 26%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o\n[ 28%] Linking C static library librecursant_interpreter.a\n[ 31%] Linking C executable test_context\n[ 31%] Built target recursant_interpreter\n[ 33%] Linking C executable test_selector\n[ 35%] Linking C executable test_interpreter_alloc\n[ 35%] Built target test_context\n[ 37%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o\n[ 40%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o\n[ 40%] Built target test_selector\n[ 42%] Linking C executable test_egress\n[ 42%] Built target test_interpreter_alloc\n[ 44%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o\n[ 44%] Built target test_egress\n[ 46%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 48%] Linking C executable test_config\n[ 51%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o\n[ 51%] Built target test_config\n[ 53%] Linking C static library librecursant_auth.a\n[ 55%] Linking C executable test_interpreter\n[ 55%] Built target recursant_auth\n[ 57%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o\n[ 60%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 60%] Built target test_interpreter\n[ 62%] Linking C executable recursant-validate\n[ 66%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o\n[ 66%] Linking C static library librecursant_admission.a\n[ 66%] Built target recursant-validate\n[ 66%] Built target recursant_admission\n[ 68%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o\n[ 71%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o\n[ 73%] Linking C executable test_attempts_internal\n[ 75%] Linking C static library librecursant_attempts.a\n[ 75%] Built target recursant_attempts\n[ 75%] Built target test_attempts_internal\n[ 77%] Linking C executable recursant-tracer\n[ 80%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 82%] Linking C executable test_admission\n[ 84%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o\n[ 84%] Built target recursant-tracer\n[ 86%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 86%] Built target test_admission\n[ 88%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o\n[ 91%] Linking C executable test_attempts\n[ 93%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 93%] Built target test_attempts\n[ 95%] Linking C shared library libattempt_probe.so\n[ 97%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 97%] Built target attempt_probe\n[100%] Linking C executable recursant\n[100%] Built target recursant\nTest project /build\n      Start  1: selector_unit\n 1/17 Test  #1: selector_unit ....................   Passed    0.00 sec\n      Start  2: attempts_unit\n 2/17 Test  #2: attempts_unit ....................   Passed    0.00 sec\n      Start  3: attempts_overflow\n 3/17 Test  #3: attempts_overflow ................   Passed    0.00 sec\n      Start  4: interpreter_alloc\n 4/17 Test  #4: interpreter_alloc ................   Passed    0.04 sec\n      Start  5: context_unit\n 5/17 Test  #5: context_unit .....................   Passed    0.00 sec\n      Start  6: egress_policy\n 6/17 Test  #6: egress_policy ....................   Passed    0.00 sec\n      Start  7: config_strict\n 7/17 Test  #7: config_strict ....................   Passed    0.00 sec\n      Start  8: admission_unit\n 8/17 Test  #8: admission_unit ...................   Passed    0.00 sec\n      Start  9: interpreter_loopback\n 9/17 Test  #9: interpreter_loopback .............   Passed   10.48 sec\n      Start 10: gateway_context_integration\n10/17 Test #10: gateway_context_integration ......   Passed   57.84 sec\n      Start 11: hermes_observer\n11/17 Test #11: hermes_observer ..................   Passed    0.11 sec\n      Start 12: compliance_integration\n12/17 Test #12: compliance_integration ...........   Passed   18.27 sec\n      Start 13: router_integration\n13/17 Test #13: router_integration ...............   Passed   23.75 sec\n      Start 14: transport_integration\n14/17 Test #14: transport_integration ............   Passed    1.47 sec\n      Start 15: admission_integration\n15/17 Test #15: admission_integration ............   Passed    0.34 sec\n      Start 16: trajectory_reference\n16/17 Test #16: trajectory_reference .............   Passed    3.65 sec\n      Start 17: accounting\n17/17 Test #17: accounting .......................   Passed    0.14 sec\n\n100% tests passed, 0 tests failed out of 17\n\nTotal Test time (real) = 116.11 sec\n{\"provider\": \"synthetic; stored GLM metadata shape only\", \"expected\": \"physical\", \"actual\": \"physical\"}\n",
+      "ctest": {
+        "name": "Linux-cc",
+        "tests": "17",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "9f879429130d",
+        "time": "116",
+        "timestamp": "2026-09-27T14:56:01"
+      },
+      "tests": [
+        {
+          "name": "selector_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_overflow",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_alloc",
+          "status": "run"
+        },
+        {
+          "name": "context_unit",
+          "status": "run"
+        },
+        {
+          "name": "egress_policy",
+          "status": "run"
+        },
+        {
+          "name": "config_strict",
+          "status": "run"
+        },
+        {
+          "name": "admission_unit",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_loopback",
+          "status": "run"
+        },
+        {
+          "name": "gateway_context_integration",
+          "status": "run"
+        },
+        {
+          "name": "hermes_observer",
+          "status": "run"
+        },
+        {
+          "name": "compliance_integration",
+          "status": "run"
+        },
+        {
+          "name": "router_integration",
+          "status": "run"
+        },
+        {
+          "name": "transport_integration",
+          "status": "run"
+        },
+        {
+          "name": "admission_integration",
+          "status": "run"
+        },
+        {
+          "name": "trajectory_reference",
+          "status": "run"
+        },
+        {
+          "name": "accounting",
+          "status": "run"
+        }
+      ]
+    },
+    {
+      "mode": "asan",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-v",
+        "/home/aj/projects/recursant-v4-m3-envelope-compat:/src:ro",
+        "-v",
+        "/tmp/m3-envelope-independent-review/asan:/build",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-gateway-envelope-probe.py:/parent-probe.py:ro",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-reference-gx10-structured.json:/saved.json:ro",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        "RECURSANT_BIN=/build/recursant",
+        "recursant-v4-dev:local",
+        "sh",
+        "-c",
+        "cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Debug -DRECURSANT_SANITIZERS=ON && cmake --build /build -j4 && ctest --test-dir /build --output-on-failure --output-junit /build/results.xml && python3 /parent-probe.py"
+      ],
+      "exit_code": 0,
+      "log": "/tmp/m3-envelope-independent-review/asan.log",
+      "label": "asan",
+      "log_sha256": "85cc05be234addc2889f706bbd66b3df7c6fe75b570df25eee88851ebf8d1a98",
+      "log_text": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.7s)\n-- Generating done (0.0s)\n-- Build files have been written to: /build\n[  2%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[  4%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[  6%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o\n[  8%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[ 11%] Linking C static library librecursant_policy.a\n[ 11%] Built target recursant_policy\n[ 13%] Linking C static library librecursant_selector.a\n[ 15%] Linking C static library librecursant_context.a\n[ 17%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 17%] Built target recursant_selector\n[ 17%] Built target recursant_context\n[ 20%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o\n[ 22%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o\n[ 24%] Linking C executable test_egress\n[ 26%] Linking C static library librecursant_config.a\n[ 26%] Built target test_egress\n[ 26%] Built target recursant_config\n[ 28%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o\n[ 31%] Linking C static library librecursant_interpreter.a\n[ 33%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o\n[ 35%] Linking C executable test_selector\n[ 35%] Built target recursant_interpreter\n[ 37%] Linking C executable test_interpreter_alloc\n[ 40%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o\n[ 42%] Linking C executable test_context\n[ 42%] Built target test_context\n[ 44%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o\n[ 44%] Built target test_selector\n[ 46%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 46%] Built target test_interpreter_alloc\n[ 48%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o\n[ 51%] Linking C executable test_config\n[ 53%] Linking C static library librecursant_auth.a\n[ 55%] Linking C executable recursant-validate\n[ 57%] Linking C executable test_interpreter\n[ 57%] Built target recursant_auth\n[ 60%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 60%] Built target test_config\n[ 60%] Built target recursant-validate\n[ 62%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o\n[ 64%] Linking C static library librecursant_attempts.a\n[ 64%] Built target recursant_attempts\n[ 66%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 68%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o\n[ 68%] Built target test_interpreter\n[ 71%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 73%] Linking C static library librecursant_admission.a\n[ 75%] Linking C executable test_attempts_internal\n[ 75%] Built target recursant_admission\n[ 77%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o\n[ 77%] Built target test_attempts_internal\n[ 80%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 82%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o\n[ 84%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 86%] Linking C shared library libattempt_probe.so\n[ 86%] Built target attempt_probe\n[ 88%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o\n[ 91%] Linking C executable test_attempts\n[ 93%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o\n[ 95%] Linking C executable test_admission\n[ 95%] Built target test_attempts\n[ 95%] Built target test_admission\n[ 97%] Linking C executable recursant-tracer\n[ 97%] Built target recursant-tracer\n[100%] Linking C executable recursant\n[100%] Built target recursant\nTest project /build\n      Start  1: selector_unit\n 1/17 Test  #1: selector_unit ....................   Passed    0.03 sec\n      Start  2: attempts_unit\n 2/17 Test  #2: attempts_unit ....................   Passed    0.01 sec\n      Start  3: attempts_overflow\n 3/17 Test  #3: attempts_overflow ................   Passed    0.01 sec\n      Start  4: interpreter_alloc\n 4/17 Test  #4: interpreter_alloc ................   Passed    0.18 sec\n      Start  5: context_unit\n 5/17 Test  #5: context_unit .....................   Passed    0.01 sec\n      Start  6: egress_policy\n 6/17 Test  #6: egress_policy ....................   Passed    0.01 sec\n      Start  7: config_strict\n 7/17 Test  #7: config_strict ....................   Passed    0.01 sec\n      Start  8: admission_unit\n 8/17 Test  #8: admission_unit ...................   Passed    0.01 sec\n      Start  9: interpreter_loopback\n 9/17 Test  #9: interpreter_loopback .............   Passed   11.15 sec\n      Start 10: gateway_context_integration\n10/17 Test #10: gateway_context_integration ......   Passed   58.61 sec\n      Start 11: hermes_observer\n11/17 Test #11: hermes_observer ..................   Passed    0.11 sec\n      Start 12: compliance_integration\n12/17 Test #12: compliance_integration ...........   Passed   18.37 sec\n      Start 13: router_integration\n13/17 Test #13: router_integration ...............   Passed   24.07 sec\n      Start 14: transport_integration\n14/17 Test #14: transport_integration ............   Passed    1.55 sec\n      Start 15: admission_integration\n15/17 Test #15: admission_integration ............   Passed    0.42 sec\n      Start 16: trajectory_reference\n16/17 Test #16: trajectory_reference .............   Passed    3.70 sec\n      Start 17: accounting\n17/17 Test #17: accounting .......................   Passed    0.11 sec\n\n100% tests passed, 0 tests failed out of 17\n\nTotal Test time (real) = 118.37 sec\n{\"provider\": \"synthetic; stored GLM metadata shape only\", \"expected\": \"physical\", \"actual\": \"physical\"}\n",
+      "ctest": {
+        "name": "Linux-cc",
+        "tests": "17",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "bf7d24f372be",
+        "time": "118",
+        "timestamp": "2026-09-27T14:56:01"
+      },
+      "tests": [
+        {
+          "name": "selector_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_unit",
+          "status": "run"
+        },
+        {
+          "name": "attempts_overflow",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_alloc",
+          "status": "run"
+        },
+        {
+          "name": "context_unit",
+          "status": "run"
+        },
+        {
+          "name": "egress_policy",
+          "status": "run"
+        },
+        {
+          "name": "config_strict",
+          "status": "run"
+        },
+        {
+          "name": "admission_unit",
+          "status": "run"
+        },
+        {
+          "name": "interpreter_loopback",
+          "status": "run"
+        },
+        {
+          "name": "gateway_context_integration",
+          "status": "run"
+        },
+        {
+          "name": "hermes_observer",
+          "status": "run"
+        },
+        {
+          "name": "compliance_integration",
+          "status": "run"
+        },
+        {
+          "name": "router_integration",
+          "status": "run"
+        },
+        {
+          "name": "transport_integration",
+          "status": "run"
+        },
+        {
+          "name": "admission_integration",
+          "status": "run"
+        },
+        {
+          "name": "trajectory_reference",
+          "status": "run"
+        },
+        {
+          "name": "accounting",
+          "status": "run"
+        }
+      ]
+    },
+    {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-v",
+        "/home/aj/projects/recursant-v4-m3-envelope-compat:/src:ro",
+        "-v",
+        "/tmp/m3-envelope-independent-review/normal:/build",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-gateway-envelope-probe.py:/parent-probe.py:ro",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-reference-gx10-structured.json:/saved.json:ro",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        "RECURSANT_BIN=/build/recursant",
+        "-v",
+        "/tmp/m3-envelope-independent-review/adversarial.py:/adversarial.py:ro",
+        "-e",
+        "INTERPRETER_BIN=/build/test_interpreter",
+        "recursant-v4-dev:local",
+        "python3",
+        "/adversarial.py"
+      ],
+      "exit_code": 1,
+      "log": "/tmp/m3-envelope-independent-review/normal-adversarial-final.log",
+      "label": "normal-adversarial-final",
+      "log_sha256": "3f2878c5eca7f354f30391e6641f205bd2905cce52588c23b0583a840169b490",
+      "log_text": "test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) ... \n  test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='root', key='', value={'opaque': 'continuation'}) ... FAIL\n  test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='choice', key='', value={'opaque': 'continuation'}) ... FAIL\n  test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='message', key='', value={'opaque': 'continuation'}) ... FAIL\ntest_interpreter_typed_edges (__main__.Independent.test_interpreter_typed_edges) ... ok\ntest_null_reintroduced (__main__.Independent.test_null_reintroduced) ... ok\ntest_replay_boundaries (__main__.Independent.test_replay_boundaries) ... \n  test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': None}) ... FAIL\n  test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': {'opaque': 'continuation'}}) ... FAIL\n\n======================================================================\nFAIL: test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='root', key='', value={'opaque': 'continuation'})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 16, in test_envelope_boundaries\n    t.envelope_exchange(envelope,expected='frontier')\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='choice', key='', value={'opaque': 'continuation'})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 16, in test_envelope_boundaries\n    t.envelope_exchange(envelope,expected='frontier')\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='message', key='', value={'opaque': 'continuation'})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 16, in test_envelope_boundaries\n    t.envelope_exchange(envelope,expected='frontier')\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': None})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 21, in test_replay_boundaries\n    t.envelope_exchange(t.glm_envelope(),expected='frontier',replay_extra=extra)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': {'opaque': 'continuation'}})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 21, in test_replay_boundaries\n    t.envelope_exchange(t.glm_envelope(),expected='frontier',replay_extra=extra)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n----------------------------------------------------------------------\nRan 4 tests in 41.010s\n\nFAILED (failures=5)\n"
+    },
+    {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-v",
+        "/home/aj/projects/recursant-v4-m3-envelope-compat:/src:ro",
+        "-v",
+        "/tmp/m3-envelope-independent-review/asan:/build",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-gateway-envelope-probe.py:/parent-probe.py:ro",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-reference-gx10-structured.json:/saved.json:ro",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        "RECURSANT_BIN=/build/recursant",
+        "-v",
+        "/tmp/m3-envelope-independent-review/adversarial.py:/adversarial.py:ro",
+        "-e",
+        "INTERPRETER_BIN=/build/test_interpreter",
+        "recursant-v4-dev:local",
+        "python3",
+        "/adversarial.py"
+      ],
+      "exit_code": 1,
+      "log": "/tmp/m3-envelope-independent-review/asan-adversarial-final.log",
+      "label": "asan-adversarial-final",
+      "log_sha256": "58caa6456b2487c4b1e2943fba58722d678fe5b8bc7f096230d31805e3fed071",
+      "log_text": "test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) ... \n  test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='root', key='', value={'opaque': 'continuation'}) ... FAIL\n  test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='choice', key='', value={'opaque': 'continuation'}) ... FAIL\n  test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='message', key='', value={'opaque': 'continuation'}) ... FAIL\ntest_interpreter_typed_edges (__main__.Independent.test_interpreter_typed_edges) ... ok\ntest_null_reintroduced (__main__.Independent.test_null_reintroduced) ... ok\ntest_replay_boundaries (__main__.Independent.test_replay_boundaries) ... \n  test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': None}) ... FAIL\n  test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': {'opaque': 'continuation'}}) ... FAIL\n\n======================================================================\nFAIL: test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='root', key='', value={'opaque': 'continuation'})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 16, in test_envelope_boundaries\n    t.envelope_exchange(envelope,expected='frontier')\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='choice', key='', value={'opaque': 'continuation'})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 16, in test_envelope_boundaries\n    t.envelope_exchange(envelope,expected='frontier')\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_envelope_boundaries (__main__.Independent.test_envelope_boundaries) (level='message', key='', value={'opaque': 'continuation'})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 16, in test_envelope_boundaries\n    t.envelope_exchange(envelope,expected='frontier')\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': None})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 21, in test_replay_boundaries\n    t.envelope_exchange(t.glm_envelope(),expected='frontier',replay_extra=extra)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n======================================================================\nFAIL: test_replay_boundaries (__main__.Independent.test_replay_boundaries) (extra={'': {'opaque': 'continuation'}})\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/adversarial.py\", line 21, in test_replay_boundaries\n    t.envelope_exchange(t.glm_envelope(),expected='frontier',replay_extra=extra)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/tests/integration/test_gateway_context.py\", line 172, in envelope_exchange\n    self.assertEqual(sink.seen[-1][2]['model'], expected)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'physical' != 'frontier'\n- physical\n+ frontier\n\n\n----------------------------------------------------------------------\nRan 4 tests in 41.415s\n\nFAILED (failures=5)\n"
+    },
+    {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "-v",
+        "/home/aj/projects/recursant-v4-m3-envelope-compat:/src:ro",
+        "-v",
+        "/tmp/m3-envelope-independent-review/base-build:/build",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-gateway-envelope-probe.py:/parent-probe.py:ro",
+        "-v",
+        "/home/aj/projects/recursant-v4/docs/evidence/m3-reference-gx10-structured.json:/saved.json:ro",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        "RECURSANT_BIN=/build/recursant",
+        "-v",
+        "/tmp/m3-envelope-independent-review/base-source:/base:ro",
+        "-v",
+        "/tmp/m3-envelope-independent-review/baseline-probe.py:/baseline-probe.py:ro",
+        "recursant-v4-dev:local",
+        "sh",
+        "-c",
+        "cmake -S /base -B /build -DCMAKE_BUILD_TYPE=Debug && cmake --build /build -j4 && python3 /baseline-probe.py; python3 /parent-probe.py"
+      ],
+      "exit_code": 1,
+      "label": "baseline",
+      "log_sha256": "dc056290074f96fa166f197992de71fed354dd366b861e761db6c75a236289d7",
+      "log_text": "-- The C compiler identification is GNU 15.2.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Checking for modules 'libcurl;jansson'\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'\n--   Found libmicrohttpd, version 1.0.1\n--   Found libcurl, version 8.18.0\n--   Found jansson, version 2.14\n--   Found libpcre2-8, version 10.46\n-- Found Python3: /usr/bin/python3 (found version \"3.14.4\") found components: Interpreter\n-- Configuring done (0.5s)\n-- Generating done (0.0s)\n-- Build files have been written to: /build\n[  2%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o\n[  4%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o\n[  6%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o\n[  8%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o\n[ 11%] Linking C static library librecursant_context.a\n[ 13%] Linking C static library librecursant_policy.a\n[ 15%] Linking C static library librecursant_selector.a\n[ 15%] Built target recursant_policy\n[ 17%] Linking C static library librecursant_config.a\n[ 17%] Built target recursant_context\n[ 20%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o\n[ 20%] Built target recursant_selector\n[ 22%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o\n[ 24%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o\n[ 24%] Built target recursant_config\n[ 26%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o\n[ 28%] Linking C static library librecursant_interpreter.a\n[ 31%] Linking C executable test_egress\n[ 33%] Linking C executable test_context\n[ 35%] Linking C executable test_interpreter_alloc\n[ 35%] Built target recursant_interpreter\n[ 35%] Built target test_egress\n[ 37%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o\n[ 37%] Built target test_context\n[ 40%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o\n[ 40%] Built target test_interpreter_alloc\n[ 42%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o\n[ 44%] Linking C executable test_config\n[ 46%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o\n[ 48%] Linking C static library librecursant_auth.a\n[ 48%] Built target test_config\n[ 51%] Linking C executable recursant-validate\n[ 51%] Built target recursant_auth\n[ 53%] Linking C executable test_interpreter\n[ 55%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o\n[ 57%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o\n[ 57%] Built target recursant-validate\n[ 60%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o\n[ 62%] Linking C static library librecursant_admission.a\n[ 64%] Linking C static library librecursant_attempts.a\n[ 64%] Built target test_interpreter\n[ 66%] Linking C executable test_selector\n[ 68%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o\n[ 68%] Built target recursant_attempts\n[ 68%] Built target recursant_admission\n[ 71%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o\n[ 73%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o\n[ 75%] Linking C executable test_attempts_internal\n[ 75%] Built target test_selector\n[ 77%] Linking C executable test_attempts\n[ 80%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o\n[ 80%] Built target test_attempts\n[ 80%] Built target test_attempts_internal\n[ 82%] Linking C shared library libattempt_probe.so\n[ 84%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o\n[ 86%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o\n[ 86%] Built target attempt_probe\n[ 88%] Linking C executable test_admission\n[ 91%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o\n[ 93%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o\n[ 93%] Built target test_admission\n[ 95%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o\n[ 97%] Linking C executable recursant-tracer\n[ 97%] Built target recursant-tracer\n[100%] Linking C executable recursant\n[100%] Built target recursant\nPASS: parent pins empty-key response assistant\nPASS: parent pins empty-key replay assistant: None\nPASS: parent pins empty-key replay assistant: {'opaque': 'continuation'}\n{\"provider\": \"synthetic; stored GLM metadata shape only\", \"expected\": \"physical\", \"actual\": \"frontier\"}\nTraceback (most recent call last):\n  File \"/parent-probe.py\", line 55, in <module>\n    assert actual == 'physical', 'Known inert provider metadata permanently disabled safe selection'\n           ^^^^^^^^^^^^^^^^^^^^\nAssertionError: Known inert provider metadata permanently disabled safe selection\n"
+    }
+  ],
+  "independent_probes": {
+    "adversarial.py": {
+      "path": "/tmp/m3-envelope-independent-review/adversarial.py",
+      "sha256": "c8e1e8a689b9cbbbddd350524d3966fe75f4d972588d75d67af31d8e8a470774",
+      "source": "import json, sys, unittest\nsys.path.insert(0,'/src/tests/integration')\nfrom test_gateway_context import GatewayContextTests\nfrom test_interpreter import Parser, response\nclass Independent(unittest.TestCase):\n    def test_envelope_boundaries(self):\n        t=GatewayContextTests()\n        cases=[('choice','stop_reason',v) for v in (-1,0.5,True,None,'1')]\n        cases += [('root','system_fingerprint',v) for v in (None,False,1,[])]\n        cases += [('message',k,v) for k in ('reasoning','reasoning_content','tool_calls') for v in (None,[],False)]\n        cases += [(level,k,{'opaque':'continuation'}) for level in ('root','choice','message') for k in ('','|','function_call|','x'*128)]\n        cases += [('message','function_call',v) for v in (False,0,1,'',[])]\n        for level,key,value in cases:\n            with self.subTest(level=level,key=key,value=value):\n                envelope=t.glm_envelope();envelope[level][key]=value\n                t.envelope_exchange(envelope,expected='frontier')\n    def test_replay_boundaries(self):\n        t=GatewayContextTests()\n        for extra in ({'':None},{'':{'opaque':'continuation'}},{'refusal':False},{'audio':0},{'function_call':0}):\n            with self.subTest(extra=extra):\n                t.envelope_exchange(t.glm_envelope(),expected='frontier',replay_extra=extra)\n    def test_null_reintroduced(self):\n        GatewayContextTests().envelope_exchange({},replay_extra={'function_call':None,'annotations':None,'refusal':None,'audio':None})\n    def test_interpreter_typed_edges(self):\n        t=Parser()\n        for value in (None,False,True,0,1,0.0,'',[],{}, {'name':'f'}):\n            with self.subTest(value=value):\n                outer=json.loads(response());outer['choices'][0]['message']['function_call']=value\n                t.check(json.dumps(outer), value is None)\n        for value in (None,[],{},False):\n            outer=json.loads(response());outer['choices'][0]['message'].update(function_call=None,tool_calls=value)\n            t.check(json.dumps(outer),False)\n        outer=json.loads(response());outer['choices'][0]['message']['function_call']=None\n        t.check(json.dumps(outer).replace('\"function_call\": null','\"function_call\": null, \"function_call\": null'),False)\nif __name__=='__main__':\n    result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(Independent))\n    sys.exit(not result.wasSuccessful())\n"
+    },
+    "baseline-probe.py": {
+      "path": "/tmp/m3-envelope-independent-review/baseline-probe.py",
+      "sha256": "32bd18faa9d87b934c1f17bb3fc6e5c0e0abe7378ebff8d29ec44b156d6a9d2d",
+      "source": "import sys\nsys.path.insert(0,'/src/tests/integration')\nfrom test_gateway_context import GatewayContextTests\nt=GatewayContextTests()\nt.envelope_exchange({'message':{'':{'opaque':'continuation'}}},expected='frontier')\nprint('PASS: parent pins empty-key response assistant')\nfor value in (None,{'opaque':'continuation'}):\n    t.envelope_exchange({},replay_extra={'':value},expected='frontier')\n    print('PASS: parent pins empty-key replay assistant:',repr(value))\n"
+    }
+  },
+  "test_development_note": "Initial adversarial run also expected NUL-containing role/content requests to pin after HTTP 200; actual HTTP 400 was safe ingress rejection, not a product bug. Those two invalid assertions were removed; final runs consistently contain exactly five real failures. Initial logs retained only in scratch.",
+  "bounded_limitations": [
+    "Scripted loopback only, --network none, --pull never, owning UID 1000:1000; source mounted read-only. No install, live inference, service/profile changes, or push.",
+    "Saved GLM reference omits reasoning text; metadata shape is not full original wire or live GLM/Hermes portability.",
+    "No quality, cost savings, semantic accuracy, or full-M3 acceptance claim.",
+    "Fixture scheduling uses the existing short sleeps; not measured asynchronous readiness.",
+    "Parent baseline ran targeted regression probes, not a full independent parent CTest suite in this review.",
+    "No source fixes made. MAIN pre-existing untracked evidence was left untouched; this report is the only new repository artifact from this review."
+  ]
+}
