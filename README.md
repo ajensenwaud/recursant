@@ -2,7 +2,7 @@
 
 C inference gateway for explicit hybrid routing and deterministic request-egress controls. Requirements: [AGENTS.md](AGENTS.md).
 
-**Current checkpoint:** M1 transport is implemented and container-tested; live endpoint validation is in progress. M2 integration follows M1. M3 is not implemented and remains subject to architecture review.
+**Current checkpoint:** Functional M1 and M2 are implemented and tested, including the packaged runtime. Normal and ASan/UBSan runs each pass all seven CTest suites. Earlier real private/public routing and vanilla-Hermes tool smokes passed. The final live M2 check is **blocked by private inference timeouts**, also reproduced without the router; see the [delivery record](docs/evidence/m1-m2-delivery.md). M3 is not implemented and remains subject to architecture review.
 
 ## Production binary
 
@@ -41,7 +41,7 @@ The Docker context is allowlisted. `.env`, Git history, runtime files and raw tr
 
 ## Configuration and deployment
 
-[config/recursant.example.json](config/recursant.example.json) is the intended M2 configuration; compliance-enabled startup fails closed until the M2 engine is connected.
+[config/recursant.example.json](config/recursant.example.json) enables M2. Configured PCRE2 patterns supplement the built-in email pattern. Matches, unsupported/uninspectable formats and exhausted scan budgets stay private; invalid policy configuration prevents startup. `public_allowed` defaults to false. Disabling compliance explicitly restores M1-only routing.
 
 Credentials are **environment references**, never JSON values. Supply `RECURSANT_API_KEY` and `OPENROUTER_API_KEY` through your secret manager/environment. Never commit `.env` or pass secret values on a command line.
 
@@ -61,6 +61,12 @@ The container must resolve/reach the configured private hostname; add a project-
 
 `--test-mode` permits public HTTP **only on loopback** for tests. Never use it in deployment. Public HTTPS remains mandatory otherwise.
 
+## M2 enforcement
+
+The pre-dispatch gate scans decoded strings, object keys, nested JSON strings and scalar values, then checks the final public controls before serialization. It applies to aliases and physical model IDs. Public selections containing matching data are rerouted to the configured private model; already-private model selections are retained. Stronger/unknown client provider restrictions are not silently removed: they stay private. No private failure triggers public fallback. Logs contain fixed decision categories, not payloads or matches. Policy is immutable until restart.
+
+Cancellation distinguishes a receive-side FIN from a reset: valid write-half-closed clients can still receive responses. Resets and busy-stream disconnects cancel promptly; ambiguous graceful FIN during an idle upstream is bounded by the request deadline. No synthetic SSE heartbeat is injected.
+
 ## Scope and remaining work
 
 - Explicit routing is not intelligent cost selection. No token-efficiency or speed advantage has been demonstrated.
@@ -72,6 +78,10 @@ The container must resolve/reach the configured private hostname; add a project-
 
 ## Evidence
 
+- [M1/M2 delivery and limitations](docs/evidence/m1-m2-delivery.md)
+- [M2 no-leak and fail-closed tests](docs/evidence/compliance-tdd.md)
+- [Independent final review](docs/evidence/review-final.json)
+- [Vanilla Hermes container and traces](docs/evidence/hermes-container.md)
 - [Production router tests and RED/GREEN history](docs/evidence/router-tdd.md)
 - [Initial policy predicate](docs/evidence/egress-tdd.md)
 - [Accounting tests](docs/evidence/accounting-tdd.md)

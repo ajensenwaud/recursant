@@ -1,0 +1,21 @@
+test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok
+test_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok
+test_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok
+test_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok
+test_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok
+test_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok
+test_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok
+test_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok
+test_09_private_outage_never_falls_back_and_audit_is_safe (test_compliance.ComplianceTests.test_09_private_outage_never_falls_back_and_audit_is_safe) ... ok
+test_10_invalid_and_oversized_regex_startup (test_compliance.ComplianceTests.test_10_invalid_and_oversized_regex_startup) ... ok
+test_11_traversal_budgets_and_numeric_pattern (test_compliance.ComplianceTests.test_11_traversal_budgets_and_numeric_pattern) ... ok
+test_12_final_server_controls_are_scanned (test_compliance.ComplianceTests.test_12_final_server_controls_are_scanned) ... ok
+test_13_private_connection_refused_no_fallback (test_compliance.ComplianceTests.test_13_private_connection_refused_no_fallback) ... ok
+test_14_concurrent_policy_and_clean_tool_history (test_compliance.ComplianceTests.test_14_concurrent_policy_and_clean_tool_history) ... ok
+test_15_provider_restrictions_are_not_silently_dropped (test_compliance.ComplianceTests.test_15_provider_restrictions_are_not_silently_dropped) ... ok
+test_16_already_private_alias_keeps_physical_model (test_compliance.ComplianceTests.test_16_already_private_alias_keeps_physical_model) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 18.676s
+
+OK

@@ -1,0 +1,22 @@
+{
+  "kind": "synthetic_live_routing_smoke_not_efficiency_benchmark",
+  "public_model": "liquid/lfm-2.5-2.6b:free",
+  "verified_public_pricing": {
+    "prompt": "0",
+    "completion": "0"
+  },
+  "attempts": [
+    {
+      "model_requested": "cloud",
+      "ok": false,
+      "error_type": "HTTPError",
+      "http_status": 502,
+      "elapsed_seconds": 120.001
+    }
+  ],
+  "router_diagnostics": [
+    "upstream_http=0 curl_code=28"
+  ],
+  "sensitive_fixture": true,
+  "runtime_image": "sha256:4b27a1e16dc7af8fcaedf381d0aa36ec18671c4f8fe7326e61ab21bd62f78240"
+}

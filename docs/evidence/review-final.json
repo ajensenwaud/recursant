@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "suggestions": [],
+  "reviewed_files": {
+    "core/src/http/router.c": "ba94043d29ac17c3c12319747d62d8ab859e3d4b62d9d7a06876449dd0d13ae9",
+    "core/src/runtime.c": "6433e4cae13c65edb8cdefb7aa7b825b9e64dde6d4de1feb4f34abe1e4985ff1",
+    "core/src/compliance/classifier.c": "4b723de7c6da52c2349bc9da80a4600a5342e8866250d046ea99bb0fe2c65056",
+    "core/include/recursant/runtime.h": "c44d3d4540633be305aa019800ad03ff51ca365df427853237e1076463606097",
+    "core/include/recursant/config.h": "e0ee10470f3ff67ef255ece70f6d82c0785badbf9fc54e51febcb0ab4b6705cc",
+    "core/include/recursant/classifier.h": "fc1009fafffd5e4c2e9be6f1325bf908a252269dd5883c72518643431aa980a6",
+    "CMakeLists.txt": "50f7c6c9c741e85525f7edb6556a1ccec52286b805fad4d37f7553a564853314",
+    "tests/integration/test_router.py": "980f5ff90229440d8c1f129eaa4999ed442fdb32ea3cbdbbe4c49bab3bd1069b",
+    "tests/integration/test_router_safety.py": "6917f942754f45ff48a460a0bccffd8f0925674fe04c379bd7c42c4d1e555ce1",
+    "tests/integration/test_router_allocations.py": "8959af054f339a0ad96f63da6fd8b94775b1b7d2f303fe18c7fb51a559806304",
+    "tests/unit/json_faults.c": "0065ec94032d28095267d0bb1d9697415e563709e3a0c46f1ec58ec01b4d3e2b",
+    "tests/integration/test_compliance.py": "f54c8e211dcfa5d011fb6719a0733e3613d5a6a13b8ac3b26b41a2c6198c4f25",
+    "docs/evidence/review-initial.json": "dcecded3980894fc98c0f1bfa990f1b924a48be3e1c638c6f3199d0b96e27b14"
+  },
+  "summary": "No concrete remaining security or logic finding within the implemented M1/M2 scope. Both initial findings are resolved: receive-side FIN no longer cancels a valid half-closed request, and models construction, append, and serialization failures return generic errors without partial success or NULL serialization reaching reply(). Model-rewrite string/set failures also stop before dispatch. The test shim genuinely targets these API failure-return seams, preserves Jansson ownership, and proves one-shot injection through its consumed arm file and exact marker; it is not exhaustive internal allocator testing. Current classifier logic scans numeric/boolean/null scalars, fails closed on scanning failures, preserves stronger or unknown provider restrictions by routing privately rather than removing them, reclassifies final public controls, and retains already-private physical models. Fresh independent container build and all 25 focused allocation, transport-safety, and compliance tests passed. Half-close response integrity, prompt idle-RST and busy-stream cancellation, and deadline-bounded ambiguous FIN behavior were exercised without synthetic heartbeat bytes. Verification used disabled external networking, read-only source and container root, and disposable /tmp build artifacts. No repository files, configuration, Git state, or services were modified; no secrets, raw traces, or live inference were accessed. Sanitizer verification remains with the parent agent."
+}

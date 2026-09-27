@@ -1,0 +1,12 @@
+{
+  "kind": "direct_private_control_after_m2_timeout",
+  "model": "GLM-5.3-Flash-EXL3",
+  "max_tokens": 64,
+  "health_host_http_status": 200,
+  "health_container_http_status": 200,
+  "inference_result": "TimeoutError",
+  "timeout_seconds": 30,
+  "elapsed_seconds": 30.034,
+  "usage": null,
+  "changes_to_shared_service": false
+}

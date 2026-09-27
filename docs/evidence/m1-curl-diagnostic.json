@@ -1,0 +1,1 @@
+{"kind":"diagnostic_not_benchmark","model":"liquid/lfm-2.5-2.6b:free","curl_code":0,"upstream_http":200,"max_tokens":128,"usage":null,"note":"One synthetic direct libcurl request in dev container; response discarded; usage not collected."}

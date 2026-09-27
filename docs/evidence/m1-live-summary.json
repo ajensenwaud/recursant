@@ -1,0 +1,28 @@
+{
+  "kind": "routing_smoke_not_efficiency_benchmark",
+  "tool_roundtrip_arms_passed": [
+    "direct_private",
+    "direct_public",
+    "routed_private",
+    "routed_public"
+  ],
+  "recorded_smoke_attempts": 10,
+  "successful_smoke_requests": 8,
+  "failed_smoke_requests": 2,
+  "additional_curl_diagnostic_requests": 1,
+  "all_usage_complete": false,
+  "known_public_response_cost": 0,
+  "failed_request_usage": "unknown",
+  "diagnostic_request_usage": "not collected",
+  "sources": [
+    "m1-live-private-and-qwen429.json",
+    "m1-liquid-direct-proxy502.json",
+    "m1-public-routed-pass.json",
+    "m1-curl-diagnostic.json"
+  ],
+  "limitations": [
+    "Smoke only; no quality, token savings or latency advantage claimed.",
+    "Earlier qwen429 and unexplained routed502 retained; no automatic router retries.",
+    "Startup permission failure had no model dispatch."
+  ]
+}

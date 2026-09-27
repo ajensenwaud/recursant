@@ -1,0 +1,89 @@
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Found PkgConfig: /usr/bin/pkg-config (found version "2.5.1")
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: /work/build/parent-m2
+[ 12%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[ 12%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[ 18%] Linking C static library librecursant_policy.a
+[ 18%] Built target recursant_policy
+[ 25%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 31%] Linking C static library librecursant_config.a
+[ 31%] Built target recursant_config
+[ 37%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 43%] Linking C executable recursant-tracer
+[ 43%] Built target recursant-tracer
+[ 50%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 56%] Linking C executable test_config
+[ 56%] Built target test_config
+[ 62%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 68%] Linking C executable recursant-validate
+[ 75%] Linking C executable test_egress
+[ 75%] Built target recursant-validate
+[ 75%] Built target test_egress
+[ 87%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 87%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 93%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[100%] Linking C executable recursant
+[100%] Built target recursant
+UpdateCTestConfiguration  from :/work/build/parent-m2/DartConfiguration.tcl
+Parse Config file:/work/build/parent-m2/DartConfiguration.tcl
+Test project /work/build/parent-m2
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 4
+    Start 4: compliance_integration
+
+4: Test command: /usr/bin/python3 "-m" "unittest" "discover" "-s" "/work/tests/integration" "-p" "test_compliance.py" "-v"
+4: Working Directory: /work/build/parent-m2
+4: Environment variables: 
+4:  RECURSANT_BIN=/work/build/parent-m2/recursant
+4:  PYTHONDONTWRITEBYTECODE=1
+4: Test timeout computed to be: 180
+4: test_01_email_public_alias_is_private_only (test_compliance.ComplianceTests.test_01_email_public_alias_is_private_only) ... ok
+4: test_02_nested_encoded_arguments_and_unknown_formats (test_compliance.ComplianceTests.test_02_nested_encoded_arguments_and_unknown_formats) ... ok
+4: test_03_configured_pattern_and_match_limit (test_compliance.ComplianceTests.test_03_configured_pattern_and_match_limit) ... ok
+4: test_04_public_policy_and_provider_controls (test_compliance.ComplianceTests.test_04_public_policy_and_provider_controls) ... ok
+4: test_05_email_all_request_locations (test_compliance.ComplianceTests.test_05_email_all_request_locations) ... ok
+4: test_06_clean_public_and_disabled_compatibility (test_compliance.ComplianceTests.test_06_clean_public_and_disabled_compatibility) ... ok
+4: test_07_invalid_request_no_egress (test_compliance.ComplianceTests.test_07_invalid_request_no_egress) ... ok
+4: test_08_overrides_and_uninspectable_formats (test_compliance.ComplianceTests.test_08_overrides_and_uninspectable_formats) ... ok
+4: test_09_private_outage_never_falls_back_and_audit_is_safe (test_compliance.ComplianceTests.test_09_private_outage_never_falls_back_and_audit_is_safe) ... ok
+4: test_10_invalid_and_oversized_regex_startup (test_compliance.ComplianceTests.test_10_invalid_and_oversized_regex_startup) ... ok
+4: test_11_traversal_budgets_and_numeric_pattern (test_compliance.ComplianceTests.test_11_traversal_budgets_and_numeric_pattern) ... ok
+4: test_12_final_server_controls_are_scanned (test_compliance.ComplianceTests.test_12_final_server_controls_are_scanned) ... ok
+4: test_13_private_connection_refused_no_fallback (test_compliance.ComplianceTests.test_13_private_connection_refused_no_fallback) ... ok
+4: test_14_concurrent_policy_and_clean_tool_history (test_compliance.ComplianceTests.test_14_concurrent_policy_and_clean_tool_history) ... ok
+4: test_15_provider_restrictions_are_not_silently_dropped (test_compliance.ComplianceTests.test_15_provider_restrictions_are_not_silently_dropped) ... ok
+4: test_16_already_private_alias_keeps_physical_model (test_compliance.ComplianceTests.test_16_already_private_alias_keeps_physical_model) ... ok
+4: 
+4: ----------------------------------------------------------------------
+4: Ran 16 tests in 19.673s
+4: 
+4: OK
+1/1 Test #4: compliance_integration ...........   Passed   19.77 sec
+
+The following tests passed:
+	compliance_integration
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  19.77 sec

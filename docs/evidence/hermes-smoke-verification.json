@@ -1,0 +1,54 @@
+{
+  "kind": "harness_observer_smoke_not_efficiency_benchmark",
+  "runs": [
+    {
+      "run_id": "20260927T032422Z-37548511",
+      "label": "direct",
+      "image_id": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b",
+      "source": {
+        "sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+        "pristine_before_run": true
+      },
+      "terminal_executed": true,
+      "final_response_verified": true,
+      "event_counts": {
+        "on_session_start": 1,
+        "pre_api_request": 2,
+        "on_stream_start": 2,
+        "on_stream_delta": 11,
+        "on_stream_end": 2,
+        "post_api_request": 2,
+        "post_tool_call": 1,
+        "on_session_end": 1
+      },
+      "stream_completeness": "unknown",
+      "raw_trace_sha256": "35c0cf24949487162d4eb5734c350b09efaa8268ab49af394dd922f519bcd7a5"
+    },
+    {
+      "run_id": "20260927T034434Z-b5119ad8",
+      "label": "routed",
+      "image_id": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b",
+      "source": {
+        "sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+        "pristine_before_run": true
+      },
+      "terminal_executed": true,
+      "final_response_verified": true,
+      "event_counts": {
+        "on_session_start": 1,
+        "pre_api_request": 2,
+        "on_stream_start": 2,
+        "on_stream_delta": 21,
+        "on_stream_end": 2,
+        "post_api_request": 2,
+        "post_tool_call": 1,
+        "on_session_end": 1
+      },
+      "stream_completeness": "unknown",
+      "raw_trace_sha256": "25d5d98db0a11f1d6f4dc0d9d35847aa1b527aba863ec0f4099f5b963d688fd6"
+    }
+  ],
+  "parent_offline_source_check": "Pinned HEAD matched and git status was clean in network-disabled container.",
+  "raw_bodies": "Retained only in ignored runtime directories; not published.",
+  "acceptance_regression": "Missing final-response checker failed first, then 4 observer/acceptance tests passed. Both existing successful runs independently satisfy strengthened acceptance."
+}

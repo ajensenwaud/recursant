@@ -1,0 +1,4 @@
+name: recursant-observer
+version: 1.0.0
+description: Read-only bounded local JSONL benchmark observer
+author: Recursant

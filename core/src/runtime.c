@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "recursant/runtime.h"
+#include "recursant/classifier.h"
 #include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,6 +51,7 @@ static bool number(json_t *o,const char *k,size_t def,size_t max,size_t *out) {
     *out=(size_t)json_integer_value(v);return true;
 }
 void rc_runtime_free(rc_runtime *r) {
+    rc_compliance_free(r);
     rc_config *c=&r->config;
     free(c->listen_host);free(c->private_url);free(c->private_model);free(c->private_key_env);
     free(c->public_url);free(c->public_model);free(c->public_key_env);

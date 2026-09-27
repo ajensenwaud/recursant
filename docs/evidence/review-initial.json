@@ -1,0 +1,49 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "severity": "medium",
+      "path": "core/src/http/router.c",
+      "lines": "39-49",
+      "issue": "Cancellation detection treats a legitimate downstream write-half-close as a disconnected client.",
+      "scenario": "A client sends a complete authenticated HTTP request, calls shutdown(SHUT_WR), and continues reading its response. recv(MSG_PEEK) returns zero because the client has finished sending, not because it cannot receive. The progress callback cancels the upstream request.",
+      "evidence": "Reproduced against a fresh container build using the existing synthetic router fixture: the complete valid request returned HTTP 502 and the upstream sink received zero requests.",
+      "recommendation": "Do not use receive-side EOF alone as proof that the downstream cannot receive a response. Preserve valid half-closed connections while retaining bounded cancellation of genuinely disconnected clients.",
+      "recommended_regression": "Send a complete Content-Length request over a raw socket, call shutdown(SHUT_WR), and assert HTTP 200, an intact response body, and exactly one upstream request. Retain the existing idle-stream cancellation regression."
+    },
+    {
+      "severity": "medium",
+      "path": "core/src/http/router.c",
+      "lines": "32-33, 136-139",
+      "issue": "The models endpoint can terminate the gateway on an allocation failure.",
+      "scenario": "If json_dumps returns NULL under memory pressure, the /v1/models handler passes NULL to reply(), which immediately calls strlen(NULL). The earlier json_pack and array-append failures are also unchecked, allowing failed construction to reach this path.",
+      "evidence": "Static inspection of the current handler and reply helper; allocation-failure injection was not performed.",
+      "recommendation": "Check JSON construction, append, and serialization results; release partial objects and return a generic failure without passing NULL to reply().",
+      "recommended_regression": "Inject failures into JSON allocation/construction and serialization while requesting authenticated /v1/models. Assert no crash, no partial success response, and continued service after the injected failure."
+    }
+  ],
+  "suggestions": [
+    {
+      "path": "core/src/compliance/classifier.c",
+      "lines": "177-190",
+      "suggestion": "Add deterministic allocation-failure tests for PCRE2 general-context, match-data, match-context, and match-time allocations. The current code appears to fail closed, and the existing match-limit regression passes, but allocation-failure behavior is not exercised by the reviewed integration suite."
+    },
+    {
+      "suggestion": "Single-instance operation, static policies, lack of universal PII recognition, and absence of pooling or UI were treated as initial-release limitations, not defects. No concrete public-egress bypass or private-failure fallback was established in this review."
+    }
+  ],
+  "reviewed_files": {
+    "core/src/http/router.c": "c29c656b263933d5066f59ccbf77fdca3122ce71bc077e4e878b1615a8440a3c",
+    "core/src/runtime.c": "6433e4cae13c65edb8cdefb7aa7b825b9e64dde6d4de1feb4f34abe1e4985ff1",
+    "core/src/compliance/classifier.c": "7a04d25614678794eef9a8bb89f8abd7bcb1e742200a22f53ac752cb744907b4",
+    "core/include/recursant/runtime.h": "c44d3d4540633be305aa019800ad03ff51ca365df427853237e1076463606097",
+    "core/include/recursant/config.h": "8ee0b2ba9786ae483cb5fb8098513e120f1320e2404656934ecee14da0b544a9",
+    "core/include/recursant/classifier.h": "fc1009fafffd5e4c2e9be6f1325bf908a252269dd5883c72518643431aa980a6",
+    "CMakeLists.txt": "50f7c6c9c741e85525f7edb6556a1ccec52286b805fad4d37f7553a564853314",
+    "tests/integration/test_router.py": "980f5ff90229440d8c1f129eaa4999ed442fdb32ea3cbdbbe4c49bab3bd1069b",
+    "tests/integration/test_router_safety.py": "83b9171cd4df90e223977b4146380a9ad13a4c98585636ab7e83a3564146c031",
+    "tests/integration/test_compliance.py": "c84eb7620dc845954818c5333cfcfc593671d82f57517ca42646489960d20a5f"
+  },
+  "summary": "Reviewed the requested diff and current production files, including untracked compliance implementation and tests. Fresh builds in recursant-v4-dev:local passed all six CTest groups. An additional synthetic regression reproduced incorrect cancellation of a valid half-closed client; static inspection also found an unchecked allocation-failure crash in /v1/models. Router changes arriving during integration were reread, and final file hashes remained stable across subsequent checks. No repository files, credentials, services, or configuration were modified; only disposable container-local build/test artifacts were created. Containers used a read-only source mount and disabled external networking; no live model calls or prohibited secret-file reads were performed."
+}

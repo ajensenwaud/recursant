@@ -17,6 +17,7 @@ typedef struct rc_runtime {
     bool compliance_enabled;
     bool public_allowed;
     json_t *patterns;
+    struct rc_compliance_policy *compliance_policy;
 } rc_runtime;
 /* Gate runs on final provider JSON immediately before serialization/network.
  * May change endpoint and model. Nonzero denies dispatch. Register before load.

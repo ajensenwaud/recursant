@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "recursant/runtime.h"
+#include "recursant/classifier.h"
 #include <microhttpd.h>
 #include <curl/curl.h>
 #include <arpa/inet.h>
@@ -11,6 +12,8 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <errno.h>
 
 #define QUEUE_SIZE 65536
 static volatile sig_atomic_t stopping;
@@ -22,6 +25,7 @@ typedef struct {
     unsigned char queue[QUEUE_SIZE]; size_t head,count;
     bool done,cancel,headers,failed,sse;
     long status; char *payload; rc_endpoint endpoint;
+    int downstream_fd; /* Owned duplicate; valid until worker has joined. */
     struct timespec deadline;
 } request;
 static void stop_server(int sig){(void)sig;stopping=1;}
@@ -33,7 +37,16 @@ static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char
 }
 static enum MHD_Result error_reply(struct MHD_Connection *c,unsigned code){return reply(c,code,"{\"error\":{\"message\":\"request failed\"}}","application/json");}
 static int progress(void *ctx,curl_off_t a,curl_off_t b,curl_off_t d,curl_off_t e){
-    (void)a;(void)b;(void)d;(void)e;request *r=ctx;pthread_mutex_lock(&r->lock);bool cancel=r->cancel;pthread_mutex_unlock(&r->lock);return cancel;
+    (void)a;(void)b;(void)d;(void)e;request *r=ctx;
+    /* While MHD waits for upstream data, detect unambiguous transport errors.
+     * Receive EOF is only FIN: a valid HTTP client may SHUT_WR and keep reading.
+     * An idle graceful close is indistinguishable and remains deadline-bounded.
+     * Peek only: never consume pipelined bytes or inject SSE heartbeat bytes. */
+    char byte;ssize_t n=recv(r->downstream_fd,&byte,1,MSG_PEEK|MSG_DONTWAIT);
+    bool disconnected=n<0 && errno!=EAGAIN && errno!=EWOULDBLOCK && errno!=EINTR;
+    pthread_mutex_lock(&r->lock);
+    if(disconnected){r->cancel=true;pthread_cond_broadcast(&r->changed);}
+    bool cancel=r->cancel;pthread_mutex_unlock(&r->lock);return cancel;
 }
 static size_t header(char *data,size_t size,size_t nmemb,void *ctx){
     request *r=ctx;size_t n=size*nmemb;
@@ -76,6 +89,10 @@ static void *upstream(void *ctx){
         curl_easy_setopt(curl,CURLOPT_TIMEOUT,(long)rt->request_timeout_seconds);curl_easy_setopt(curl,CURLOPT_CONNECTTIMEOUT,(long)rt->request_timeout_seconds);
         curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);curl_easy_setopt(curl,CURLOPT_NOPROGRESS,0L);curl_easy_setopt(curl,CURLOPT_XFERINFOFUNCTION,progress);curl_easy_setopt(curl,CURLOPT_XFERINFODATA,r);
         result=curl_easy_perform(curl);
+        long upstream_status=0;
+        curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&upstream_status);
+        if(result!=CURLE_OK || upstream_status<200 || upstream_status>=300)
+            fprintf(stderr,"upstream_http=%ld curl_code=%d\n",upstream_status,(int)result);
     }
 end:
     curl_easy_cleanup(curl);curl_slist_free_all(hs);free(url);free(auth);
@@ -92,6 +109,7 @@ static void completed(void *ctx,struct MHD_Connection *c,void **con_cls,enum MHD
     (void)ctx;(void)c;(void)code;request *r=*con_cls;if(!r)return;
     pthread_mutex_lock(&r->lock);r->cancel=true;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);
     if(r->started)pthread_join(r->worker,NULL);
+    if(r->downstream_fd>=0)close(r->downstream_fd);
     pthread_mutex_destroy(&r->lock);pthread_cond_destroy(&r->changed);free(r->body);free(r->payload);free(r);*con_cls=NULL;
 }
 static bool route(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const char **physical){
@@ -101,7 +119,7 @@ static bool route(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const c
 }
 static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url,const char *method,const char *version,const char *upload,size_t *upload_size,void **con_cls){
     (void)version;rc_runtime *rt=ctx;request *r=*con_cls;
-    if(!r){r=calloc(1,sizeof *r);if(!r)return MHD_NO;r->runtime=rt;pthread_mutex_init(&r->lock,NULL);pthread_cond_init(&r->changed,NULL);clock_gettime(CLOCK_REALTIME,&r->deadline);r->deadline.tv_sec+=rt->request_timeout_seconds;*con_cls=r;return MHD_YES;}
+    if(!r){r=calloc(1,sizeof *r);if(!r)return MHD_NO;r->downstream_fd=-1;r->runtime=rt;pthread_mutex_init(&r->lock,NULL);pthread_cond_init(&r->changed,NULL);clock_gettime(CLOCK_REALTIME,&r->deadline);r->deadline.tv_sec+=rt->request_timeout_seconds;*con_cls=r;return MHD_YES;}
     if(r->replied)return MHD_YES;
     struct timespec now;clock_gettime(CLOCK_REALTIME,&now);
     if(now.tv_sec>r->deadline.tv_sec || (now.tv_sec==r->deadline.tv_sec && now.tv_nsec>=r->deadline.tv_nsec))return MHD_NO;
@@ -116,19 +134,31 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(r->rejection){r->replied=true;return error_reply(c,r->rejection);}
     if(health){r->replied=true;return reply(c,200,"{\"status\":\"ok\"}","application/json");}
     if(!strcmp(url,"/v1/models")&&!strcmp(method,"GET")){
-        json_t *root=json_pack("{s:s,s:[]}","object","list","data");json_t *list=json_object_get(root,"data");
-        for(size_t i=0;i<rt->config.alias_count;i++)json_array_append_new(list,json_pack("{s:s,s:s}","id",rt->config.aliases[i].from,"object","model"));
-        char *s=json_dumps(root,JSON_COMPACT);enum MHD_Result result=reply(c,200,s,"application/json");free(s);json_decref(root);r->replied=true;return result;
+        r->replied=true;
+        json_t *root=json_pack("{s:s,s:[]}","object","list","data");
+        if(!root)return error_reply(c,500);
+        json_t *list=json_object_get(root,"data");
+        for(size_t i=0;i<rt->config.alias_count;i++){
+            json_t *entry=json_pack("{s:s,s:s}","id",rt->config.aliases[i].from,"object","model");
+            /* append_new consumes entry on both success and failure. */
+            if(!entry || json_array_append_new(list,entry)!=0){json_decref(root);return error_reply(c,500);}
+        }
+        char *s=json_dumps(root,JSON_COMPACT);json_decref(root);
+        if(!s)return error_reply(c,500);
+        enum MHD_Result result=reply(c,200,s,"application/json");free(s);return result;
     }
     if(strcmp(url,"/v1/chat/completions")||strcmp(method,"POST")){r->replied=true;return error_reply(c,404);}
     r->replied=true;json_error_t je;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&je);
     json_t *m=json_object_get(body,"model");const char *model=json_string_value(m),*physical=NULL;
     if(!json_is_object(body)||!model||strlen(model)!=json_string_length(m)||!route(rt,model,&r->endpoint,&physical)){json_decref(body);return error_reply(c,400);}
-    json_object_set_new(body,"model",json_string(physical));
+    json_t *rewritten=json_string(physical);
+    if(!rewritten || json_object_set_new(body,"model",rewritten)!=0){json_decref(body);return error_reply(c,500);}
     /* M2 hard gate: final provider object, before serialization and any network. */
     if(rc_dispatch_gate&&rc_dispatch_gate(rt,body,&r->endpoint)){json_decref(body);return error_reply(c,403);}
     if((r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC)||(r->endpoint==RC_ENDPOINT_PUBLIC&&!rt->config.public_url)){json_decref(body);return error_reply(c,403);}
     r->payload=json_dumps(body,JSON_COMPACT);json_decref(body);if(!r->payload)return error_reply(c,500);
+    const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
+    if(!info || (r->downstream_fd=dup(info->connect_fd))<0)return error_reply(c,503);
     if(pthread_create(&r->worker,NULL,upstream,r))return error_reply(c,503);
     r->started=true;
     pthread_mutex_lock(&r->lock);while(!r->headers&&!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
@@ -158,10 +188,15 @@ int main(int argc,char **argv) {
     }
     if(curl_global_init(CURL_GLOBAL_DEFAULT)!=CURLE_OK)return 1;
     rc_runtime runtime;char error[128];
+    rc_dispatch_gate=rc_compliance_gate;
     if(!rc_runtime_load(argv[2],argc==4,&runtime,error,sizeof error)) {
         fprintf(stderr,"%s\n",error);curl_global_cleanup();return 1;
     }
     int result=0;
+    if(!rc_compliance_init(&runtime)) {
+        fputs("invalid compliance policy\n",stderr);
+        rc_runtime_free(&runtime);curl_global_cleanup();return 1;
+    }
     if(!strcmp(argv[1],"serve"))result=rc_router_serve(&runtime);
     else puts("configuration valid");
     rc_runtime_free(&runtime);curl_global_cleanup();return result;
