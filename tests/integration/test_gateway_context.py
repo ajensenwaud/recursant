@@ -71,6 +71,23 @@ class GatewayContextTests(unittest.TestCase):
                             {'alias': 'baseline', 'quality_evidence': 'operator-fixture-baseline', 'qualified_tasks': [], 'context_limit': 100000, 'expected_task_cost': 10.0},
                             {'alias': 'alias', 'quality_evidence': 'operator-fixture-format', 'qualified_tasks': ['format_simple'], 'context_limit': 100000, 'expected_task_cost': 1.0}]}
 
+    def test_metadata_only_response_is_observed_without_interpreter(self):
+        def edit(c, s):
+            self.configure(c, s); s.RequestHandlerClass = ContextSink
+        with self.router(edit) as (p, sink):
+            scope = self.open_scope(p)
+            history = [{'role': 'user', 'content': 'hello'}]
+            self.turn(p, scope, 1, history)
+            event = self.event(scope, 1, 1)
+            del event['event']['text']
+            del event['event']['text_truncated']
+            self.assertEqual(self.ingest(p, event), 202)
+            self.assertFalse(getattr(sink, 'interpreter_seen', False))
+            history.append({'role': 'user', 'content': 'continue'})
+            self.turn(p, scope, 2, history)
+            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+            self.assertFalse(getattr(sink, 'interpreter_seen', False))
+
     def test_active_authenticated_open_and_immediate_baseline(self):
         with self.router(self.configure) as (p, sink):
             self.assertEqual(self.request(p, path='/v1/context/open', auth=False, body={'task_id': 't', 'session_id': 's', 'branch': 'b'})[0], 401)

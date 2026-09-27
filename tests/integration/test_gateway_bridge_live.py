@@ -155,8 +155,8 @@ class LiveBridgeTests(unittest.TestCase):
                     self.assertEqual(evidence['segments'], [dict(id='assistant_plan',
                         source='model_claim', text='format the result')])
                     self.assertNotIn('bridge-fixture-source', json.dumps(sink.seen))
-                    # Current source API rejects metadata-only response completion.
-                    # This is conservative uncertainty, not synthesized model text.
+                    # Metadata-only observations advance causal state without
+                    # inventing model text or poisoning subsequent attribution.
                     adapter.content_enabled = False
                     ids['api_request_id'] = 'metadata-only'
                     request['messages'].extend([answer['choices'][0]['message'],
@@ -171,9 +171,9 @@ class LiveBridgeTests(unittest.TestCase):
                     answer = json.loads(response.read())
                     conn.close()
                     adapter.response(**ids, assistant_message=NS(**answer['choices'][0]['message']))
-                    self.assertEqual(statuses.get(timeout=3), 400)
-                    self.assertEqual(statuses.get(timeout=3), 409)  # loss invalidation fences the ledger
-                    self.assertGreater(adapter.dropped, 0)
+                    self.assertEqual(statuses.get(timeout=3), 202)
+                    self.assertEqual(adapter.dropped, 0)
+                    self.assertEqual(sum('response_format' in row[2] for row in sink.seen), 1)
                     # An inference credential cannot register another source scope.
                     conn = http.client.HTTPConnection('127.0.0.1', port, timeout=3)
                     conn.request('POST', '/v1/context/open', json.dumps(dict(

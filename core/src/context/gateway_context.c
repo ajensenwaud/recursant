@@ -196,7 +196,8 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     if(row<0||g->rows[row].scope!=slot){status=403;goto done;}
     if(s->inflight||!g->rows[row].complete||row!=s->last_row){status=409;goto done;}
     json_t *text=json_object_get(event,"text"),*truncated=json_object_get(event,"text_truncated");
-    if(!keys(text,"|assistant_plan||reasoning|")||!keys(truncated,"|assistant_plan||reasoning|")||!json_object_size(text)||json_object_size(text)!=json_object_size(truncated))goto done;
+    bool metadata_only=!text&&!truncated;
+    if(!metadata_only&&(!keys(text,"|assistant_plan||reasoning|")||!keys(truncated,"|assistant_plan||reasoning|")||!json_object_size(text)||json_object_size(text)!=json_object_size(truncated)))goto done;
     rc_interpreter_input in={.key=s->key,.revision=revision};const char *k;json_t *v;
     json_object_foreach(text,k,v){
         if(!json_is_string(v)||!json_string_length(v)||json_string_length(v)>1024||strlen(json_string_value(v))!=json_string_length(v)||!json_is_false(json_object_get(truncated,k)))goto done;
@@ -220,7 +221,7 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     if(!exact(g,row,now)){status=409;goto done;}
     if(rc_context_put(g->contexts,&s->key,revision,now,g->ttl,"authorized source response",false)!=RC_CONTEXT_OK){status=409;goto done;}
     s->revision=revision;s->sequence=sequence;s->observed=now;s->evidence_row=row;memset(&s->interpretation,0,sizeof s->interpretation);
-    status=rc_interpreter_try_submit(g->worker,&in)?202:503;
+    status=metadata_only?202:(rc_interpreter_try_submit(g->worker,&in)?202:503);
 done:
     pthread_mutex_unlock(&g->lock);return status;
 }
