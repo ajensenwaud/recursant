@@ -117,7 +117,7 @@ static bool load_legacy(json_t *root,bool test,rc_runtime *r) {
     o=json_object_get(root,"private");
     if(!keys(o,"|url||model||api_key_env|") || !(c->private_url=text(o,"url")) || !(c->private_model=text(o,"model")) || !url_ok(c->private_url,false,test) || !secret(o,"api_key_env",false,&c->private_key_env,&r->private_key))return false;
     o=json_object_get(root,"public");
-    if(o){if(!keys(o,"|url||model||api_key_env|") || !(c->public_url=text(o,"url")) || !url_ok(c->public_url,true,test) || !secret(o,"api_key_env",true,&c->public_key_env,&r->provider_keys[1]))return false;
+    if(o){if(!keys(o,"|url||model||api_key_env||adapter|") || !(c->public_url=text(o,"url")) || !url_ok(c->public_url,true,test) || !secret(o,"api_key_env",true,&c->public_key_env,&r->provider_keys[1]))return false;
         if(json_object_get(o,"model") && !(c->public_model=text(o,"model")))return false;}
     rc_provider *pp=&c->providers[0];pp->trust=RC_ENDPOINT_PRIVATE;
     if(!(pp->name=strdup("private"))||!(pp->url=strdup(c->private_url))||!(pp->adapter=strdup("openai-compatible"))||
@@ -126,6 +126,11 @@ static bool load_legacy(json_t *root,bool test,rc_runtime *r) {
         rc_provider *pu=&c->providers[1];pu->trust=RC_ENDPOINT_PUBLIC;
         if(!(pu->name=strdup("public"))||!(pu->url=strdup(c->public_url))||!(pu->key_env=strdup(c->public_key_env))||
            !(pu->adapter=strdup(rc_provider_legacy_public_adapter(c->public_url))))return false;
+        /* Optional explicit adapter overrides the openrouter.ai host mapping. */
+        if(json_object_get(o,"adapter")){
+            free(pu->adapter);
+            if(!(pu->adapter=text(o,"adapter"))||!rc_provider_adapter_known(pu->adapter))return false;
+        }
     }
     c->has_private_default=true;c->private_provider=0;return true;
 }

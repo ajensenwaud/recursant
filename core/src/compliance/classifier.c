@@ -1,6 +1,7 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
 #include "recursant/classifier.h"
+#include "recursant/provider_adapter.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,11 +133,13 @@ static bool function_call(json_t *call) {
 static bool function_definition(json_t *f) {
     return known_keys(f,"|name||description||parameters||strict|") && json_is_string(json_object_get(f,"name"));
 }
-static bool inspectable(json_t *body) {
+/* controls: the destination adapter's provider-control allowlist, or NULL
+ * when a "provider" object is an unknown (uninspectable) field there. */
+static bool inspectable(json_t *body,const char *controls) {
     if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider|"))return false;
     json_t *provider=json_object_get(body,"provider");
     if(provider) {
-        if(!known_keys(provider,"|allow_fallbacks|"))return false;
+        if(!controls||!known_keys(provider,controls))return false;
         json_t *fallbacks=json_object_get(provider,"allow_fallbacks");
         if(fallbacks && !json_is_boolean(fallbacks))return false;
     }
@@ -180,7 +183,7 @@ static bool inspectable(json_t *body) {
     }
     return true;
 }
-static verdict classify(const rc_runtime *r,json_t *body) {
+static verdict classify(const rc_runtime *r,json_t *body,const char *controls) {
     budget memory={.limit=PCRE_BUDGET};
     pcre2_general_context *gc=pcre2_general_context_create(bounded_alloc,bounded_free,&memory);
     scanner s={.policy=r->compliance_policy};
@@ -190,29 +193,38 @@ static verdict classify(const rc_runtime *r,json_t *body) {
     if(s.md && s.mc) {
         pcre2_set_match_limit(s.mc,10000);pcre2_set_depth_limit(s.mc,100);pcre2_set_heap_limit(s.mc,1024);
         result=scan(&s,body,0);
-        if(result==CLEAN && !inspectable(body))result=UNKNOWN;
+        if(result==CLEAN && !inspectable(body,controls))result=UNKNOWN;
     }
     pcre2_match_data_free(s.md);pcre2_match_context_free(s.mc);pcre2_general_context_free(gc);
     return result;
 }
+/* Adapter of the provider that would receive (trust, model); NULL when none
+ * resolves (router then fails closed) so no gateway-specific leniency applies. */
+static const rc_provider_adapter *destination(const rc_runtime *r,json_t *body,rc_endpoint trust) {
+    size_t p=rc_runtime_dispatch_provider(r,trust,json_string_value(json_object_get(body,"model")));
+    return p==RC_PROVIDER_NONE?NULL:rc_provider_adapter_find(r->config.providers[p].adapter);
+}
 int rc_compliance_gate(const rc_runtime *r,json_t *body,rc_endpoint *endpoint) {
     if(!r->compliance_enabled)return 0;
     if(!r->compliance_policy)return 1;
-    verdict result=classify(r,body);
+    const rc_provider_adapter *adapter=destination(r,body,*endpoint);
+    verdict result=classify(r,body,adapter?adapter->provider_control_keys:NULL);
     const char *reason=!r->public_allowed?"policy":result==PATTERN?"pattern":result==UNKNOWN?"unknown":result==REGEX_ERROR?"regex_error":"clean";
     if(!r->public_allowed || result!=CLEAN) {
         if(*endpoint==RC_ENDPOINT_PUBLIC) {
             *endpoint=RC_ENDPOINT_PRIVATE;
             if(json_object_set_new(body,"model",json_string(r->config.private_model)))return 1;
         }
-    } else if(*endpoint==RC_ENDPOINT_PUBLIC) {
-        /* Only absent/boolean fallback controls are public-inspectable. Stronger
-         * or unknown restrictions must never be discarded to broaden egress.
-         * Fallback prevention is not residency/provider pinning. */
+    } else if(*endpoint==RC_ENDPOINT_PUBLIC&&adapter&&adapter->decorate_request) {
+        /* Public egress decoration belongs to the destination adapter (e.g.
+         * OpenRouter allow_fallbacks=false). Only controls the adapter lists
+         * are inspectable; stronger or unknown restrictions were already
+         * rejected above and are never discarded to broaden egress. Private
+         * destinations and undecorated adapters send the classified object. */
         json_t *original=json_incref(json_object_get(body,"provider"));
-        if(json_object_set_new(body,"provider",json_pack("{s:b}","allow_fallbacks",0))){json_decref(original);return 1;}
+        if(adapter->decorate_request(body)){json_decref(original);return 1;}
         /* The exact final public object must itself pass, including controls. */
-        result=classify(r,body);
+        result=classify(r,body,adapter->provider_control_keys);
         if(result!=CLEAN) {
             *endpoint=RC_ENDPOINT_PRIVATE;reason="final_policy";
             int restored=original?json_object_set(body,"provider",original):json_object_del(body,"provider");

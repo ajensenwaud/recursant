@@ -29,6 +29,12 @@ typedef struct {
     json_int_t created;
     bool has_created, native_completed, native_tool_calls, accounting_tail;
     bool failed, cr, role, finished, done;
+    /* Set once at allocation from the producing provider's adapter (S2b):
+     * true = openai-compatible, strict OpenAI stream shape only; OpenRouter
+     * accounting tail/fields fail closed (unportable). false = openrouter
+     * adapter, which also permits its validated accounting tail. Never
+     * changed after the first feed. */
+    bool strict_openai;
 } rc_response_observer;
 void rc_response_observer_feed(rc_response_observer *, const char *, size_t);
 json_t *rc_response_observer_message(const rc_response_observer *);

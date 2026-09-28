@@ -49,6 +49,7 @@ typedef struct {
     char *public_url;    /* https only */
     char *public_model;
     char *public_key_env; /* required when a public endpoint is configured */
+    char *public_adapter; /* optional legacy override; else host-derived (S2b) */
 
     rc_alias *aliases;
     size_t alias_count;

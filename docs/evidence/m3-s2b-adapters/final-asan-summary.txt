@@ -1,0 +1,25 @@
+ 1/24 Test  #1: selector_unit ....................   Passed    0.02 sec
+ 2/24 Test  #2: attempts_unit ....................   Passed    0.01 sec
+ 3/24 Test  #3: attempts_capacity ................   Passed    0.01 sec
+ 4/24 Test  #4: attempts_overflow ................   Passed    0.01 sec
+ 5/24 Test  #5: interpreter_alloc ................   Passed    0.19 sec
+ 6/24 Test  #6: context_unit .....................   Passed    0.01 sec
+ 7/24 Test  #7: egress_policy ....................   Passed    0.01 sec
+ 8/24 Test  #8: config_strict ....................   Passed    0.01 sec
+ 9/24 Test  #9: admission_unit ...................   Passed    0.01 sec
+10/24 Test #10: interpreter_loopback .............   Passed   11.17 sec
+11/24 Test #11: stream_tools_unit ................   Passed    0.28 sec
+12/24 Test #12: tool_boundary_unit ...............   Passed    0.03 sec
+13/24 Test #13: stream_tools_gateway .............   Passed   38.55 sec
+14/24 Test #14: native_tools_integration .........   Passed   32.76 sec
+15/24 Test #15: response_observer_unit ...........   Passed    0.34 sec
+16/24 Test #16: gateway_context_integration ......   Passed   74.41 sec
+17/24 Test #17: gateway_capacity_integration .....   Passed   83.25 sec
+18/24 Test #18: hermes_observer ..................   Passed    7.35 sec
+19/24 Test #19: compliance_integration ...........   Passed   20.36 sec
+20/24 Test #20: router_integration ...............   Passed   29.86 sec
+21/24 Test #21: transport_integration ............   Passed    1.54 sec
+22/24 Test #22: admission_integration ............   Passed    0.41 sec
+23/24 Test #23: trajectory_reference .............   Passed    3.49 sec
+24/24 Test #24: accounting .......................   Passed    0.13 sec
+100% tests passed, 0 tests failed out of 24

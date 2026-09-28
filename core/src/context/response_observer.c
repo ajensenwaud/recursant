@@ -33,8 +33,11 @@ static bool costs(json_t *v) {
     json_object_foreach(v,k,n){(void)k;if(!cost(n))return false;}
     return true;
 }
-static bool usage(json_t *v) {
-    if(!keys(v,"|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details||cost||is_byok||cost_details|",""))return false;
+/* strict: OpenAI usage shape only; OpenRouter cost/BYOK/extra counters are
+ * unknown (unportable) fields for openai-compatible adapters. */
+static bool usage(json_t *v,bool strict) {
+    if(!keys(v,strict?"|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details|":
+             "|prompt_tokens||completion_tokens||total_tokens||prompt_tokens_details||completion_tokens_details||cost||is_byok||cost_details|",""))return false;
     const char *required[]={"prompt_tokens","completion_tokens","total_tokens"};
     for(size_t i=0;i<3;i++){
         json_t *n=json_object_get(v,required[i]);
@@ -43,8 +46,9 @@ static bool usage(json_t *v) {
     json_t *prompt=json_object_get(v,"prompt_tokens_details"),*completion=json_object_get(v,"completion_tokens_details");
     json_t *amount=json_object_get(v,"cost"),*byok=json_object_get(v,"is_byok"),*details=json_object_get(v,"cost_details");
     return (!amount||cost(amount))&&(!byok||json_is_boolean(byok))&&(!details||costs(details))&&
-        (!prompt||json_is_null(prompt)||counts(prompt,"|cached_tokens||cache_write_tokens||audio_tokens||video_tokens|"))&&
-        (!completion||json_is_null(completion)||counts(completion,"|reasoning_tokens||image_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
+        (!prompt||json_is_null(prompt)||counts(prompt,strict?"|cached_tokens||audio_tokens|":"|cached_tokens||cache_write_tokens||audio_tokens||video_tokens|"))&&
+        (!completion||json_is_null(completion)||counts(completion,strict?"|reasoning_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|":
+                                                        "|reasoning_tokens||image_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
 }
 static bool identity(char stored[129],json_t *v) {
     if(!v)return true;
@@ -54,7 +58,9 @@ static bool identity(char stored[129],json_t *v) {
     strcpy(stored,s);return true;
 }
 static bool chunk(rc_response_observer *o,json_t *root) {
-    if(!keys(root,"|id||object||created||model||provider||choices||usage||system_fingerprint||service_tier|",
+    const bool strict=o->strict_openai;
+    if(!keys(root,strict?"|id||object||created||model||choices||usage||system_fingerprint||service_tier|":
+             "|id||object||created||model||provider||choices||usage||system_fingerprint||service_tier|",
              "|prompt_logprobs||prompt_token_ids||prompt_text||kv_transfer_params||ec_transfer_params||metrics|"))return false;
     json_t *tier=json_object_get(root,"service_tier");
     if(tier&&!json_is_null(tier)&&!string_is(tier,"default"))return false;
@@ -71,13 +77,15 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     if(fingerprint&&!json_is_string(fingerprint))return false;
     json_t *choices=json_object_get(root,"choices"),*c=json_array_get(choices,0);
     json_t *u=json_object_get(root,"usage");
-    if(u&&!json_is_null(u)&&!usage(u))return false;
+    if(u&&!json_is_null(u)&&!usage(u,strict))return false;
+    /* One empty-choices usage tail after finish: OpenAI include_usage shape. */
     if(json_is_array(choices)&&!json_array_size(choices)){
-        if(!o->finished||o->accounting_tail||!usage(u))return false;
+        if(!o->finished||o->accounting_tail||!usage(u,strict))return false;
         o->accounting_tail=true;return true;
     }
     if(!json_is_array(choices)||json_array_size(choices)!=1)return false;
-    if(!keys(c,"|index||delta||finish_reason||native_finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|"))return false;
+    if(!keys(c,strict?"|index||delta||finish_reason||stop_reason|":"|index||delta||finish_reason||native_finish_reason||stop_reason|",
+             "|logprobs||token_ids||routed_experts|"))return false;
     json_t *index=json_object_get(c,"index"),*stop=json_object_get(c,"stop_reason");
     if(!json_is_integer(index)||json_integer_value(index)!=0||
        (stop&&(!json_is_integer(stop)||json_integer_value(stop)<0)))return false;
@@ -92,7 +100,7 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     /* OpenRouter repeats the empty terminal choice with accounting. This is
      * not a second completion or permission to append state after finish. */
     if(o->finished){
-        if(o->accounting_tail||!usage(u)||!string_is(finish,o->tool_finish?"tool_calls":"stop")||
+        if(strict||o->accounting_tail||!usage(u,strict)||!string_is(finish,o->tool_finish?"tool_calls":"stop")||
            json_object_get(delta,"tool_calls")||
            (text&&!string_is(text,""))||
            o->native_completed!=string_is(native,"completed")||

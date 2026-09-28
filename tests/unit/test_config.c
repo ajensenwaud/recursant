@@ -326,6 +326,28 @@ static int test_legacy_sections_become_implicit_providers(void) {
     CHECK(loads(generic, strlen(generic), &cfg, err, sizeof err));
     CHECK(strcmp(cfg.providers[1].adapter, "openai-compatible") == 0);
     rc_config_free(&cfg);
+
+    /* S2b: optional explicit legacy public.adapter overrides the host mapping. */
+    const char *explicit_or =
+        "{\"listen\": {\"host\": \"h\", \"port\": 1},"
+        "\"private\": {\"url\": \"http://g:1/v1\"},"
+        "\"public\": {\"url\": \"https://gw.example.test/v1\", \"api_key_env\": \"K\", \"adapter\": \"openrouter\"},"
+        "\"projects\": [{\"name\": \"p\", \"token_env\": \"T\"}]}";
+    CHECK(loads(explicit_or, strlen(explicit_or), &cfg, err, sizeof err));
+    CHECK(strcmp(cfg.providers[1].adapter, "openrouter") == 0);
+    rc_config_free(&cfg);
+    const char *bad_adapter[] = {
+        "{\"listen\": {\"host\": \"h\", \"port\": 1}, \"private\": {\"url\": \"http://g:1/v1\"},"
+        "\"public\": {\"url\": \"https://gw.example.test/v1\", \"api_key_env\": \"K\", \"adapter\": \"OpenRouter\"},"
+        "\"projects\": [{\"name\": \"p\", \"token_env\": \"T\"}]}",
+        "{\"listen\": {\"host\": \"h\", \"port\": 1}, \"private\": {\"url\": \"http://g:1/v1\", \"adapter\": \"openrouter\"},"
+        "\"public\": {\"url\": \"https://gw.example.test/v1\", \"api_key_env\": \"K\"},"
+        "\"projects\": [{\"name\": \"p\", \"token_env\": \"T\"}]}",
+    };
+    for (size_t i = 0; i < sizeof bad_adapter / sizeof *bad_adapter; ++i) {
+        CHECK(!loads(bad_adapter[i], strlen(bad_adapter[i]), &cfg, err, sizeof err));
+        rc_config_free(&cfg);
+    }
     return 0;
 }
 

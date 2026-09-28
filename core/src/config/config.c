@@ -257,7 +257,9 @@ static bool legacy_providers(rc_config *cfg, char *err, size_t err_len) {
         p->name = dup_str(i ? "public" : "private");
         p->url = dup_str(urls[i]);
         p->key_env = keys[i] ? dup_str(keys[i]) : NULL;
-        p->adapter = dup_str(i ? rc_provider_legacy_public_adapter(urls[i]) : "openai-compatible");
+        p->adapter = dup_str(i ? (cfg->public_adapter ? cfg->public_adapter
+                                                      : rc_provider_legacy_public_adapter(urls[i]))
+                               : "openai-compatible");
         ++n;
         cfg->provider_count = n;
         if (!p->name || !p->url || !p->adapter || (keys[i] && !p->key_env)) {
@@ -833,9 +835,11 @@ static bool bind_optional_string(const jval *obj, const char *key, const char *w
 
 static bool bind_endpoint_section(const jval *section, const char *name,
                                   char **url, char **model, char **key_env,
-                                  char *err, size_t err_len) {
-    static const char *const known[] = { "url", "model", "api_key_env" };
-    if (!obj_keys_known(section, known, 3, name, err, err_len))
+                                  char **adapter, char *err, size_t err_len) {
+    /* "adapter" is accepted only where the caller provides a destination
+     * (the legacy public section); private stays openai-compatible. */
+    static const char *const known[] = { "url", "model", "api_key_env", "adapter" };
+    if (!obj_keys_known(section, known, adapter ? 4 : 3, name, err, err_len))
         return false;
     char what_url[64], what_model[64], what_key[64];
     (void)snprintf(what_url, sizeof what_url, "%s.url", name);
@@ -853,6 +857,17 @@ static bool bind_endpoint_section(const jval *section, const char *name,
         return false;
     if (!bind_optional_string(section, "api_key_env", what_key, key_env, &have_key, err, err_len))
         return false;
+    if (adapter) {
+        char what_adapter[64];
+        bool have_adapter = false;
+        (void)snprintf(what_adapter, sizeof what_adapter, "%s.adapter", name);
+        if (!bind_optional_string(section, "adapter", what_adapter, adapter, &have_adapter, err, err_len))
+            return false;
+        if (have_adapter && !rc_provider_adapter_known(*adapter)) {
+            err_set(err, err_len, "%s is not a known adapter", what_adapter);
+            return false;
+        }
+    }
     return true;
 }
 
@@ -924,7 +939,7 @@ static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_le
         return false;
     }
     if (!bind_endpoint_section(priv, "private", &cfg->private_url, &cfg->private_model,
-                               &cfg->private_key_env, err, err_len))
+                               &cfg->private_key_env, NULL, err, err_len))
         return false;
     const jval *pub = obj_get(root, "public");
     if (!pub) {
@@ -932,7 +947,7 @@ static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_le
         return false;
     }
     if (!bind_endpoint_section(pub, "public", &cfg->public_url, &cfg->public_model,
-                               &cfg->public_key_env, err, err_len))
+                               &cfg->public_key_env, &cfg->public_adapter, err, err_len))
         return false;
 
     if (aliases) {
@@ -1232,5 +1247,6 @@ void rc_config_free(rc_config *cfg) {
         free(cfg->providers[i].adapter);
     }
     free(cfg->providers);
+    free(cfg->public_adapter);
     memset(cfg, 0, sizeof *cfg);
 }

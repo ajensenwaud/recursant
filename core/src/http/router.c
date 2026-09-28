@@ -2,6 +2,7 @@
 #include "recursant/runtime.h"
 #include "recursant/gateway_context.h"
 #include "recursant/classifier.h"
+#include "recursant/provider_adapter.h"
 #include <microhttpd.h>
 #include <curl/curl.h>
 #include <arpa/inet.h>
@@ -32,6 +33,7 @@ typedef struct {
     rc_gateway_ticket ticket;
     char observation[65536];size_t observed;bool observation_overflow;
     rc_response_observer *stream_observation;
+    bool strict_stream; /* resolved provider's adapter lacks OpenRouter accounting */
 } request;
 static void stop_server(int sig){(void)sig;stopping=1;}
 static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char *text,const char *type){
@@ -72,6 +74,7 @@ static size_t receive(char *data,size_t size,size_t nmemb,void *ctx){
             if(!r->stream_observation&&!r->observation_overflow){
                 r->stream_observation=calloc(1,sizeof *r->stream_observation);
                 if(!r->stream_observation)r->observation_overflow=true;
+                else r->stream_observation->strict_openai=r->strict_stream;
             }
             if(r->stream_observation)rc_response_observer_feed(r->stream_observation,data,n);
         }
@@ -202,6 +205,10 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC){json_decref(body);return error_reply(c,403);}
     r->provider=rc_runtime_dispatch_provider(rt,r->endpoint,json_string_value(json_object_get(body,"model")));
     if(r->provider==RC_PROVIDER_NONE){json_decref(body);return error_reply(c,403);}
+    /* The stream observer accepts only the dialect of the adapter that will
+     * produce it; unknown adapters get the strict OpenAI shape. */
+    const rc_provider_adapter *adapter=rc_provider_adapter_find(rt->config.providers[r->provider].adapter);
+    r->strict_stream=!adapter||!adapter->accepts_openrouter_accounting;
     r->payload=json_dumps(body,JSON_COMPACT);json_decref(body);if(!r->payload)return error_reply(c,500);
     const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
     if(!info || (r->downstream_fd=dup(info->connect_fd))<0)return error_reply(c,503);
