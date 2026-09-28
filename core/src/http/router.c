@@ -23,6 +23,7 @@ typedef struct {
     char *body; size_t used; bool replied; unsigned rejection;
     pthread_t worker; bool started;
     pthread_mutex_t lock; pthread_cond_t changed;
+    bool finished; /* Gateway ticket finalized exactly once. */
     unsigned char queue[QUEUE_SIZE]; size_t head,count;
     bool done,cancel,headers,failed,sse;
     long status; char *payload; rc_endpoint endpoint; size_t provider;
@@ -117,7 +118,13 @@ end:
 static ssize_t read_response(void *ctx,uint64_t pos,char *buf,size_t max){
     (void)pos;request *r=ctx;pthread_mutex_lock(&r->lock);
     while(!r->count&&!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
-    if(!r->count){ssize_t n=(r->failed||r->cancel)?MHD_CONTENT_READER_END_WITH_ERROR:MHD_CONTENT_READER_END_OF_STREAM;pthread_mutex_unlock(&r->lock);return n;}
+    if(!r->count){ssize_t n=(r->failed||r->cancel)?MHD_CONTENT_READER_END_WITH_ERROR:MHD_CONTENT_READER_END_OF_STREAM;pthread_mutex_unlock(&r->lock);
+        /* The response is fully delivered to the transport (or terminally
+         * failed): the scoped exchange is over. Finalize here so the next
+         * scoped request observes the cleared inflight fence and the true
+         * pin/ownership status instead of a stale 409 during teardown. */
+        rc_gateway_finish(r->runtime,&r->ticket,!r->failed&&!r->cancel,r->sse,r->observation_overflow?NULL:r->observation,r->observed,r->stream_observation);
+        return n;}
     size_t n=QUEUE_SIZE-r->head;if(n>r->count)n=r->count;if(n>max)n=max;
     memcpy(buf,r->queue+r->head,n);r->head=(r->head+n)%QUEUE_SIZE;r->count-=n;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);return (ssize_t)n;
 }

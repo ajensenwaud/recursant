@@ -14,7 +14,7 @@ typedef struct {
     char generation[33], branch[64];
     bool invalid;
 } rc_gateway_headers;
-typedef struct { rc_attempt_id id; int scope, row; bool begun; } rc_gateway_ticket;
+typedef struct { rc_attempt_id id; int scope, row; bool begun, finished; } rc_gateway_ticket;
 void rc_gateway_header(rc_gateway_headers *, const char *, const char *);
 unsigned rc_gateway_prepare(rc_runtime *, json_t *, bool automatic,
     const rc_gateway_headers *, rc_endpoint *, rc_gateway_ticket *);

@@ -566,8 +566,10 @@ static bool tool_envelope(json_t *root,json_t *choice) {
         (!c||json_is_null(c)||counters(c,"|reasoning_tokens||audio_tokens||accepted_prediction_tokens||rejected_prediction_tokens|"));
 }
 void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bool sse,const char *response,size_t length,const rc_response_observer *observer) {
-    struct rc_gateway_context *g=rt->gateway;if(!g||!ticket->begun)return;
-    pthread_mutex_lock(&g->lock);uint64_t now=now_ms();
+    struct rc_gateway_context *g=rt->gateway;if(!g||!ticket->begun||ticket->finished)return;
+    pthread_mutex_lock(&g->lock);
+    if(ticket->finished){pthread_mutex_unlock(&g->lock);return;}
+    ticket->finished=true;uint64_t now=now_ms();
     rc_attempt_finish(g->ledger,ticket->id,complete,now);
     if(ticket->row>=0){g->rows[ticket->row].complete=complete;g->rows[ticket->row].settled=true;}
     if(ticket->scope>=0){
