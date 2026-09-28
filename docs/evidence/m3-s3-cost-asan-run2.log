@@ -1,0 +1,57 @@
+Test project /tmp/a
+      Start  1: selector_unit
+ 1/26 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: attempts_unit
+ 2/26 Test  #2: attempts_unit ....................   Passed    0.01 sec
+      Start  3: attempts_capacity
+ 3/26 Test  #3: attempts_capacity ................   Passed    0.01 sec
+      Start  4: attempts_overflow
+ 4/26 Test  #4: attempts_overflow ................   Passed    0.01 sec
+      Start  5: interpreter_alloc
+ 5/26 Test  #5: interpreter_alloc ................   Passed    0.18 sec
+      Start  6: context_unit
+ 6/26 Test  #6: context_unit .....................   Passed    0.01 sec
+      Start  7: egress_policy
+ 7/26 Test  #7: egress_policy ....................   Passed    0.01 sec
+      Start  8: config_strict
+ 8/26 Test  #8: config_strict ....................   Passed    0.01 sec
+      Start  9: admission_unit
+ 9/26 Test  #9: admission_unit ...................   Passed    0.01 sec
+      Start 10: interpreter_loopback
+10/26 Test #10: interpreter_loopback .............   Passed   11.19 sec
+      Start 11: stream_tools_unit
+11/26 Test #11: stream_tools_unit ................   Passed    0.27 sec
+      Start 12: cost_unit
+12/26 Test #12: cost_unit ........................   Passed    0.02 sec
+      Start 13: tool_boundary_unit
+13/26 Test #13: tool_boundary_unit ...............   Passed    0.03 sec
+      Start 14: stream_tools_gateway
+14/26 Test #14: stream_tools_gateway .............   Passed   38.63 sec
+      Start 15: native_tools_integration
+15/26 Test #15: native_tools_integration .........   Passed   32.80 sec
+      Start 16: response_observer_unit
+16/26 Test #16: response_observer_unit ...........   Passed    0.35 sec
+      Start 17: gateway_context_integration
+17/26 Test #17: gateway_context_integration ......   Passed   74.31 sec
+      Start 18: gateway_cost_integration
+18/26 Test #18: gateway_cost_integration .........   Passed    6.50 sec
+      Start 19: gateway_capacity_integration
+19/26 Test #19: gateway_capacity_integration .....   Passed   83.11 sec
+      Start 20: hermes_observer
+20/26 Test #20: hermes_observer ..................   Passed    7.37 sec
+      Start 21: compliance_integration
+21/26 Test #21: compliance_integration ...........   Passed   20.36 sec
+      Start 22: router_integration
+22/26 Test #22: router_integration ...............   Passed   28.23 sec
+      Start 23: transport_integration
+23/26 Test #23: transport_integration ............   Passed    1.56 sec
+      Start 24: admission_integration
+24/26 Test #24: admission_integration ............   Passed    0.40 sec
+      Start 25: trajectory_reference
+25/26 Test #25: trajectory_reference .............   Passed    3.43 sec
+      Start 26: accounting
+26/26 Test #26: accounting .......................   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 26
+
+Total Test time (real) = 308.96 sec

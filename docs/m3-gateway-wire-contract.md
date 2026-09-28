@@ -250,6 +250,27 @@ not independently validated by the gateway. Optional tool `capabilities` are
 specified in the nonstream slice; absence is unknown, never implicit support.
 Costs must account for replay,
 retries and interpretation; missing/unknown costs cannot be passed as zero.
+
+S3 price model (alternative to `expected_task_cost`; each candidate has exactly
+one, and one registry never mixes the two): `price` =
+`{"input_per_mtok", "output_per_mtok"[, "cached_input_per_mtok"]}` in USD per
+million tokens, finite, >= 0, cached <= input (default = input), unknown keys
+rejected. Optional `context.expected_output_tokens` (integer 1..100000, default
+512). Priced registries compute a per-turn ESTIMATE (not billing):
+`prompt_est` = last provider `prompt_tokens + completion_tokens` +
+ceil(bytes of messages appended since that turn / 4) when the scope's last
+completed nonstream turn reported usage, else ceil(request JSON bytes / 4);
+`out_est` = min(max_tokens, expected_output_tokens); cost =
+(prompt_est - cached)*input + cached*cached_input + out_est*output (per_mtok/1e6),
+where cached = min(last prompt_tokens, prompt_est) ONLY for the current owner
+model and only when the last turn reported `cached_tokens > 0`; every other
+model gets cached = 0 (prompt-cache switching penalty). Context-limit
+eligibility uses `prompt_est + max_tokens`. Legacy `expected_task_cost`
+registries keep raw JSON bytes + max_tokens and fixed costs exactly as before.
+Each automatic scoped decision on a priced registry logs one stderr line
+`route_decision scope=N mode=M chosen=ALIAS est_prompt=N est_out=N costs=alias:usd,...`
+(aliases/numbers only, no content or secrets). Selector safety, qualification,
+minimum_saving, pins and final M2 are unchanged.
 The automatic alias is callable but not yet included in `/v1/models`.
 
 32 registered branch scopes,256 physical ingress rows and4 outstanding worker

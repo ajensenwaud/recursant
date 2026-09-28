@@ -75,6 +75,7 @@ class RouterTests(unittest.TestCase):
                     process.kill(); process.communicate()
                     self.fail('router did not shut down within 5 seconds')
                 sink.shutdown(); sink.server_close(); thread.join()
+                sink.router_stderr = stderr
                 self.assertEqual(process.returncode, 0, stderr.decode())
                 self.assertNotIn(b'AddressSanitizer', stderr)
                 self.assertNotIn(b'runtime error:', stderr)

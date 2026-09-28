@@ -60,6 +60,15 @@ class GatewayCostTests(unittest.TestCase):
                 'prompt_tokens_details': {'cached_tokens': 99000}}
         with self.router(lambda c, s: self.priced(c, s, cheap, usage=warm)) as (p, sink):
             self.assertEqual(self.advised_second_turn(p, sink), 'frontier')
+        # Evidence line: aliases, estimated tokens and USD only; never content.
+        lines = [l for l in sink.router_stderr.decode().splitlines() if l.startswith('route_decision ')]
+        self.assertEqual(len(lines), 2, lines)
+        self.assertRegex(lines[0], r'chosen=baseline est_prompt=\d+ est_out=64 costs=baseline:[0-9.e-]+,alias:[0-9.e-]+$')
+        # Turn 2: usage-based estimate 100000+20+ceil(len('{"role":"user","content":"continue"}')/4).
+        self.assertIn('chosen=baseline est_prompt=100029 est_out=64', lines[1])
+        costs = dict(x.split(':') for x in lines[1].split('costs=')[1].split(','))
+        self.assertLess(float(costs['baseline']), float(costs['alias']))
+        self.assertNotIn(b'continue', sink.router_stderr); self.assertNotIn(b'local-test-key', sink.router_stderr)
 
     def test_cold_owner_same_prices_switches(self):
         # Control: identical prices and prompt size but no cache evidence, so
