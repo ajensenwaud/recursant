@@ -18,6 +18,11 @@ typedef struct rc_runtime {
     bool test_mode;
     bool compliance_enabled;
     bool public_allowed;
+    /* compliance.content_scanning (default true). false is a TEMPORARY operator
+     * switch: skips regex patterns and text heuristics (URL/data:/nested JSON)
+     * only. Structural uninspectability, public_allowed and provider controls
+     * still apply. Intended to be replaced by a judgement model, not removed. */
+    bool content_scanning;
     json_t *patterns;
     struct rc_compliance_policy *compliance_policy;
 } rc_runtime;

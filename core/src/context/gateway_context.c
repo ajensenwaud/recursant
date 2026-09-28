@@ -478,9 +478,19 @@ static bool tool_definitions(json_t *body,uint32_t *requirements) {
     if(nested)*requirements|=RC_REQ_NESTED_SCHEMAS;
     return true;
 }
+/* Output bound: exactly one of max_tokens or max_completion_tokens (the
+ * OpenAI successor spelling that pinned Hermes sends), integer 1..100000.
+ * Forwarded verbatim; neither spelling is rewritten. */
+static bool output_bound(json_t *body,uint64_t *out) {
+    json_t *a=json_object_get(body,"max_tokens"),*b=json_object_get(body,"max_completion_tokens");
+    if(!!a==!!b)return false;
+    json_t *v=a?a:b;
+    if(!json_is_integer(v)||json_integer_value(v)<1||json_integer_value(v)>100000)return false;
+    *out=(uint64_t)json_integer_value(v);return true;
+}
 /* effort receives the exact reasoning_effort token ("" when absent). */
 static bool request_options(json_t *body,uint32_t *requirements,char effort[RC_EFFORT_BYTES+1]) {
-    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls||reasoning_effort|"))return false;
+    if(!keys(body,"|model||messages||max_tokens||max_completion_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls||reasoning_effort|"))return false;
     json_t *stream=json_object_get(body,"stream");if(stream&&!json_is_boolean(stream))return false;
     json_t *options=json_object_get(body,"stream_options");
     if(options&&(!json_is_true(stream)||!keys(options,"|include_usage|")||
@@ -490,7 +500,7 @@ static bool request_options(json_t *body,uint32_t *requirements,char effort[RC_E
         const char *e=token(body,"reasoning_effort",RC_EFFORT_BYTES);if(!e)return false;
         strcpy(effort,e);
     }
-    uint64_t output;if(!integer(body,"max_tokens",100000,&output))return false;
+    uint64_t output;if(!output_bound(body,&output))return false;
     const char *names[]={"temperature","top_p"};
     for(size_t i=0;i<2;i++){
         json_t *v=json_object_get(body,names[i]);double n=json_number_value(v);
@@ -609,7 +619,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 }
                 prompt_est=rc_estimate_prompt_tokens(&last,appended,tokens);tokens=prompt_est;
             }
-            json_t *max=json_object_get(body,"max_tokens");if(json_is_integer(max)&&json_integer_value(max)>0&&json_integer_value(max)<=100000){max_tokens=(uint64_t)json_integer_value(max);tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=structural=false;
+            if(output_bound(body,&max_tokens)){tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=structural=false;
             output_est=rc_estimate_output_tokens(max_tokens,g->expected_output);
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
             rc_signal_scope facts={.completed_turns=s->turns};

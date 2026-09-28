@@ -106,6 +106,56 @@ class ComplianceTests(unittest.TestCase):
                 with self.subTest(protocol_position=index):
                     self.private_only(p, private, public, {'model': 'alias', **body})
 
+    def test_content_scanning_switch(self):
+        """Temporary operator switch (Anders, 2026-09-29): regex/text heuristics are
+        too strict for agent traffic until a judgement model replaces them.
+        Off disables ONLY content text scanning; structural M2 stays."""
+        off = lambda c, *_: c['compliance'].update(content_scanning=False)
+        with self.router(off) as (p, private, public):
+            for content in ('synthetic@example.test', 'see https://example.test/docs',
+                            'use a data: URL', 'ACCOUNT-12345'):
+                with self.subTest(public=content):
+                    before = len(public.seen)
+                    body = {'model': 'alias', 'messages': [{'role': 'user', 'content': content}]}
+                    self.assertEqual(self.request(p, body=body)[0], 200)
+                    self.assertEqual(len(public.seen), before + 1)
+                    self.assertEqual(public.seen[-1]['model'], 'public-model')
+            self.assertEqual(private.seen, [])
+            # Structural uninspectable content is still private.
+            for extra in ({'messages': [{'role': 'user', 'content': [{'type': 'image_url', 'image_url': {'url': 'https://x.test/i'}}]}]},
+                          {'messages': [], 'unrecognized_extension': 'clean'},
+                          {'messages': [{'role': 'user', 'content': [{'type': 'file', 'file': {'file_data': 'eHl6'}}]}]}):
+                with self.subTest(private=extra):
+                    public_before = len(public.seen)
+                    self.assertEqual(self.request(p, body={'model': 'alias', **extra})[0], 200)
+                    self.assertEqual(private.seen[-1]['model'], 'private-model')
+                    self.assertEqual(len(public.seen), public_before)
+        self.assertIn(b'compliance_content_scanning=disabled', self.last_stderr)
+        self.assertIn(b'compliance_reason=unscanned endpoint=public', self.last_stderr)
+        # public_allowed=false still wins with scanning off.
+        both = lambda c, *_: c['compliance'].update(content_scanning=False, public_allowed=False)
+        with self.router(both) as (p, private, public):
+            self.private_only(p, private, public, {'model': 'alias', 'messages': [{'role': 'user', 'content': 'hello'}]})
+        # Default and explicit true are unchanged (strict).
+        for edit in (None, lambda c, *_: c['compliance'].update(content_scanning=True)):
+            with self.router(edit) as (p, private, public):
+                self.private_only(p, private, public, {'model': 'alias', 'messages': [{'role': 'user', 'content': 'see https://example.test'}]})
+            self.assertNotIn(b'compliance_content_scanning=disabled', self.last_stderr)
+
+    def test_content_scanning_switch_is_strict_boolean(self):
+        for value in ('false', 0, None, [], {}):
+            with self.subTest(value=value):
+                with tempfile.TemporaryDirectory() as tmp:
+                    cfg = {'listen': {'host': '127.0.0.1', 'port': 12345},
+                           'private': {'url': 'http://127.0.0.1:1/v1', 'model': 'private-model'},
+                           'auth': {'api_key_env': 'RC_TEST_AUTH'},
+                           'aliases': [{'from': 'alias', 'endpoint': 'private', 'model': 'private-model'}],
+                           'compliance': {'enabled': True, 'content_scanning': value}}
+                    path = pathlib.Path(tmp) / 'c.json'; path.write_text(json.dumps(cfg))
+                    r = subprocess.run([str(BIN), 'validate', str(path), '--test-mode'],
+                                       env={**os.environ, 'RC_TEST_AUTH': 'k'}, capture_output=True)
+                    self.assertNotEqual(r.returncode, 0)
+
     def test_01_email_public_alias_is_private_only(self):
         with self.router() as (p, private, public):
             self.private_only(p, private, public, {'model': 'alias', 'messages': [{'role': 'user', 'content': 'synthetic@example.test'}]})

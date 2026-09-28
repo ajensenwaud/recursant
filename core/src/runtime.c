@@ -194,9 +194,11 @@ bool rc_runtime_load(const char *path,bool test,rc_runtime *r,char *err,size_t n
     if(!number(o,"request_timeout_seconds",60,3600,&num))goto bad;
     r->request_timeout_seconds=(unsigned)num;
     o=json_object_get(root,"compliance");
-    if(o){if(!keys(o,"|enabled||public_allowed||patterns|"))goto bad;
+    r->content_scanning=true;
+    if(o){if(!keys(o,"|enabled||public_allowed||patterns||content_scanning|"))goto bad;
         v=json_object_get(o,"enabled");if(v&&!json_is_boolean(v))goto bad;r->compliance_enabled=json_is_true(v);
         v=json_object_get(o,"public_allowed");if(v&&!json_is_boolean(v))goto bad;r->public_allowed=json_is_true(v);
+        v=json_object_get(o,"content_scanning");if(v&&!json_is_boolean(v))goto bad;if(v)r->content_scanning=json_is_true(v);
         v=json_object_get(o,"patterns");if(v&&!json_is_array(v))goto bad;
         if(v){for(size_t i=0;i<json_array_size(v);i++)if(!json_is_string(json_array_get(v,i)))goto bad;r->patterns=json_incref(v);}
     }

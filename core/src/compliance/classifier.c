@@ -32,7 +32,7 @@ struct rc_compliance_policy {
     pcre2_code *rules[MAX_RULES+1];
     size_t count;
 };
-typedef enum { CLEAN, PATTERN, UNKNOWN, REGEX_ERROR } verdict;
+typedef enum { CLEAN, PATTERN, UNKNOWN, REGEX_ERROR, UNSCANNED } verdict;
 typedef struct {
     const struct rc_compliance_policy *policy;
     pcre2_match_data *md;
@@ -43,6 +43,8 @@ typedef struct {
 bool rc_compliance_init(rc_runtime *r) {
     if(!r->compliance_enabled)return true;
     if(r->compliance_policy)return false;
+    if(!r->content_scanning)
+        fprintf(stderr,"compliance_content_scanning=disabled WARNING: regex/PII text scanning is OFF (temporary operator switch); structural M2 checks remain\n");
     size_t count=json_array_size(r->patterns);
     if(count>MAX_RULES)return false;
     struct rc_compliance_policy *p=calloc(1,sizeof *p);
@@ -184,6 +186,10 @@ static bool inspectable(json_t *body,const char *controls) {
     return true;
 }
 static verdict classify(const rc_runtime *r,json_t *body,const char *controls) {
+    /* Temporary operator switch: content text scanning off means only the
+     * structural contract decides (unknown fields, non-text parts, provider
+     * controls). UNSCANNED is not CLEAN: it is reported distinctly. */
+    if(!r->content_scanning)return inspectable(body,controls)?UNSCANNED:UNKNOWN;
     budget memory={.limit=PCRE_BUDGET};
     pcre2_general_context *gc=pcre2_general_context_create(bounded_alloc,bounded_free,&memory);
     scanner s={.policy=r->compliance_policy};
@@ -209,8 +215,9 @@ int rc_compliance_gate(const rc_runtime *r,json_t *body,rc_endpoint *endpoint) {
     if(!r->compliance_policy)return 1;
     const rc_provider_adapter *adapter=destination(r,body,*endpoint);
     verdict result=classify(r,body,adapter?adapter->provider_control_keys:NULL);
-    const char *reason=!r->public_allowed?"policy":result==PATTERN?"pattern":result==UNKNOWN?"unknown":result==REGEX_ERROR?"regex_error":"clean";
-    if(!r->public_allowed || result!=CLEAN) {
+    const char *reason=!r->public_allowed?"policy":result==PATTERN?"pattern":result==UNKNOWN?"unknown":result==REGEX_ERROR?"regex_error":result==UNSCANNED?"unscanned":"clean";
+    bool passes=result==CLEAN||result==UNSCANNED;
+    if(!r->public_allowed || !passes) {
         if(*endpoint==RC_ENDPOINT_PUBLIC) {
             *endpoint=RC_ENDPOINT_PRIVATE;
             if(json_object_set_new(body,"model",json_string(r->config.private_model)))return 1;
@@ -225,7 +232,7 @@ int rc_compliance_gate(const rc_runtime *r,json_t *body,rc_endpoint *endpoint) {
         if(adapter->decorate_request(body)){json_decref(original);return 1;}
         /* The exact final public object must itself pass, including controls. */
         result=classify(r,body,adapter->provider_control_keys);
-        if(result!=CLEAN) {
+        if(result!=CLEAN&&result!=UNSCANNED) {
             *endpoint=RC_ENDPOINT_PRIVATE;reason="final_policy";
             int restored=original?json_object_set(body,"provider",original):json_object_del(body,"provider");
             if(restored || json_object_set_new(body,"model",json_string(r->config.private_model))){json_decref(original);return 1;}

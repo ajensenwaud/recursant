@@ -122,6 +122,32 @@ class NativeProfileTests(unittest.TestCase):
         self.assertIn(' class=tool_followup_ok reason=cheapest', lines[1])
         self.assertNotIn('reason=pin', ''.join(lines))
 
+    # Actual pinned Hermes sends max_completion_tokens (not max_tokens).
+    def test_a2_max_completion_tokens_spelling_switches(self):
+        tools = nested_tools()
+        def modern(i):
+            return {'max_completion_tokens': 4096}
+        def drop_max(body, extra):
+            if 'max_tokens' not in (extra or {}): body.pop('max_tokens', None)
+            return body
+        original = self.hermes_body
+        try:
+            self.hermes_body = staticmethod(lambda h, t, extra=None: drop_max({**original(h, t), **(extra or {})}, extra))
+            with self.router(self.setup) as (p, sink):
+                _, _, models = self.loop(p, sink, tools, 'tool_3', ['wrote 3 files', 'ok'],
+                                         extra_first=modern, extra_next=modern)
+                self.assertEqual(models, ['frontier', 'physical', 'physical'])
+            self.assertIn(' class=tool_followup_ok reason=cheapest', self.decisions(sink)[1])
+            # Both spellings at once, or an out-of-range value, still pin.
+            for bad in ({'max_completion_tokens': 4096, 'max_tokens': 4096}, {'max_completion_tokens': 0},
+                        {'max_completion_tokens': 100001}, {'max_completion_tokens': '4096'}):
+                with self.subTest(bad=bad), self.router(self.setup) as (p, sink):
+                    b = lambda i, bad=bad: bad
+                    _, _, models = self.loop(p, sink, tools, 'tool_3', ['ok'], extra_first=b, extra_next=b)
+                    self.assertNotIn('physical', models)
+        finally:
+            self.hermes_body = original
+
     # (b) destination lacking any one declaration never receives it.
     def test_b_missing_declaration_stays_baseline(self):
         tools = nested_tools()
