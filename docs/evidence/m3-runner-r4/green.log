@@ -1,0 +1,6 @@
+test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 16.082s
+
+OK

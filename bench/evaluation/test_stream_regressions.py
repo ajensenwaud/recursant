@@ -108,6 +108,60 @@ class StreamRegressionTests(unittest.TestCase):
                 call = self.check_wire(FRAME+tail, status=status)
                 self.assertEqual(call['error'], error)
 
+    def test_malformed_optional_details_fail_atomically_with_prior_usage(self):
+        from bench.accounting import aggregate_calls
+        # Different values make any partial update or recovery at a later tail visible.
+        replacement = dict(prompt_tokens=101, completion_tokens=50, cost=0.07,
+                           completion_tokens_details={'reasoning_tokens':23},
+                           prompt_tokens_details={'cached_tokens':37})
+        def frame(usage):
+            return b'data: '+json.dumps({'usage':usage}).encode()+b'\n\n'
+        for field in ('completion_tokens_details', 'prompt_tokens_details'):
+            for invalid in ([1], 'bad', 1, [], '', 0, False, True):
+                for position in ('interim', 'terminal'):
+                    with self.subTest(field=field, invalid=invalid, position=position):
+                        malformed = dict(replacement, **{field:invalid})
+                        wire = FRAME+frame(malformed)
+                        if position == 'interim':
+                            wire += frame(replacement)
+                        wire += b'data: [DONE]\n\n'
+                        with tempfile.TemporaryDirectory() as temp, provider(wire, 'text/event-stream') as (url, seen):
+                            root = Path(temp)
+                            cfg = config_for(root, url)
+                            liability, _ = live.admission(cfg, 'public', BODY)
+                            cfg['paid_cap_usd'] = float(liability)
+                            live.create_allocation(cfg)
+                            meter = live.Egress(cfg, root, 'r4-details', 'baseline')
+                            status, raw, mime = meter.forward('public', BODY, {})
+                            self.assertEqual(status, 502, raw)
+                            self.assertEqual(json.loads(raw), {'error':'ambiguous_upstream_attempt'})
+                            self.assertEqual(mime, 'application/json')
+                            self.assertEqual(len(meter.calls), 1)
+                            call = meter.calls[0]
+                            self.assertEqual(call['error'], 'ValueError')
+                            # status is the original upstream HTTP status, not our 502.
+                            self.assertEqual(call['status'], 200)
+                            for key, expected in dict(input_tokens=11, output_tokens=5,
+                                    reasoning_tokens=3, cached_input_tokens=7, cost_usd=0.02,
+                                    reasoning_semantics='inclusive', tokenizer='synthetic').items():
+                                self.assertEqual(call[key], expected, key)
+                            self.assertEqual(aggregate_calls(meter.calls),
+                                             dict(total_tokens=16, complete=True, known_tokens=16))
+                            self.assertEqual((root/call['provider_response_ref']).read_bytes(), wire)
+                            self.assertEqual(call['provider_response_sha256'], hashlib.sha256(wire).hexdigest())
+                            self.assertFalse(call['provider_response_truncated'])
+                            self.assertEqual(meter.traces[0]['response'], wire.decode())
+                            self.assertEqual(meter.budget['reserved'], liability)
+                            self.assertEqual(meter.budget['count'], 1)
+                            self.assertEqual(call['liability_reserved_usd'], str(liability))
+                            self.assertEqual(meter.forward('public', BODY, {})[0], 429)
+                            self.assertEqual(len(seen), 1)
+                            for name in ('allocation.jsonl', 'attempts.private.jsonl'):
+                                rows = [json.loads(line) for line in (root/name).read_text().splitlines()]
+                                self.assertEqual(len(rows), 3 if name == 'allocation.jsonl' else 2)
+                                self.assertIsNone(rows[-2]['status'])
+                                self.assertEqual(rows[-1], call)
+
     def test_null_optional_details_do_not_discard_usage(self):
         usage = dict(USAGE, completion_tokens_details=None, prompt_tokens_details=None)
         wire = ('event: message\ndata: '+json.dumps({'usage':usage})+'\n\ndata: [DONE]\n\n').encode()

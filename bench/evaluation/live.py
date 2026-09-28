@@ -331,6 +331,12 @@ class Egress:
                 if 'error' in record: call['error']='provider_error'
                 usage=record.get('usage')
                 if isinstance(usage,dict):
+                    # Validate both optional objects before replacing any known usage.
+                    # Falsey nonobjects are malformed too, not missing evidence.
+                    for field in ('completion_tokens_details','prompt_tokens_details'):
+                        details=usage.get(field)
+                        if details is not None and not isinstance(details,dict):
+                            raise ValueError(field+' must be an object or null')
                     call.update(input_tokens=usage.get('prompt_tokens'),output_tokens=usage.get('completion_tokens'),
                                 reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
                                 cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
