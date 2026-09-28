@@ -4,6 +4,7 @@
 #include "recursant/selector.h"
 #include "recursant/interpreter.h"
 #include "recursant/cost.h"
+#include "recursant/signals.h"
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
@@ -31,6 +32,8 @@ struct scope {
     /* S3 cost evidence: provider usage of the last completed turn, served by
      * usage_model; usage_messages = that request's messages + the reply. */
     rc_usage_observation usage;size_t usage_messages,request_messages;char usage_model[129];
+    /* S4: physically completed turns in this scope (signal input only). */
+    uint64_t turns;
 };
 /* Mirror row slots never move: scopes and tickets hold indices. A slot is only
  * freed when settled, expired, not referenced by any open scope, and no live
@@ -45,6 +48,7 @@ struct rc_gateway_context {
     rc_candidate candidates[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_cost costs[RC_SELECTOR_MAX_CANDIDATES];bool priced;uint64_t expected_output;
+    bool signals; /* S4 context.signals: "on" enables the structured-signal class */
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
@@ -77,7 +81,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -89,6 +93,9 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(json_object_get(o,"attempt_ttl_ms")&&!integer(o,"attempt_ttl_ms",180000,&g->attempt_ttl))return false;
     g->expected_output=RC_COST_DEFAULT_OUTPUT_TOKENS;
     if(json_object_get(o,"expected_output_tokens")&&!integer(o,"expected_output_tokens",RC_COST_MAX_OUTPUT_TOKENS,&g->expected_output))return false;
+    /* Default off: existing configurations behave exactly as before S4. */
+    if(json_object_get(o,"signals")&&!eq(o,"signals","on")&&!eq(o,"signals","off"))return false;
+    g->signals=eq(o,"signals","on");
     if(!strcmp(automatic,rt->config.private_model)||(rt->config.public_model&&!strcmp(automatic,rt->config.public_model)))return false;
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(automatic,rt->config.aliases[i].from)||!strcmp(automatic,rt->config.aliases[i].model))return false;
     json_t *list=json_object_get(o,"candidates");g->count=json_array_size(list);
@@ -96,7 +103,7 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     bool found=false;
     for(size_t i=0;i<g->count;i++) {
         json_t *v=json_array_get(list,i);const char *a=token(v,"alias",128);
-        if(!keys(v,"|alias||quality_evidence||qualified_tasks||context_limit||expected_task_cost||price||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        if(!keys(v,"|alias||quality_evidence||qualified_tasks||escalation||context_limit||expected_task_cost||price||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
         json_t *caps=json_object_get(v,"capabilities");
         if(caps){
             if(!keys(caps,"|tool_history||function_tools||parallel_tools|"))return false;
@@ -108,8 +115,18 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
                 if(json_is_true(value))g->cap_supported[i]|=1u<<bit;
             }
         }
-        json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>1)return false;
-        if(json_array_size(tasks)){json_t *t=json_array_get(tasks,0);if(!json_is_string(t)||json_string_length(t)!=13||strcmp(json_string_value(t),"format_simple"))return false;g->candidates[i].qualified_tasks=1;}
+        /* Strict frozen names, no duplicates, unknown rejected. */
+        json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>3)return false;
+        for(size_t t=0;t<json_array_size(tasks);t++){
+            json_t *name=json_array_get(tasks,t);uint64_t bit;
+            if(!json_is_string(name)||json_string_length(name)!=strlen(json_string_value(name))||
+               !rc_task_qualifiable(json_string_value(name),&bit)||(g->candidates[i].qualified_tasks&bit))return false;
+            g->candidates[i].qualified_tasks|=bit;
+        }
+        /* Explicit escalation marking = qualification for RECOVERY only. */
+        json_t *escalation=json_object_get(v,"escalation");
+        if(escalation&&!json_is_boolean(escalation))return false;
+        if(json_is_true(escalation))g->candidates[i].qualified_tasks|=RC_TASK_RECOVERY;
         /* Exactly one of legacy expected_task_cost or USD/Mtok price; one
          * registry never mixes units (legacy totals are not comparable). */
         if(!rc_candidate_cost_parse(v,&g->costs[i])||(i&&g->costs[i].priced!=g->costs[0].priced))return false;
@@ -478,10 +495,17 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             required|=rc_tool_boundary_requirements(s->boundary);
         }else if(!s->pinned&&!replayable(s,body))s->pinned=true;
         s->requirements=required;
-        if(automatic&&s->pinned&&s->owner){*endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}}
+        if(automatic&&s->pinned&&s->owner){
+            *endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}
+            if(g->signals)fprintf(stderr,"route_decision scope=%d mode=%s class=none reason=pin\n",ticket->scope,g->active?"active":"shadow");
+        }
         else if(automatic) {
             rc_context_snapshot snapshot;bool usable=rc_context_get(g->contexts,&s->key,now,&snapshot)==RC_CONTEXT_OK&&snapshot.has_interpretation&&snapshot.revision==s->interpretation.revision&&exact(g,s->evidence_row,now)&&s->evidence_row==s->last_row;
-            for(size_t i=0;i<g->rows_used;i++)if(g->rows[i].in_use&&same_headers(&h->invocation,&g->rows[i].headers))usable=false;
+            /* S4 structured signal: THIS request's facts, no interpreter wait.
+             * Same replay/retry fences as interpreter advice; a pinned scope
+             * never receives a class or escalation. */
+            bool structural=g->signals&&!s->pinned;
+            for(size_t i=0;i<g->rows_used;i++)if(g->rows[i].in_use&&same_headers(&h->invocation,&g->rows[i].headers))usable=structural=false;
             char *wire=json_dumps(body,JSON_COMPACT);uint64_t tokens=wire?strlen(wire):0;free(wire);
             /* Priced registries: ESTIMATED tokens (observed usage + appended
              * bytes/4, else request bytes/4). Legacy registries keep raw bytes. */
@@ -496,10 +520,14 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 }
                 prompt_est=rc_estimate_prompt_tokens(&last,appended,tokens);tokens=prompt_est;
             }
-            json_t *max=json_object_get(body,"max_tokens");if(json_is_integer(max)&&json_integer_value(max)>0&&json_integer_value(max)<=100000){max_tokens=(uint64_t)json_integer_value(max);tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=false;
+            json_t *max=json_object_get(body,"max_tokens");if(json_is_integer(max)&&json_integer_value(max)>0&&json_integer_value(max)<=100000){max_tokens=(uint64_t)json_integer_value(max);tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=structural=false;
             output_est=rc_estimate_output_tokens(max_tokens,g->expected_output);
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
-            rc_selection_request req={.registry_version=1,.baseline_alias=g->baseline,.continuity=RC_CONTINUITY_REPLAYABLE,.context_usable=usable&&!s->pinned,.now=now,.context_observed_at=s->observed,.context_expires_at=usable?snapshot.expires_at:0,.task_class=task,.context_tokens=tokens?tokens:1};
+            rc_signal_scope facts={.completed_turns=s->turns};
+            uint64_t signal=structural?rc_signals_classify(body,&facts):0;
+            uint64_t escalation=signal==RC_TASK_RECOVERY?RC_TASK_RECOVERY:0;if(escalation)signal=0;
+            rc_selection_request req={.registry_version=1,.baseline_alias=g->baseline,.continuity=RC_CONTINUITY_REPLAYABLE,.context_usable=usable&&!s->pinned,.now=now,.context_observed_at=s->observed,.context_expires_at=usable?snapshot.expires_at:0,.task_class=task,.context_tokens=tokens?tokens:1,
+                .signal_class=signal,.escalation_class=escalation};
             rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];bool baseline_permitted=false;
             for(size_t i=0;i<g->count;i++){
                 quotes[i]=g->quotes[i];rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];
@@ -523,14 +551,20 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             }
             /* A baseline placement veto belongs to final M2, not to inferred
              * context. Do not ask the downshift selector to invent recovery. */
-            rc_selection selected={.alias_index=g->baseline};
+            rc_selection selected={.alias_index=g->baseline,.reason=RC_SELECT_BASELINE};
             /* Shadow proposal failure has no dispatch authority. Mandatory
              * scope continuity and final M2 below apply in either mode. */
             if(baseline_permitted&&rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}
-            if(g->priced){
-                /* Evidence only: aliases, estimated tokens and USD. No content. */
-                char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s chosen=%s est_prompt=%llu est_out=%llu costs=",
-                    ticket->scope,g->active?"active":"shadow",rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
+            if(g->priced||g->signals){
+                /* Evidence only: class names, aliases, estimated tokens and
+                 * USD. No content. Classes offered: interpreter [+signal]. */
+                static const char *reasons[]={"baseline","cheapest","pin","escalate"};
+                uint64_t offered=(req.context_usable?task:0)|signal|escalation;char classes[96]="";
+                for(uint64_t bit=1;bit<=RC_TASK_RECOVERY;bit<<=1)if(offered&bit){
+                    size_t n=strlen(classes);snprintf(classes+n,sizeof classes-n,"%s%s",n?"+":"",rc_task_name(bit));
+                }
+                char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s class=%s reason=%s chosen=%s est_prompt=%llu est_out=%llu costs=",
+                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
                 for(size_t i=0;i<g->count&&used>0&&(size_t)used<sizeof line;i++)
                     used+=snprintf(line+used,sizeof line-(size_t)used,"%s%s:%.9g%s",i?",":"",rt->config.aliases[g->candidates[i].alias_index].from,quotes[i].expected_task_cost,quotes[i].permitted?"":"(denied)");
                 fprintf(stderr,"%s\n",line);
@@ -615,6 +649,7 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
     if(ticket->row>=0){g->rows[ticket->row].complete=complete;g->rows[ticket->row].settled=true;}
     if(ticket->scope>=0){
         struct scope *s=&g->scopes[ticket->scope];s->inflight=false;s->active=now;
+        if(complete&&s->turns<UINT64_MAX)s->turns++;
         json_error_t error;json_t *root=complete&&!sse&&response&&length?json_loadb(response,length,JSON_REJECT_DUPLICATES,&error):NULL;
         json_t *choices=json_object_get(root,"choices"),*choice=json_array_get(choices,0),*message=json_object_get(choice,"message");
         json_t *fingerprint=json_object_get(root,"system_fingerprint"),*stop=json_object_get(choice,"stop_reason");

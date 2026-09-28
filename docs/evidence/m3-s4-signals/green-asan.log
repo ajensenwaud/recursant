@@ -1,0 +1,96 @@
+Test project /tmp/a
+      Start  1: selector_unit
+ 1/28 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: attempts_unit
+ 2/28 Test  #2: attempts_unit ....................   Passed    0.01 sec
+      Start  3: attempts_capacity
+ 3/28 Test  #3: attempts_capacity ................   Passed    0.01 sec
+      Start  4: attempts_overflow
+ 4/28 Test  #4: attempts_overflow ................   Passed    0.01 sec
+      Start  5: interpreter_alloc
+ 5/28 Test  #5: interpreter_alloc ................   Passed    0.18 sec
+      Start  6: context_unit
+ 6/28 Test  #6: context_unit .....................   Passed    0.01 sec
+      Start  7: egress_policy
+ 7/28 Test  #7: egress_policy ....................   Passed    0.01 sec
+      Start  8: config_strict
+ 8/28 Test  #8: config_strict ....................   Passed    0.01 sec
+      Start  9: admission_unit
+ 9/28 Test  #9: admission_unit ...................   Passed    0.01 sec
+      Start 10: interpreter_loopback
+10/28 Test #10: interpreter_loopback .............   Passed   11.16 sec
+      Start 11: stream_tools_unit
+11/28 Test #11: stream_tools_unit ................   Passed    0.24 sec
+      Start 12: cost_unit
+12/28 Test #12: cost_unit ........................   Passed    0.02 sec
+      Start 13: signals_unit
+13/28 Test #13: signals_unit .....................   Passed    0.03 sec
+      Start 14: tool_boundary_unit
+14/28 Test #14: tool_boundary_unit ...............   Passed    0.03 sec
+      Start 15: stream_tools_gateway
+15/28 Test #15: stream_tools_gateway .............***Failed   44.64 sec
+test_candidate_qualification (test_stream_tools_gateway.StreamToolsTests.test_candidate_qualification) ... ok
+test_complete_switch (test_stream_tools_gateway.StreamToolsTests.test_complete_switch) ... ok
+test_done_is_not_transport_or_executor_completion (test_stream_tools_gateway.StreamToolsTests.test_done_is_not_transport_or_executor_completion) ... ok
+test_final_m2 (test_stream_tools_gateway.StreamToolsTests.test_final_m2) ... ok
+test_invalid_replay (test_stream_tools_gateway.StreamToolsTests.test_invalid_replay) ... ok
+test_named_choice_limits_authoritative_capture (test_stream_tools_gateway.StreamToolsTests.test_named_choice_limits_authoritative_capture) ... ok
+test_null_or_missing_replay_content_is_not_empty_string (test_stream_tools_gateway.StreamToolsTests.test_null_or_missing_replay_content_is_not_empty_string) ... ok
+test_opaque_truncated_and_malformed_streams_pin_permanently (test_stream_tools_gateway.StreamToolsTests.test_opaque_truncated_and_malformed_streams_pin_permanently) ... ok
+test_parallel_and_content_require_exact_replay_and_capabilities (test_stream_tools_gateway.StreamToolsTests.test_parallel_and_content_require_exact_replay_and_capabilities) ... ok
+test_pending_vs_permanent (test_stream_tools_gateway.StreamToolsTests.test_pending_vs_permanent) ... ok
+test_real_bridge_callbacks_reach_c_with_streamed_tool_boundary (test_stream_tools_gateway.StreamToolsTests.test_real_bridge_callbacks_reach_c_with_streamed_tool_boundary) ... ok
+test_requested_stream_tools_stays_pinned_until_profile_dependency (test_stream_tools_gateway.StreamToolsTests.test_requested_stream_tools_stays_pinned_until_profile_dependency) ... ok
+test_source_joins (test_stream_tools_gateway.StreamToolsTests.test_source_joins) ... ok
+test_tool_choice_none (test_stream_tools_gateway.StreamToolsTests.test_tool_choice_none) ... ok
+test_tool_transport_failure_after_done (test_stream_tools_gateway.StreamToolsTests.test_tool_transport_failure_after_done) ... 
+  test_tool_transport_failure_after_done (test_stream_tools_gateway.StreamToolsTests.test_tool_transport_failure_after_done) (mode='downstream_cancel') ... ERROR
+test_unsolicited_sse_still_captures_pending_boundary (test_stream_tools_gateway.StreamToolsTests.test_unsolicited_sse_still_captures_pending_boundary) ... ok
+
+======================================================================
+ERROR: test_tool_transport_failure_after_done (test_stream_tools_gateway.StreamToolsTests.test_tool_transport_failure_after_done) (mode='downstream_cancel')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_stream_tools_gateway.py", line 189, in test_tool_transport_failure_after_done
+    part = client.recv(4096); self.assertTrue(part); received += part
+TimeoutError: timed out
+
+----------------------------------------------------------------------
+Ran 16 tests in 44.519s
+
+FAILED (errors=1)
+
+      Start 16: native_tools_integration
+16/28 Test #16: native_tools_integration .........   Passed   32.71 sec
+      Start 17: response_observer_unit
+17/28 Test #17: response_observer_unit ...........   Passed    0.34 sec
+      Start 18: gateway_context_integration
+18/28 Test #18: gateway_context_integration ......   Passed   74.26 sec
+      Start 19: gateway_cost_integration
+19/28 Test #19: gateway_cost_integration .........   Passed    8.08 sec
+      Start 20: gateway_signals_integration
+20/28 Test #20: gateway_signals_integration ......   Passed    8.58 sec
+      Start 21: gateway_capacity_integration
+21/28 Test #21: gateway_capacity_integration .....   Passed   83.29 sec
+      Start 22: hermes_observer
+22/28 Test #22: hermes_observer ..................   Passed    7.36 sec
+      Start 23: compliance_integration
+23/28 Test #23: compliance_integration ...........   Passed   19.86 sec
+      Start 24: router_integration
+24/28 Test #24: router_integration ...............   Passed   30.03 sec
+      Start 25: transport_integration
+25/28 Test #25: transport_integration ............   Passed    1.54 sec
+      Start 26: admission_integration
+26/28 Test #26: admission_integration ............   Passed    0.41 sec
+      Start 27: trajectory_reference
+27/28 Test #27: trajectory_reference .............   Passed    3.53 sec
+      Start 28: accounting
+28/28 Test #28: accounting .......................   Passed    0.11 sec
+
+96% tests passed, 1 tests failed out of 28
+
+Total Test time (real) = 326.52 sec
+
+The following tests FAILED:
+	 15 - stream_tools_gateway (Failed)
+Errors while running CTest

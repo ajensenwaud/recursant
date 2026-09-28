@@ -34,7 +34,9 @@ rc_select_status rc_select(const rc_candidate_registry *r,
     if (!r || !quotes || !q || !out || quote_count!=r->count ||
             q->registry_version!=r->version || !q->context_tokens) return RC_SELECT_INVALID;
     if (!isfinite(q->minimum_saving) || q->minimum_saving<0 ||
-            (q->task_class && (q->task_class & (q->task_class-1))))
+            (q->task_class && (q->task_class & (q->task_class-1))) ||
+            (q->signal_class && (q->signal_class & (q->signal_class-1))) ||
+            (q->escalation_class && (q->escalation_class & (q->escalation_class-1))))
         return RC_SELECT_INVALID;
     for (size_t i=0; i<r->count; ++i)
         if (!isfinite(quotes[i].expected_task_cost) || quotes[i].expected_task_cost<0)
@@ -57,12 +59,30 @@ rc_select_status rc_select(const rc_candidate_registry *r,
         if (r->candidates[i].alias_index==q->baseline_alias) baseline=i;
     if (baseline==r->count || !eligible(&r->candidates[baseline], &quotes[baseline], q))
         return RC_SELECT_BLOCKED;
-    size_t best=baseline;
-    if (q->context_usable && q->context_observed_at<=q->now &&
-            q->now<q->context_expires_at && q->task_class) {
+    /* Escalation is a quality decision: the cheapest eligible candidate
+     * qualified for the escalation class wins even above baseline cost. */
+    if (q->escalation_class) {
+        size_t up=r->count;
         for (size_t i=0; i<r->count; ++i)
             if (eligible(&r->candidates[i], &quotes[i], q) &&
-                    (r->candidates[i].qualified_tasks & q->task_class) &&
+                    (r->candidates[i].qualified_tasks & q->escalation_class) &&
+                    (up==r->count || quotes[i].expected_task_cost<quotes[up].expected_task_cost ||
+                     (quotes[i].expected_task_cost==quotes[up].expected_task_cost &&
+                      r->candidates[i].alias_index<r->candidates[up].alias_index))) up=i;
+        if (up!=r->count) {
+            *out=(rc_selection){r->candidates[up].alias_index,
+                up==baseline ? RC_SELECT_BASELINE : RC_SELECT_ESCALATE};
+            return RC_SELECT_OK;
+        }
+    }
+    size_t best=baseline;
+    uint64_t task_class=q->signal_class;
+    if (q->context_usable && q->context_observed_at<=q->now && q->now<q->context_expires_at)
+        task_class|=q->task_class;
+    if (task_class) {
+        for (size_t i=0; i<r->count; ++i)
+            if (eligible(&r->candidates[i], &quotes[i], q) &&
+                    (r->candidates[i].qualified_tasks & task_class) &&
                     (quotes[i].expected_task_cost<quotes[best].expected_task_cost ||
                      (best!=baseline && quotes[i].expected_task_cost==quotes[best].expected_task_cost &&
                       r->candidates[i].alias_index<r->candidates[best].alias_index))) best=i;
