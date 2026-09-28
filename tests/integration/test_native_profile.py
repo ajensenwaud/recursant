@@ -73,11 +73,11 @@ class NativeProfileTests(unittest.TestCase):
             c['compliance'] = {'enabled': True, 'public_allowed': True}
 
     @staticmethod
-    def hermes_body(history, tools, **extra):
+    def hermes_body(history, tools, extra=None):
         """Exact real Hermes top-level shape (no tool_choice, no parallel flag)."""
         body = {'model': 'auto', 'messages': history, 'max_tokens': 4096, 'stream': True,
                 'stream_options': {'include_usage': True}, 'reasoning_effort': 'medium', 'tools': tools}
-        body.update(extra)
+        body.update(extra or {})
         return body
 
     def loop(self, p, sink, tools, name, results, extra_first=None, extra_next=None, first_user='start'):
@@ -94,13 +94,13 @@ class NativeProfileTests(unittest.TestCase):
             extra = (extra_first if i == 0 else extra_next) or {}
             if callable(extra): extra = extra(i)
             before = len(sink.seen)
-            code, raw, _ = self.request(p, headers=self.headers(scope, i + 1), body=self.hermes_body(history, tools, **extra))
+            code, raw, _ = self.request(p, headers=self.headers(scope, i + 1), body=self.hermes_body(history, tools, extra))
             if code != 200:
                 self.assertEqual(len(sink.seen), before); models.append(None); break
             self.assertEqual(raw, wire)  # SSE bytes relayed verbatim
             sent = sink.seen[-1][2]
             # Nothing is stripped or rewritten except the model name (+ adapter egress control).
-            expected = {**self.hermes_body(history, tools, **extra), 'model': sent['model']}
+            expected = {**self.hermes_body(history, tools, extra), 'model': sent['model']}
             if 'provider' in sent: expected['provider'] = sent['provider']
             self.assertEqual(sent, expected)
             models.append(sent['model'])
@@ -190,7 +190,10 @@ class NativeProfileTests(unittest.TestCase):
         tools = nested_tools()
         with self.router(lambda c, s: self.setup(c, s, compliance=True)) as (p, sink):
             _, _, models = self.loop(p, sink, tools, 'tool_3', ['ok'], first_user='mail alice@example.com')
-            self.assertEqual(models, ['physical', 'physical'])
+            # Turn 1: final M2 places PII privately. Turn 2: existing M2
+            # owner-conflict rule (automatic baseline vetoed, tool scope may
+            # not be silently retargeted) rejects before egress. Unchanged.
+            self.assertEqual(models, ['physical', None])
         with self.router(lambda c, s: self.setup(c, s, compliance=True)) as (p, sink):
             _, _, models = self.loop(p, sink, tools, 'tool_3', ['contact alice@example.com'])
             self.assertEqual(models[0], 'frontier')

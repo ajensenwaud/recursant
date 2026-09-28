@@ -1,11 +1,11 @@
 {
   "listen": {"host": "127.0.0.1", "port": 8080},
   "private": {"url": "http://127.0.0.1:18081/v1", "model": "physical"},
-  "public": {"url": "http://127.0.0.1:18082/v1", "api_key_env": "RC_FIXTURE_INFERENCE_KEY"},
+  "public": {"url": "http://127.0.0.1:18082/v1", "api_key_env": "RC_FIXTURE_INFERENCE_KEY", "adapter": "openrouter"},
   "auth": {"api_key_env": "RC_FIXTURE_INFERENCE_KEY"},
   "aliases": [
-    {"from": "baseline", "endpoint": "public", "model": "frontier"},
-    {"from": "cheap", "endpoint": "private", "model": "physical"}
+    {"from": "gpt-4.1", "endpoint": "public", "model": "openai/gpt-4.1"},
+    {"from": "gpt-4.1-mini", "endpoint": "public", "model": "openai/gpt-4.1-mini"}
   ],
   "context": {
     "mode": "shadow",
@@ -13,14 +13,19 @@
     "project": "one-project",
     "source_key_env": "RC_FIXTURE_SOURCE_KEY",
     "auto_alias": "auto",
-    "baseline_alias": "baseline",
+    "baseline_alias": "gpt-4.1",
     "ttl_ms": 2000,
     "expected_output_tokens": 512,
+    "signals": "off",
     "candidates": [
-      {"alias": "baseline", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000,
-       "price": {"input_per_mtok": 3.0, "output_per_mtok": 15.0, "cached_input_per_mtok": 0.3}},
-      {"alias": "cheap", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000,
-       "price": {"input_per_mtok": 0.1, "output_per_mtok": 0.4}}
+      {"alias": "gpt-4.1", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000,
+       "price": {"input_per_mtok": 2.0, "output_per_mtok": 8.0, "cached_input_per_mtok": 0.5},
+       "capabilities": {"tool_history": true, "function_tools": true, "parallel_tools": true,
+                        "stream_tools": true, "nested_tool_schemas": true, "reasoning_effort": ["low", "medium", "high"]}},
+      {"alias": "gpt-4.1-mini", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000,
+       "price": {"input_per_mtok": 0.4, "output_per_mtok": 1.6, "cached_input_per_mtok": 0.1},
+       "capabilities": {"tool_history": true, "function_tools": true, "parallel_tools": true,
+                        "stream_tools": true, "nested_tool_schemas": true, "reasoning_effort": ["low", "medium", "high"]}}
     ]
   },
   "compliance": {"enabled": true, "public_allowed": true}

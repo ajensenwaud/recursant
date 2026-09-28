@@ -230,12 +230,16 @@ are rejected. This exception must not be weakened to make shadow look unchanged.
 
 The ordinary `config/recursant.example.json` explicitly keeps context disabled.
 `config/recursant.context.fixture.example.json` is a **synthetic loopback-only**
-shadow example, validated using `recursant validate FILE --test-mode`. Its10/1
-costs are scripted test units, NOT model prices; both task qualification lists
-are empty, so it authorizes no downshift. The runnable integration test supplies
-its own temporary ports, scripted providers, separate synthetic secrets and
-fixture qualification. Do not point the fixture example at real models and
-mistake these declarations for quality or price evidence.
+shadow example, validated using `recursant validate FILE --test-mode`. It names
+`gpt-4.1` (baseline) and `gpt-4.1-mini` with the public OpenRouter list prices
+from `docs/evidence/m3-openrouter-price-snapshot.json` and the native request
+profile declarations (`stream_tools`, `nested_tool_schemas`, `reasoning_effort`
+`["low","medium","high"]`) as an **operator-attestation example**; both task
+qualification lists are empty and `quality_evidence` is synthetic, so it
+authorizes no downshift. The runnable integration test supplies its own
+temporary ports, scripted providers, separate synthetic secrets and fixture
+qualification. Do not mistake these declarations for quality evidence. See
+`docs/m3-native-request-profile.md`.
 
 Enabled `context` requires exactly these fields:
 `mode` (shadow/active), `tenant`, `project`, `source_key_env`, `auto_alias`,

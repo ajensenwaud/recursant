@@ -15,6 +15,17 @@
 #include <string.h>
 
 #define SCOPES 32
+/* Native request-profile requirements (operator-declared destination
+ * capabilities; bit positions continue RC_TOOL_CAP_*). */
+#define RC_REQ_STREAM_TOOLS UINT32_C(8)
+#define RC_REQ_NESTED_SCHEMAS UINT32_C(16)
+#define RC_CAP_BITS 5u
+#define RC_EFFORT_MAX 8u
+#define RC_EFFORT_BYTES 64u
+#define RC_TOOLS_MAX 64u
+#define RC_TOOLS_MAX_BYTES 65536u
+#define RC_SCHEMA_MAX_DEPTH 24u
+#define RC_SCHEMA_MAX_NODES 16384u
 struct scope {
     char task[64], session[64], branch[64], generation[33];
     bool inflight, pinned, owner, private_only;
@@ -34,6 +45,10 @@ struct scope {
     rc_usage_observation usage;size_t usage_messages,request_messages;char usage_model[129];
     /* S4: physically completed turns in this scope (signal input only). */
     uint64_t turns;
+    /* Sticky request contract: exact projection of the scope's first request
+     * (tools, tool_choice, parallel_tool_calls, reasoning_effort and, for
+     * profile scopes, stream_options). Any later difference pins. */
+    json_t *contract;bool profile;char effort[RC_EFFORT_BYTES+1];
 };
 /* Mirror row slots never move: scopes and tickets hold indices. A slot is only
  * freed when settled, expired, not referenced by any open scope, and no live
@@ -50,6 +65,7 @@ struct rc_gateway_context {
     rc_candidate_cost costs[RC_SELECTOR_MAX_CANDIDATES];bool priced;uint64_t expected_output;
     bool signals; /* S4 context.signals: "on" enables the structured-signal class */
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
+    char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
     rc_config auth_config;rc_auth_table auth;char *authorization;
@@ -106,9 +122,22 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
         if(!keys(v,"|alias||quality_evidence||qualified_tasks||escalation||context_limit||expected_task_cost||price||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
         json_t *caps=json_object_get(v,"capabilities");
         if(caps){
-            if(!keys(caps,"|tool_history||function_tools||parallel_tools|"))return false;
-            static const char *names[]={"tool_history","function_tools","parallel_tools"};
-            for(unsigned bit=0;bit<3;bit++){
+            if(!keys(caps,"|tool_history||function_tools||parallel_tools||stream_tools||nested_tool_schemas||reasoning_effort|"))return false;
+            static const char *names[RC_CAP_BITS]={"tool_history","function_tools","parallel_tools","stream_tools","nested_tool_schemas"};
+            /* Operator attestation: exact reasoning_effort tokens the
+             * destination accepts. Absent = none; empty/duplicate invalid. */
+            json_t *efforts=json_object_get(caps,"reasoning_effort");
+            if(efforts){
+                if(!json_is_array(efforts)||!json_array_size(efforts)||json_array_size(efforts)>RC_EFFORT_MAX)return false;
+                for(size_t e=0;e<json_array_size(efforts);e++){
+                    json_t *holder=json_pack("{sO}","v",json_array_get(efforts,e));const char *t=holder?token(holder,"v",RC_EFFORT_BYTES):NULL;
+                    bool ok=t!=NULL;
+                    for(size_t f=0;ok&&f<g->effort_count[i];f++)if(!strcmp(g->efforts[i][f],t))ok=false;
+                    if(ok)strcpy(g->efforts[i][g->effort_count[i]++],t);
+                    json_decref(holder);if(!ok)return false;
+                }
+            }
+            for(unsigned bit=0;bit<RC_CAP_BITS;bit++){
                 json_t *value=json_object_get(caps,names[bit]);if(!value)continue;
                 if(!json_is_boolean(value))return false;
                 g->cap_known[i]|=1u<<bit;
@@ -162,6 +191,7 @@ void rc_gateway_destroy(rc_runtime *rt) {
     for(size_t i=0;i<SCOPES;i++){
         json_decref(g->scopes[i].history);json_decref(g->scopes[i].pending);
         json_decref(g->scopes[i].pending_choice);json_decref(g->scopes[i].pending_tools);json_decref(g->scopes[i].observed_calls);rc_tool_boundary_free(g->scopes[i].boundary);
+        json_decref(g->scopes[i].contract);
     }
     pthread_mutex_unlock(&g->lock);
     free(g->authorization);rc_candidates_destroy(g->registry);pthread_mutex_destroy(&g->lock);free(g);rt->gateway=NULL;
@@ -177,7 +207,7 @@ static void scope_reclaim(struct rc_gateway_context *g,int slot,uint64_t now) {
     struct scope *s=&g->scopes[slot];
     rc_context_close(g->contexts,&s->key,now);
     json_decref(s->history);json_decref(s->pending);json_decref(s->pending_choice);
-    json_decref(s->pending_tools);json_decref(s->observed_calls);rc_tool_boundary_free(s->boundary);
+    json_decref(s->pending_tools);json_decref(s->observed_calls);rc_tool_boundary_free(s->boundary);json_decref(s->contract);
     for(size_t i=0;i<RC_ATTEMPT_MAX_ROWS;i++)if(g->rows[i].in_use&&g->rows[i].scope==slot)g->rows[i].scope=-1;
     memset(s,0,sizeof *s);
 }
@@ -383,8 +413,9 @@ static bool plain_message(json_t *m) {
     const char *nullable=eq(m,"role","assistant")?"|refusal||annotations||audio||function_call|":"";
     return nullable_keys(m,"|role||content|",nullable)&&json_is_string(json_object_get(m,"role"))&&json_is_string(v)&&json_string_length(v)==strlen(json_string_value(v));
 }
-/* This slice intentionally supports flat primitive object parameters only. */
-static bool parameters(json_t *p) {
+/* Legacy narrow subset: flat primitive object parameters. Anything else is a
+ * nested schema, qualified only by requirement RC_REQ_NESTED_SCHEMAS. */
+static bool flat_parameters(json_t *p) {
     if(!keys(p,"|type||properties||additionalProperties||required|")||!eq(p,"type","object")||
        !json_is_false(json_object_get(p,"additionalProperties")))return false;
     json_t *props=json_object_get(p,"properties"),*required=json_object_get(p,"required");
@@ -406,18 +437,32 @@ static bool parameters(json_t *p) {
     }
     return true;
 }
-/* Narrow function-definition contract; never strip unknown options. */
+/* Nested parameters are inert data forwarded verbatim (never executed,
+ * resolved or rewritten); only structure is bounded: object root, depth
+ * (root = 0) and node count. The caller bounds serialized bytes. */
+static bool bounded_tree(json_t *v,unsigned depth,size_t *nodes) {
+    if(depth>RC_SCHEMA_MAX_DEPTH||++*nodes>RC_SCHEMA_MAX_NODES)return false;
+    if(json_is_object(v)){const char *k;json_t *c;json_object_foreach(v,k,c){(void)k;if(!bounded_tree(c,depth+1,nodes))return false;}}
+    else if(json_is_array(v)){size_t i;json_t *c;json_array_foreach(v,i,c)if(!bounded_tree(c,depth+1,nodes))return false;}
+    return true;
+}
+/* Function-definition contract; never strip unknown options. */
 static bool tool_definitions(json_t *body,uint32_t *requirements) {
     json_t *tools=json_object_get(body,"tools"),*choice=json_object_get(body,"tool_choice"),*parallel=json_object_get(body,"parallel_tool_calls");
     if(!tools)return !choice&&!parallel;
-    if(json_is_true(json_object_get(body,"stream"))||!json_is_array(tools)||!json_array_size(tools)||json_array_size(tools)>32)return false;
-    char *wire=json_dumps(tools,JSON_COMPACT);bool bounded=wire&&strlen(wire)<=16384;free(wire);if(!bounded)return false;
+    if(!json_is_array(tools)||!json_array_size(tools)||json_array_size(tools)>RC_TOOLS_MAX)return false;
+    char *wire=json_dumps(tools,JSON_COMPACT);size_t bytes=wire?strlen(wire):SIZE_MAX;free(wire);
+    if(bytes>RC_TOOLS_MAX_BYTES)return false;
+    /* Beyond the legacy narrow profile (32 tools, 16 KiB, flat schemas) the
+     * destination must declare nested_tool_schemas. */
+    bool nested=json_array_size(tools)>32||bytes>16384;size_t nodes=0;
     for(size_t i=0;i<json_array_size(tools);i++){
         json_t *t=json_array_get(tools,i),*f=json_object_get(t,"function"),*p=json_object_get(f,"parameters"),*d=json_object_get(f,"description");
         const char *name=token(f,"name",64);
         if(!keys(t,"|type||function|")||!eq(t,"type","function")||!keys(f,"|name||description||parameters|")||!name||
            (d&&(!json_is_string(d)||json_string_length(d)>4096))||
-           !parameters(p))return false;
+           !json_is_object(p)||!bounded_tree(p,0,&nodes))return false;
+        if(!flat_parameters(p))nested=true;
         for(size_t j=0;j<i;j++)if(eq(json_object_get(json_array_get(tools,j),"function"),"name",name))return false;
     }
     if(choice&&!eq(body,"tool_choice","auto")&&!eq(body,"tool_choice","none")&&!eq(body,"tool_choice","required")){
@@ -429,14 +474,22 @@ static bool tool_definitions(json_t *body,uint32_t *requirements) {
     if(parallel&&!json_is_boolean(parallel))return false;
     *requirements|=RC_TOOL_CAP_FUNCTIONS;
     if(!json_is_false(parallel))*requirements|=RC_TOOL_CAP_PARALLEL;
+    if(json_is_true(json_object_get(body,"stream")))*requirements|=RC_REQ_STREAM_TOOLS;
+    if(nested)*requirements|=RC_REQ_NESTED_SCHEMAS;
     return true;
 }
-static bool request_options(json_t *body,uint32_t *requirements) {
-    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls|"))return false;
+/* effort receives the exact reasoning_effort token ("" when absent). */
+static bool request_options(json_t *body,uint32_t *requirements,char effort[RC_EFFORT_BYTES+1]) {
+    if(!keys(body,"|model||messages||max_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls||reasoning_effort|"))return false;
     json_t *stream=json_object_get(body,"stream");if(stream&&!json_is_boolean(stream))return false;
     json_t *options=json_object_get(body,"stream_options");
     if(options&&(!json_is_true(stream)||!keys(options,"|include_usage|")||
                  !json_is_boolean(json_object_get(options,"include_usage"))))return false;
+    effort[0]=0;
+    if(json_object_get(body,"reasoning_effort")){
+        const char *e=token(body,"reasoning_effort",RC_EFFORT_BYTES);if(!e)return false;
+        strcpy(effort,e);
+    }
     uint64_t output;if(!integer(body,"max_tokens",100000,&output))return false;
     const char *names[]={"temperature","top_p"};
     for(size_t i=0;i<2;i++){
@@ -444,6 +497,26 @@ static bool request_options(json_t *body,uint32_t *requirements) {
         if(v&&(!json_is_number(v)||!isfinite(n)||n<0||n>(i?1:2)))return false;
     }
     return tool_definitions(body,requirements);
+}
+/* Exact contract projection (deep copies; nothing is normalized). Profile
+ * scopes (tools or reasoning_effort) also bind stream_options; plain chat
+ * keeps its pre-existing freedom to vary the usage option. NULL = OOM. */
+static json_t *contract_projection(json_t *body) {
+    json_t *p=json_object();if(!p)return NULL;
+    bool profile=json_object_get(body,"tools")||json_object_get(body,"reasoning_effort");
+    static const char *fields[]={"tools","tool_choice","parallel_tool_calls","reasoning_effort","stream_options"};
+    for(size_t i=0;i<sizeof fields/sizeof *fields;i++){
+        json_t *v=json_object_get(body,fields[i]);
+        if(!v||(i==4&&!profile))continue;
+        json_t *copy=json_deep_copy(v);
+        if(!copy||json_object_set_new(p,fields[i],copy)){json_decref(p);return NULL;}
+    }
+    return p;
+}
+static bool candidate_effort(const struct rc_gateway_context *g,size_t i,const char *effort) {
+    if(!effort[0])return true;
+    for(size_t e=0;e<g->effort_count[i];e++)if(!strcmp(g->efforts[i][e],effort))return true;
+    return false;
 }
 static bool replayable(struct scope *s,json_t *body) {
     json_t *messages=json_object_get(body,"messages");size_t n=json_array_size(messages),prior=json_array_size(s->history);
@@ -485,8 +558,24 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(strcmp(s->task,h->invocation.values[0])||strcmp(s->session,h->invocation.values[1])){status=403;goto done;}
         if(s->inflight){status=409;goto done;}
         ticket->scope=slot;
-        uint32_t required=s->requirements;
-        if(!request_options(body,&required))s->pinned=true;
+        uint32_t required=s->requirements,own=0;char effort[RC_EFFORT_BYTES+1];
+        if(!request_options(body,&own,effort))s->pinned=true;
+        else if(!s->pinned){
+            /* Sticky contract: the first request fixes the projection. Once
+             * the scope or this request carries a native profile feature
+             * (streamed tools, nested/large tools, reasoning_effort), any
+             * later difference, added or removed field pins permanently.
+             * Legacy narrow scopes keep their pre-existing freedom. */
+            bool profile=effort[0]||(own&(RC_REQ_STREAM_TOOLS|RC_REQ_NESTED_SCHEMAS));
+            json_t *projection=contract_projection(body);
+            if(!projection)s->pinned=true;
+            else if(!s->contract){s->contract=projection;s->profile=profile;strcpy(s->effort,effort);}
+            else{
+                if((s->profile||profile)&&(!json_equal(projection,s->contract)||strcmp(effort,s->effort)))s->pinned=true;
+                json_decref(projection);
+            }
+        }
+        required|=own;
         if(!s->pinned&&s->boundary){
             char *wire=json_dumps(json_object_get(body,"messages"),JSON_COMPACT);
             rc_tool_status replay=wire?rc_tool_boundary_replay(s->boundary,wire,strlen(wire)):RC_TOOL_NOMEM;free(wire);
@@ -545,8 +634,12 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
                     (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
                 if(g->candidates[i].alias_index==g->baseline)baseline_permitted=quotes[i].permitted;
+                /* A destination must declare every scope requirement,
+                 * including the exact reasoning_effort token. The baseline
+                 * stays usable as owner without declarations. */
                 else if((g->cap_known[i]&s->requirements)!=s->requirements||
-                        (g->cap_supported[i]&s->requirements)!=s->requirements)quotes[i].permitted=false;
+                        (g->cap_supported[i]&s->requirements)!=s->requirements||
+                        !candidate_effort(g,i,s->effort))quotes[i].permitted=false;
                 json_decref(probe);
             }
             /* A baseline placement veto belongs to final M2, not to inferred
