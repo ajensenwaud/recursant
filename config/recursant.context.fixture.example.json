@@ -15,9 +15,12 @@
     "auto_alias": "auto",
     "baseline_alias": "baseline",
     "ttl_ms": 2000,
+    "expected_output_tokens": 512,
     "candidates": [
-      {"alias": "baseline", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000, "expected_task_cost": 10.0},
-      {"alias": "cheap", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000, "expected_task_cost": 1.0}
+      {"alias": "baseline", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000,
+       "price": {"input_per_mtok": 3.0, "output_per_mtok": 15.0, "cached_input_per_mtok": 0.3}},
+      {"alias": "cheap", "quality_evidence": "SYNTHETIC-NOT-QUALITY-EVIDENCE", "qualified_tasks": [], "context_limit": 100000,
+       "price": {"input_per_mtok": 0.1, "output_per_mtok": 0.4}}
     ]
   },
   "compliance": {"enabled": true, "public_allowed": true}

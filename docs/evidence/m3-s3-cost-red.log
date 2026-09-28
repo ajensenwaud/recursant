@@ -1,0 +1,60 @@
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 78, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_strict_price_configuration (test_gateway_cost.GatewayCostTests.test_strict_price_configuration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_cost.py", line 132, in test_strict_price_configuration
+    self.assertEqual(result.returncode == 0, expect, (cfg['context'], result.stderr))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False != True : ({'mode': 'active', 'tenant': 'local', 'project': 'single', 'source_key_env': 'RC_TEST_SOURCE', 'auto_alias': 'auto', 'baseline_alias': 'baseline', 'ttl_ms': 2000, 'candidates': [{'alias': 'baseline', 'quality_evidence': 'operator-fixture-baseline', 'qualified_tasks': [], 'context_limit': 1000000, 'price': {'input_per_mtok': 3.0, 'output_per_mtok': 15.0, 'cached_input_per_mtok': 0.3}}, {'alias': 'alias', 'quality_evidence': 'operator-fixture-format', 'qualified_tasks': ['format_simple'], 'context_limit': 1000000, 'price': {'input_per_mtok': 0.1, 'output_per_mtok': 0.4}}], 'expected_output_tokens': 64}, b'invalid runtime configuration\n')
+
+======================================================================
+FAIL: test_warm_owner_cache_outweighs_nominally_cheaper_price (test_gateway_cost.GatewayCostTests.test_warm_owner_cache_outweighs_nominally_cheaper_price)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_cost.py", line 61, in test_warm_owner_cache_outweighs_nominally_cheaper_price
+    with self.router(lambda c, s: self.priced(c, s, cheap, usage=warm)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 78, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+----------------------------------------------------------------------
+Ran 8 tests in 3.593s
+
+FAILED (failures=8)
+
+
+0% tests passed, 2 tests failed out of 2
+
+Total Test time (real) =   3.70 sec
+
+The following tests FAILED:
+	 12 - cost_unit (Failed)
+	 18 - gateway_cost_integration (Failed)
+Errors while running CTest

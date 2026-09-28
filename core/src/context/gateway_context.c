@@ -3,6 +3,7 @@
 #include "recursant/gateway_context.h"
 #include "recursant/selector.h"
 #include "recursant/interpreter.h"
+#include "recursant/cost.h"
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
@@ -27,6 +28,9 @@ struct scope {
     bool open;
     uint64_t revision, sequence, observed, active;
     rc_context_key key;rc_interpreter_result interpretation;
+    /* S3 cost evidence: provider usage of the last completed turn, served by
+     * usage_model; usage_messages = that request's messages + the reply. */
+    rc_usage_observation usage;size_t usage_messages,request_messages;char usage_model[129];
 };
 /* Mirror row slots never move: scopes and tickets hold indices. A slot is only
  * freed when settled, expired, not referenced by any open scope, and no live
@@ -40,6 +44,7 @@ struct rc_gateway_context {
     uint64_t ttl, attempt_ttl, boot, generations;
     rc_candidate candidates[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];
+    rc_candidate_cost costs[RC_SELECTOR_MAX_CANDIDATES];bool priced;uint64_t expected_output;
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
@@ -72,7 +77,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -82,6 +87,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!integer(o,"ttl_ms",180000,&g->ttl)||!alias(rt,baseline,&g->baseline))return false;
     g->attempt_ttl=180000;
     if(json_object_get(o,"attempt_ttl_ms")&&!integer(o,"attempt_ttl_ms",180000,&g->attempt_ttl))return false;
+    g->expected_output=RC_COST_DEFAULT_OUTPUT_TOKENS;
+    if(json_object_get(o,"expected_output_tokens")&&!integer(o,"expected_output_tokens",RC_COST_MAX_OUTPUT_TOKENS,&g->expected_output))return false;
     if(!strcmp(automatic,rt->config.private_model)||(rt->config.public_model&&!strcmp(automatic,rt->config.public_model)))return false;
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(automatic,rt->config.aliases[i].from)||!strcmp(automatic,rt->config.aliases[i].model))return false;
     json_t *list=json_object_get(o,"candidates");g->count=json_array_size(list);
@@ -89,7 +96,7 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     bool found=false;
     for(size_t i=0;i<g->count;i++) {
         json_t *v=json_array_get(list,i);const char *a=token(v,"alias",128);
-        if(!keys(v,"|alias||quality_evidence||qualified_tasks||context_limit||expected_task_cost||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        if(!keys(v,"|alias||quality_evidence||qualified_tasks||context_limit||expected_task_cost||price||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
         json_t *caps=json_object_get(v,"capabilities");
         if(caps){
             if(!keys(caps,"|tool_history||function_tools||parallel_tools|"))return false;
@@ -103,9 +110,11 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
         }
         json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>1)return false;
         if(json_array_size(tasks)){json_t *t=json_array_get(tasks,0);if(!json_is_string(t)||json_string_length(t)!=13||strcmp(json_string_value(t),"format_simple"))return false;g->candidates[i].qualified_tasks=1;}
-        json_t *cost=json_object_get(v,"expected_task_cost");double d=json_number_value(cost);
-        if(!json_is_number(cost)||!isfinite(d)||d<0)return false;
-        g->quotes[i]=(rc_candidate_quote){.permitted=true,.expected_task_cost=d};
+        /* Exactly one of legacy expected_task_cost or USD/Mtok price; one
+         * registry never mixes units (legacy totals are not comparable). */
+        if(!rc_candidate_cost_parse(v,&g->costs[i])||(i&&g->costs[i].priced!=g->costs[0].priced))return false;
+        g->priced=g->costs[i].priced;
+        g->quotes[i]=(rc_candidate_quote){.permitted=true,.expected_task_cost=g->costs[i].priced?0:g->costs[i].fixed};
         if(g->candidates[i].alias_index==g->baseline)found=true;
     }
     if(!found)return false;
@@ -474,12 +483,35 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             rc_context_snapshot snapshot;bool usable=rc_context_get(g->contexts,&s->key,now,&snapshot)==RC_CONTEXT_OK&&snapshot.has_interpretation&&snapshot.revision==s->interpretation.revision&&exact(g,s->evidence_row,now)&&s->evidence_row==s->last_row;
             for(size_t i=0;i<g->rows_used;i++)if(g->rows[i].in_use&&same_headers(&h->invocation,&g->rows[i].headers))usable=false;
             char *wire=json_dumps(body,JSON_COMPACT);uint64_t tokens=wire?strlen(wire):0;free(wire);
-            json_t *max=json_object_get(body,"max_tokens");if(json_is_integer(max)&&json_integer_value(max)>0&&json_integer_value(max)<=100000)tokens+=(uint64_t)json_integer_value(max);else usable=false;
+            /* Priced registries: ESTIMATED tokens (observed usage + appended
+             * bytes/4, else request bytes/4). Legacy registries keep raw bytes. */
+            uint64_t prompt_est=0,output_est=0,max_tokens=0;
+            if(g->priced){
+                json_t *messages=json_object_get(body,"messages");size_t n=json_array_size(messages);
+                rc_usage_observation last=s->usage;uint64_t appended=0;
+                if(!last.known||n<s->usage_messages)last.known=false;
+                for(size_t i=last.known?s->usage_messages:n;i<n;i++){
+                    char *m=json_dumps(json_array_get(messages,i),JSON_COMPACT);
+                    if(!m){last.known=false;break;}appended+=strlen(m);free(m);
+                }
+                prompt_est=rc_estimate_prompt_tokens(&last,appended,tokens);tokens=prompt_est;
+            }
+            json_t *max=json_object_get(body,"max_tokens");if(json_is_integer(max)&&json_integer_value(max)>0&&json_integer_value(max)<=100000){max_tokens=(uint64_t)json_integer_value(max);tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=false;
+            output_est=rc_estimate_output_tokens(max_tokens,g->expected_output);
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
             rc_selection_request req={.registry_version=1,.baseline_alias=g->baseline,.continuity=RC_CONTINUITY_REPLAYABLE,.context_usable=usable&&!s->pinned,.now=now,.context_observed_at=s->observed,.context_expires_at=usable?snapshot.expires_at:0,.task_class=task,.context_tokens=tokens?tokens:1};
             rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];bool baseline_permitted=false;
             for(size_t i=0;i<g->count;i++){
                 quotes[i]=g->quotes[i];rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];
+                if(g->priced){
+                    /* Switching penalty: only the current owner keeps a
+                     * measured warm prompt cache; every other model pays full
+                     * uncached input. */
+                    bool owner=s->owner&&s->usage.known&&a->endpoint==s->endpoint&&!strcmp(a->model,s->model)&&!strcmp(s->usage_model,s->model);
+                    double c=rc_turn_cost(&g->costs[i].price,prompt_est,rc_cached_input_tokens(owner,&s->usage,prompt_est),output_est);
+                    if(c<0){status=500;goto done;}
+                    quotes[i].expected_task_cost=c;
+                }
                 json_t *probe=json_deep_copy(body);rc_endpoint ep=a->endpoint;
                 if(!probe||json_object_set_new(probe,"model",json_string(a->model))){json_decref(probe);status=500;goto done;}
                 quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
@@ -495,6 +527,14 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             /* Shadow proposal failure has no dispatch authority. Mandatory
              * scope continuity and final M2 below apply in either mode. */
             if(baseline_permitted&&rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}
+            if(g->priced){
+                /* Evidence only: aliases, estimated tokens and USD. No content. */
+                char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s chosen=%s est_prompt=%llu est_out=%llu costs=",
+                    ticket->scope,g->active?"active":"shadow",rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
+                for(size_t i=0;i<g->count&&used>0&&(size_t)used<sizeof line;i++)
+                    used+=snprintf(line+used,sizeof line-(size_t)used,"%s%s:%.9g%s",i?",":"",rt->config.aliases[g->candidates[i].alias_index].from,quotes[i].expected_task_cost,quotes[i].permitted?"":"(denied)");
+                fprintf(stderr,"%s\n",line);
+            }
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
         }
     }
@@ -526,6 +566,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(s->pinned){json_decref(s->history);s->history=NULL;}
         else {
             s->pending=json_deep_copy(json_object_get(body,"messages"));
+            s->request_messages=json_array_size(json_object_get(body,"messages"));
             json_t *tools=json_object_get(body,"tools");
             s->pending_tools=tools?json_deep_copy(tools):NULL;
             json_t *choice=json_object_get(body,"tool_choice");
@@ -583,6 +624,18 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
             (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0));
         if(s->requirements)safe=safe&&tool_envelope(root,choice);
+        /* Cost evidence only (never continuity authority). Stream usage tails
+         * are not exposed by the observer yet: streamed turns clear it. */
+        json_t *usage=json_object_get(root,"usage"),*details=json_object_get(usage,"prompt_tokens_details");
+        json_t *pt=json_object_get(usage,"prompt_tokens"),*ct=json_object_get(usage,"completion_tokens"),*cached=json_object_get(details,"cached_tokens");
+        memset(&s->usage,0,sizeof s->usage);s->usage_messages=0;s->usage_model[0]=0;
+        if(json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0&&
+           (!cached||(json_is_integer(cached)&&json_integer_value(cached)>=0&&json_integer_value(cached)<=json_integer_value(pt)))&&
+           s->request_messages&&!s->pinned){
+            s->usage=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),
+                .completion_tokens=(uint64_t)json_integer_value(ct),.cached_tokens=cached?(uint64_t)json_integer_value(cached):0};
+            s->usage_messages=s->request_messages+1;strcpy(s->usage_model,s->model);
+        }
         json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
         bool tool_response=safe&&eq(choice,"finish_reason","tool_calls")&&tool_envelope(root,choice);
         if(sse){
