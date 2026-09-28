@@ -35,6 +35,10 @@ typedef struct {
      * adapter, which also permits its validated accounting tail. Never
      * changed after the first feed. */
     bool strict_openai;
+    /* Validated usage from the stream (include_usage tail or OpenRouter
+     * accounting chunk). Cost evidence only, never continuity authority. */
+    bool usage_known;
+    json_int_t usage_prompt, usage_completion, usage_cached;
 } rc_response_observer;
 void rc_response_observer_feed(rc_response_observer *, const char *, size_t);
 json_t *rc_response_observer_message(const rc_response_observer *);

@@ -104,6 +104,34 @@ class GatewayCostTests(unittest.TestCase):
         with self.router(lambda c, s: self.priced(c, s, cheap, cheap_limit=1000)) as (p, sink):
             self.assertEqual(self.advised_second_turn(p, sink, 'x' * 4000), 'frontier')
 
+    def test_streamed_usage_tail_feeds_cache_penalty(self):
+        # Hermes streams by default. A streamed owner turn whose include_usage
+        # tail reports a warm cache must keep the next turn on the owner,
+        # exactly like the nonstream case; the cold control switches.
+        cheap = {'input_per_mtok': 2.0, 'output_per_mtok': 10.0}
+        for cached, expect in ((99000, 'frontier'), (0, 'physical')):
+            with self.subTest(cached=cached):
+                events = base.GatewayContextTests.stream_events() + [{'choices': [], 'usage': {
+                    'prompt_tokens': 100000, 'completion_tokens': 20, 'total_tokens': 100020,
+                    'prompt_tokens_details': {'cached_tokens': cached}}}]
+                wire = base.GatewayContextTests.stream_bytes(events)
+                def edit(c, s):
+                    self.priced(c, s, cheap); s.stream_wire = wire
+                with self.router(edit) as (p, sink):
+                    scope = self.open_scope(p); history = [{'role': 'user', 'content': 'start'}]
+                    code, data, _ = self.request(p, headers=self.headers(scope, 1), body={
+                        'model': 'auto', 'messages': history, 'max_tokens': 128, 'stream': True,
+                        'stream_options': {'include_usage': True}})
+                    self.assertEqual((code, data), (200, wire))
+                    self.assertEqual(self.ingest(p, self.event(scope, 1, 1)), 202)
+                    import time; time.sleep(.25)
+                    sink.stream_wire = None
+                    history += [{'role': 'assistant', 'content': 'café 🦀'}, {'role': 'user', 'content': 'continue'}]
+                    self.turn(p, scope, 2, history)
+                    self.assertEqual(sink.seen[-1][2]['model'], expect)
+                lines = [l for l in sink.router_stderr.decode().splitlines() if l.startswith('route_decision ')]
+                self.assertRegex(lines[-1], r'est_prompt=1000\d\d ')
+
     def test_strict_price_configuration(self):
         import os, tempfile, pathlib, subprocess, test_router
         cfg0 = {'listen': {'host': '127.0.0.1', 'port': 12345},

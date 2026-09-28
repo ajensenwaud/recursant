@@ -78,6 +78,16 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     json_t *choices=json_object_get(root,"choices"),*c=json_array_get(choices,0);
     json_t *u=json_object_get(root,"usage");
     if(u&&!json_is_null(u)&&!usage(u,strict))return false;
+    if(u&&!json_is_null(u)){
+        /* Record the validated counts; a second differing usage is not ours
+         * to reconcile, so it fails closed as cost evidence only. */
+        json_t *d=json_object_get(u,"prompt_tokens_details"),*k=json_is_object(d)?json_object_get(d,"cached_tokens"):NULL;
+        json_int_t pt=json_integer_value(json_object_get(u,"prompt_tokens")),ct=json_integer_value(json_object_get(u,"completion_tokens"));
+        json_int_t ca=k?json_integer_value(k):0;
+        if(ca>pt)return false;
+        if(o->usage_known&&(o->usage_prompt!=pt||o->usage_completion!=ct||o->usage_cached!=ca))return false;
+        o->usage_known=true;o->usage_prompt=pt;o->usage_completion=ct;o->usage_cached=ca;
+    }
     /* One empty-choices usage tail after finish: OpenAI include_usage shape. */
     if(json_is_array(choices)&&!json_array_size(choices)){
         if(!o->finished||o->accounting_tail||!usage(u,strict))return false;

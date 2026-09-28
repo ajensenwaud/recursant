@@ -624,12 +624,16 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
             (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0));
         if(s->requirements)safe=safe&&tool_envelope(root,choice);
-        /* Cost evidence only (never continuity authority). Stream usage tails
-         * are not exposed by the observer yet: streamed turns clear it. */
+        /* Cost evidence only (never continuity authority). Nonstream: root
+         * usage. Stream: the observer's validated usage tail. */
         json_t *usage=json_object_get(root,"usage"),*details=json_object_get(usage,"prompt_tokens_details");
         json_t *pt=json_object_get(usage,"prompt_tokens"),*ct=json_object_get(usage,"completion_tokens"),*cached=json_object_get(details,"cached_tokens");
         memset(&s->usage,0,sizeof s->usage);s->usage_messages=0;s->usage_model[0]=0;
-        if(json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0&&
+        if(sse&&complete&&observer&&observer->usage_known&&!observer->failed&&observer->done&&s->request_messages&&!s->pinned){
+            s->usage=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)observer->usage_prompt,
+                .completion_tokens=(uint64_t)observer->usage_completion,.cached_tokens=(uint64_t)observer->usage_cached};
+            s->usage_messages=s->request_messages+1;strcpy(s->usage_model,s->model);
+        }else if(json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0&&
            (!cached||(json_is_integer(cached)&&json_integer_value(cached)>=0&&json_integer_value(cached)<=json_integer_value(pt)))&&
            s->request_messages&&!s->pinned){
             s->usage=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),

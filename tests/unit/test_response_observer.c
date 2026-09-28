@@ -437,4 +437,24 @@ static void adapter_dialects(void) {
     if(m)fprintf(stderr,"openai-compatible accepted repeated terminal choice\n");
     assert(!m);
 }
-int main(int argc,char **argv){adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+static void usage_capture(void) {
+    const char *u1="\"usage\":{\"prompt_tokens\":100,\"completion_tokens\":7,\"total_tokens\":107,\"prompt_tokens_details\":{\"cached_tokens\":90}}";
+    const char *u2="\"usage\":{\"prompt_tokens\":101,\"completion_tokens\":7,\"total_tokens\":108}";
+    const char *over="\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1,\"total_tokens\":6,\"prompt_tokens_details\":{\"cached_tokens\":6}}";
+    char tail[512];
+    /* 0: include_usage tail recorded; 1: no usage; 2: conflicting second usage; 3: cached>prompt. */
+    for(int mode=0;mode<4;mode++){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);o->strict_openai=true;
+        feed(o,first);
+        if(mode==2){snprintf(tail,sizeof tail,"data: {%s,\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",u2);feed(o,tail);}
+        else feed(o,"data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n");
+        if(mode!=1){snprintf(tail,sizeof tail,"data: {\"choices\":[],%s}\n\n",mode==3?over:u1);feed(o,tail);}
+        feed(o,"data: [DONE]\n\n");
+        json_t *m=rc_response_observer_message(o);
+        if(mode==0){assert(m&&o->usage_known&&o->usage_prompt==100&&o->usage_completion==7&&o->usage_cached==90);}
+        if(mode==1){assert(m&&!o->usage_known);}
+        if(mode>=2){assert(!m);}
+        json_decref(m);free(o);
+    }
+}
+int main(int argc,char **argv){usage_capture();adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
