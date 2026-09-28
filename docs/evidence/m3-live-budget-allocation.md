@@ -7,3 +7,9 @@ Authority: `m3-live-budget-approval.md` (200 additional sequential local request
 - Allocation C: at most two public streaming wire-compatibility probes (`openai/gpt-4.1` and `openai/gpt-4.1-mini`), US$0.01 reserved aggregate (US$0.005 per request), 64 output tokens, bounded synthetic input, no tools or retries. Records in `.hermes/runtime/m3-live/public-wire-ledger.json`. These establish actual transport shape, not task quality or savings.
 
 Allocations are ceilings, not observations of execution. Do not rerun allocation A after interruption without reconciling its durable records. Local calls across allocations must not overlap. Parent owns all live dispatch decisions; delegated implementation/review tasks may not spend independently.
+
+## Allocation B sub-allocation: B-pilot-1 (2026-09-29)
+
+- User decision (Anders, 2026-09-29): option A. Paid cap US$6.00, request cap 40, subset of allocation B (188 local / US$9.99). 3 frozen tasks x 3 arms (baseline-direct, routed-structured, routed-full), repeats 1, seed 7321.
+- Reservation is worst-case up front (~US$0.13 per gpt-4.1 call); actual spend is recorded from provider usage.cost. Remaining allocation B after the pilot = 188 local / US$9.99 minus the pilot's full reserved allocation until journals are reconciled.
+- Compliance content_scanning=false for this pilot (Anders, 2026-09-29): synthetic/public tasks only.
