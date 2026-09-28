@@ -229,5 +229,49 @@ class ProviderRegistryTests(unittest.TestCase):
         cfg = self.base(); context(cfg); cfg['providers'][0]['key_env'] = 'RC_KEY_A'
         self.assertNotEqual(validate(cfg, env=env).returncode, 0)
 
+    def test_08_adapter_decoration_is_per_provider(self):
+        """S2b: allow_fallbacks is OpenRouter egress decoration, not public-trust
+        behaviour. M2 still validates the exact decorated object."""
+        def edit(cfg): cfg['compliance'] = {'enabled': True, 'public_allowed': True}
+        with self.router(edit) as (p, private, gw_a, gw_b):
+            clean = {'messages': [{'role': 'user', 'content': 'hello'}], 'max_tokens': 8}
+            self.assertEqual(self.request(p, body={'model': 'cloud-a', **clean})[0], 200)
+            self.assertEqual(gw_a.seen[-1][2], {**clean, 'model': 'vendor/model-a', 'provider': {'allow_fallbacks': False}})
+            self.assertEqual(self.request(p, body={'model': 'cloud-b', **clean})[0], 200)
+            self.assertEqual(gw_b.seen[-1][2], {**clean, 'model': 'model-b'})
+            self.assertNotIn('provider', gw_b.seen[-1][2])
+            # A caller boolean fallback control is replaced for OpenRouter (as before)...
+            ctl = {**clean, 'provider': {'allow_fallbacks': True}}
+            self.assertEqual(self.request(p, body={'model': 'cloud-a', **ctl})[0], 200)
+            self.assertEqual(gw_a.seen[-1][2], {**clean, 'model': 'vendor/model-a', 'provider': {'allow_fallbacks': False}})
+            # ...but is an unknown field for a generic gateway: never forwarded publicly.
+            before_b, before_private = len(gw_b.seen), len(private.seen)
+            self.assertEqual(self.request(p, body={'model': 'cloud-b', **ctl})[0], 200)
+            self.assertEqual(len(gw_b.seen), before_b)
+            self.assertEqual(private.seen[-1][2], {**ctl, 'model': 'local-physical'})
+            self.assertEqual(len(private.seen), before_private + 1)
+            # PII to either public provider redirects to the private default, undecorated.
+            counts = (len(gw_a.seen), len(gw_b.seen))
+            for alias in ('cloud-a', 'cloud-b'):
+                body = {'model': alias, 'messages': [{'role': 'user', 'content': 'synthetic@example.test'}]}
+                self.assertEqual(self.request(p, body=body)[0], 200)
+                self.assertEqual(private.seen[-1][2], {**body, 'model': 'local-physical'})
+            self.assertEqual((len(gw_a.seen), len(gw_b.seen)), counts)
+            # Private providers never receive public decoration.
+            self.assertEqual(self.request(p, body={'model': 'local', **clean})[0], 200)
+            self.assertEqual(private.seen[-1][2], {**clean, 'model': 'local-physical'})
+        self.assertNotIn(b'synthetic@example.test', self.last_stderr)
+
+    def test_09_legacy_public_adapter_is_explicit_or_host_derived(self):
+        base = {'listen': {'host': '127.0.0.1', 'port': 12345}, 'auth': {'api_key_env': 'RC_TEST_AUTH'},
+                'private': {'url': 'http://127.0.0.1:1/v1', 'model': 'physical'},
+                'public': {'url': 'http://127.0.0.1:2/v1', 'model': 'public-physical', 'api_key_env': 'RC_KEY_A'},
+                'aliases': []}
+        for adapter, ok in (('openrouter', True), ('openai-compatible', True), ('OpenRouter', False), ('', False), (1, False)):
+            cfg = json.loads(json.dumps(base)); cfg['public']['adapter'] = adapter
+            self.assertEqual(validate(cfg).returncode == 0, ok, adapter)
+        cfg = json.loads(json.dumps(base)); cfg['private']['adapter'] = 'openrouter'
+        self.assertNotEqual(validate(cfg).returncode, 0)
+
 
 if __name__ == '__main__': unittest.main()

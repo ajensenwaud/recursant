@@ -77,7 +77,7 @@ class GatewayContextTests(unittest.TestCase):
 
     @staticmethod
     def configure(c, sink, mode='active'):
-        c['public'] = {'url': c['private']['url'] + '/public', 'api_key_env': 'RC_TEST_AUTH'}
+        c['public'] = {'url': c['private']['url'] + '/public', 'api_key_env': 'RC_TEST_AUTH', 'adapter': 'openrouter'}
         c['aliases'].append({'from': 'baseline', 'endpoint': 'public', 'model': 'frontier'})
         c['context'] = {'mode': mode, 'tenant': 'local', 'project': 'single',
                         'source_key_env': 'RC_TEST_SOURCE', 'auto_alias': 'auto', 'baseline_alias': 'baseline', 'ttl_ms': 2000,

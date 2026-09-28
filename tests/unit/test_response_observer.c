@@ -376,4 +376,65 @@ static void streamed_tools(void) {
         json_decref(m);free(o);
     }
 }
-int main(int argc,char **argv){tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+/* S2b: the observer knows which provider adapter produced the stream. Plain
+ * OpenAI streams (incl. the include_usage empty-choices tail) are accepted by
+ * both; the OpenRouter-only accounting tail and fields only by openrouter. */
+static json_t *observe(bool strict,const char *wire){
+    rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+    o->strict_openai=strict;feed(o,wire);
+    json_t *m=rc_response_observer_message(o);free(o);return m;
+}
+static void adapter_dialects(void) {
+    const char *plain_usage="data: {\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":4,\"total_tokens\":7,"
+        "\"prompt_tokens_details\":{\"cached_tokens\":1,\"audio_tokens\":0},"
+        "\"completion_tokens_details\":{\"reasoning_tokens\":1,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}}}\n\n";
+    char wire[8192];
+    for(int strict=0;strict<2;strict++){
+        snprintf(wire,sizeof wire,"%s%s",first,last);
+        json_t *m=observe(strict,wire);assert(m);json_decref(m);
+        snprintf(wire,sizeof wire,"%s%.*s%sdata: [DONE]\n\n",first,(int)(strlen(last)-strlen("data: [DONE]\n\n")),last,plain_usage);
+        m=observe(strict,wire);
+        if(!m)fprintf(stderr,"strict=%d rejected plain include_usage tail\n",strict);
+        assert(m);json_decref(m);
+    }
+    json_t *tail=usage_tail();char *s=json_dumps(tail,JSON_COMPACT);assert(s);
+    snprintf(wire,sizeof wire,"%s%sdata: %s\n\ndata: [DONE]\n\n",or_first,or_stop,s);
+    json_t *m=observe(false,wire);assert(m);json_decref(m);
+    m=observe(true,wire);
+    if(m)fprintf(stderr,"openai-compatible accepted OpenRouter accounting tail\n");
+    assert(!m);
+    free(s);json_decref(tail);
+    /* OpenAI itself emits service_tier:"default"; vLLM extensions stay portable. */
+    for(int strict=0;strict<2;strict++){
+        snprintf(wire,sizeof wire,"data: {\"service_tier\":\"default\",\"system_fingerprint\":\"fp\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null,\"logprobs\":null}],\"usage\":null}\n\n%s",last);
+        m=observe(strict,wire);assert(m);json_decref(m);
+    }
+    /* Each OpenRouter-only field alone, on an otherwise plain OpenAI stream. */
+    const char *only[]={
+        "data: {\"provider\":\"OpenAI\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2,\"cost\":0}}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2,\"is_byok\":false}}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2,\"cost_details\":{\"upstream_inference_cost\":0}}}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2,\"prompt_tokens_details\":{\"cache_write_tokens\":0}}}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"x\"},\"finish_reason\":null}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2,\"completion_tokens_details\":{\"image_tokens\":0}}}\n\n",
+    };
+    for(size_t i=0;i<sizeof only/sizeof *only;i++){
+        snprintf(wire,sizeof wire,"%s%s",only[i],last);
+        m=observe(false,wire);
+        if(!m)fprintf(stderr,"openrouter rejected field %zu\n",i);
+        assert(m);json_decref(m);
+        m=observe(true,wire);
+        if(m)fprintf(stderr,"openai-compatible accepted OpenRouter-only field %zu\n",i);
+        assert(!m);
+    }
+    /* Repeated non-empty terminal choice carrying usage is OpenRouter-only. */
+    snprintf(wire,sizeof wire,"%s%.*sdata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],"
+        "\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\ndata: [DONE]\n\n",
+        first,(int)(strlen(last)-strlen("data: [DONE]\n\n")),last);
+    m=observe(false,wire);assert(m);json_decref(m);
+    m=observe(true,wire);
+    if(m)fprintf(stderr,"openai-compatible accepted repeated terminal choice\n");
+    assert(!m);
+}
+int main(int argc,char **argv){adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}

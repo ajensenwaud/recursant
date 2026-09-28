@@ -50,7 +50,7 @@ class ComplianceTests(unittest.TestCase):
         p = port()
         cfg = {'listen': {'host': '127.0.0.1', 'port': p},
                'private': {'url': f'http://127.0.0.1:{private.server_port}/v1', 'model': 'private-model'},
-               'public': {'url': f'http://127.0.0.1:{public.server_port}/v1', 'model': 'public-model', 'api_key_env': 'RC_TEST_AUTH'},
+               'public': {'url': f'http://127.0.0.1:{public.server_port}/v1', 'model': 'public-model', 'api_key_env': 'RC_TEST_AUTH', 'adapter': 'openrouter'},
                'auth': {'api_key_env': 'RC_TEST_AUTH'},
                'aliases': [{'from': 'alias', 'endpoint': 'public', 'model': 'public-model'}],
                'compliance': {'enabled': True, 'public_allowed': True}}
