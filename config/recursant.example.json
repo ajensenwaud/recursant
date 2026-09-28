@@ -1,15 +1,16 @@
 {
   "listen": {"host": "0.0.0.0", "port": 8080},
-  "private": {"url": "http://gx10:8888/v1", "model": "GLM-5.3-Flash-EXL3"},
-  "public": {
-    "url": "https://openrouter.ai/api/v1",
-    "model": "liquid/lfm-2.5-2.6b:free",
-    "api_key_env": "OPENROUTER_API_KEY"
-  },
+  "providers": [
+    {"name": "gx10", "trust": "private", "url": "http://gx10:8888/v1", "adapter": "openai-compatible"},
+    {"name": "openrouter", "trust": "public", "url": "https://openrouter.ai/api/v1", "key_env": "OPENROUTER_API_KEY", "adapter": "openrouter"},
+    {"name": "generic-gateway", "trust": "public", "url": "https://gateway.example.invalid/v1", "key_env": "GENERIC_GATEWAY_API_KEY", "adapter": "openai-compatible"}
+  ],
+  "private_default": {"provider": "gx10", "model": "GLM-5.3-Flash-EXL3"},
   "auth": {"api_key_env": "RECURSANT_API_KEY"},
   "aliases": [
-    {"from": "local", "endpoint": "private", "model": "GLM-5.3-Flash-EXL3"},
-    {"from": "cloud", "endpoint": "public", "model": "liquid/lfm-2.5-2.6b:free"}
+    {"from": "local", "provider": "gx10", "model": "GLM-5.3-Flash-EXL3"},
+    {"from": "cloud", "provider": "openrouter", "model": "liquid/lfm-2.5-2.6b:free"},
+    {"from": "cloud-alt", "provider": "generic-gateway", "model": "example-model"}
   ],
   "limits": {
     "max_body_bytes": 1048576,

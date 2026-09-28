@@ -5,14 +5,30 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Endpoint identity. Classification happens later (M2); M1 only needs to
- * know which configured upstream an alias denotes. */
+/* TRUST CLASS used by M2 placement (private estate vs public egress). Since
+ * S2a this is no longer an upstream identity: several named providers may
+ * share one trust class. The historical name is kept to limit churn. */
 typedef enum { RC_ENDPOINT_PRIVATE = 0, RC_ENDPOINT_PUBLIC = 1 } rc_endpoint;
+
+#define RC_PROVIDER_NONE ((size_t)-1)
+#define RC_PROVIDER_NAME_MAX 63
+#define RC_PROVIDER_MAX 32
+
+/* One named upstream gateway. Legacy private/public sections become the
+ * implicit providers "private" and "public". */
+typedef struct {
+    char *name;          /* ASCII token [A-Za-z0-9._-], 1..63 bytes, unique */
+    rc_endpoint trust;   /* M2 trust class */
+    char *url;           /* base URL; https required for public trust */
+    char *key_env;       /* env-var NAME; required for public trust */
+    char *adapter;       /* "openai-compatible" | "openrouter" (behaviour: S2b) */
+} rc_provider;
 
 typedef struct {
     char *from;          /* alias name, ASCII printable, no whitespace */
-    rc_endpoint endpoint;
+    rc_endpoint endpoint; /* trust class; always equals providers[provider].trust */
     char *model;         /* concrete provider-bound model name */
+    size_t provider;     /* index into rc_config.providers */
 } rc_alias;
 
 typedef struct {
@@ -39,7 +55,30 @@ typedef struct {
 
     rc_project *projects;
     size_t project_count;
+
+    /* Named provider registry (legacy sections are mapped into it). */
+    rc_provider *providers;
+    size_t provider_count;
+    /* M2 redirect target: private_model on providers[private_provider].
+     * Legacy configs: the implicit "private" provider and private.model.
+     * Provider configs: top-level private_default {provider, model}. */
+    bool has_private_default;
+    size_t private_provider;
 } rc_config;
+
+/* Provider-registry helpers shared by every config loader. */
+bool rc_provider_adapter_known(const char *adapter);
+bool rc_provider_name_ok(const char *name);
+/* Adapter for a legacy public section: "openrouter" only when the URL host is
+ * exactly openrouter.ai (case-insensitive), otherwise "openai-compatible". */
+const char *rc_provider_legacy_public_adapter(const char *url);
+size_t rc_config_find_provider(const rc_config *cfg, const char *name);
+/* Registry invariants: non-empty, unique valid names, known trust and
+ * adapter, key_env syntax (required for public trust), aliases reference an
+ * existing provider with matching trust, private default (when present)
+ * points at a private-trust provider. URL scheme rules are checked by the
+ * caller because the router's test mode permits loopback http. */
+bool rc_config_validate_providers(const rc_config *cfg, char *err, size_t err_len);
 
 /* Strict JSON load: RFC 8259 grammar, duplicate keys rejected at every object
  * level, unknown keys rejected later by rc_config_validate against a fixed

@@ -10,8 +10,8 @@ typedef struct rc_runtime {
     struct rc_gateway_context *gateway;
     char *auth_key;
     char *source_key;
-    char *private_key;
-    char *public_key;
+    char *private_key;   /* mirror of the private-default provider key (context guard) */
+    char **provider_keys; /* resolved once at startup, indexed like config.providers; never logged */
     size_t max_body_bytes;
     unsigned max_connections;
     unsigned request_timeout_seconds;
@@ -21,6 +21,11 @@ typedef struct rc_runtime {
     json_t *patterns;
     struct rc_compliance_policy *compliance_policy;
 } rc_runtime;
+/* Provider for a final (trust, model) pair: the alias provider owning that
+ * concrete model, or the private default for its model. Model names identify
+ * exactly one provider (enforced at load). RC_PROVIDER_NONE when unmatched or
+ * when the provider trust differs from the final M2 trust class. */
+size_t rc_runtime_dispatch_provider(const rc_runtime *rt, rc_endpoint trust, const char *model);
 /* Gate runs on final provider JSON immediately before serialization/network.
  * May change endpoint and model. Nonzero denies dispatch. Register before load.
  * Gate must be thread safe; all request JSON ownership stays with router. */

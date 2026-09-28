@@ -25,7 +25,7 @@ typedef struct {
     pthread_mutex_t lock; pthread_cond_t changed;
     unsigned char queue[QUEUE_SIZE]; size_t head,count;
     bool done,cancel,headers,failed,sse;
-    long status; char *payload; rc_endpoint endpoint;
+    long status; char *payload; rc_endpoint endpoint; size_t provider;
     int downstream_fd; /* Owned duplicate; valid until worker has joined. */
     struct timespec deadline;
     rc_gateway_ticket ticket;
@@ -89,8 +89,9 @@ static size_t receive(char *data,size_t size,size_t nmemb,void *ctx){
 }
 static void *upstream(void *ctx){
     request *r=ctx;rc_runtime *rt=r->runtime;
-    const char *base=r->endpoint==RC_ENDPOINT_PUBLIC?rt->config.public_url:rt->config.private_url;
-    const char *key=r->endpoint==RC_ENDPOINT_PUBLIC?rt->public_key:rt->private_key;
+    /* Dispatch identity is the resolved provider, never the trust class. */
+    const char *base=rt->config.providers[r->provider].url;
+    const char *key=rt->provider_keys[r->provider];
     size_t len=strlen(base);while(len&&base[len-1]=='/')len--;
     char *url=malloc(len+32),*auth=NULL;CURL *curl=curl_easy_init();struct curl_slist *hs=NULL;CURLcode result=CURLE_FAILED_INIT;
     if(url&&curl){snprintf(url,len+32,"%.*s/chat/completions",(int)len,base);
@@ -133,7 +134,7 @@ static void completed(void *ctx,struct MHD_Connection *c,void **con_cls,enum MHD
 static bool route(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const char **physical){
     if(rc_gateway_auto(rt,model,endpoint,physical))return true;
     for(size_t i=0;i<rt->config.alias_count;i++){rc_alias *a=&rt->config.aliases[i];if(!strcmp(model,a->from)||!strcmp(model,a->model)){*endpoint=a->endpoint;*physical=a->model;return true;}}
-    if(!strcmp(model,rt->config.private_model)){*endpoint=RC_ENDPOINT_PRIVATE;*physical=rt->config.private_model;return true;}
+    if(rt->config.private_model&&!strcmp(model,rt->config.private_model)){*endpoint=RC_ENDPOINT_PRIVATE;*physical=rt->config.private_model;return true;}
     if(rt->config.public_model&&!strcmp(model,rt->config.public_model)){*endpoint=RC_ENDPOINT_PUBLIC;*physical=rt->config.public_model;return true;}return false;
 }
 static enum MHD_Result collect_header(void *ctx,enum MHD_ValueKind kind,const char *key,const char *value){
@@ -189,7 +190,11 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(rt->gateway)MHD_get_connection_values(c,MHD_HEADER_KIND,collect_header,&headers);
     unsigned denial=rc_gateway_prepare(rt,body,automatic,&headers,&r->endpoint,&r->ticket);
     if(denial){json_decref(body);return error_reply(c,denial);}
-    if((r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC)||(r->endpoint==RC_ENDPOINT_PUBLIC&&!rt->config.public_url)){json_decref(body);return error_reply(c,403);}
+    /* Final (trust, model) after M2/context selects exactly one provider whose
+     * trust equals the final M2 trust class; anything else fails closed. */
+    if(r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC){json_decref(body);return error_reply(c,403);}
+    r->provider=rc_runtime_dispatch_provider(rt,r->endpoint,json_string_value(json_object_get(body,"model")));
+    if(r->provider==RC_PROVIDER_NONE){json_decref(body);return error_reply(c,403);}
     r->payload=json_dumps(body,JSON_COMPACT);json_decref(body);if(!r->payload)return error_reply(c,500);
     const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
     if(!info || (r->downstream_fd=dup(info->connect_fd))<0)return error_reply(c,503);
