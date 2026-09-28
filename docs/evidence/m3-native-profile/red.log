@@ -1,0 +1,532 @@
+Test project /tmp/n
+    Start 15: stream_tools_gateway
+1/2 Test #15: stream_tools_gateway .............***Failed   38.92 sec
+test_candidate_qualification (test_stream_tools_gateway.StreamToolsTests.test_candidate_qualification) ... ok
+test_complete_switch (test_stream_tools_gateway.StreamToolsTests.test_complete_switch) ... ok
+test_done_is_not_transport_or_executor_completion (test_stream_tools_gateway.StreamToolsTests.test_done_is_not_transport_or_executor_completion) ... ok
+test_final_m2 (test_stream_tools_gateway.StreamToolsTests.test_final_m2) ... ok
+test_invalid_replay (test_stream_tools_gateway.StreamToolsTests.test_invalid_replay) ... ok
+test_named_choice_limits_authoritative_capture (test_stream_tools_gateway.StreamToolsTests.test_named_choice_limits_authoritative_capture) ... ok
+test_null_or_missing_replay_content_is_not_empty_string (test_stream_tools_gateway.StreamToolsTests.test_null_or_missing_replay_content_is_not_empty_string) ... ok
+test_opaque_truncated_and_malformed_streams_pin_permanently (test_stream_tools_gateway.StreamToolsTests.test_opaque_truncated_and_malformed_streams_pin_permanently) ... ok
+test_parallel_and_content_require_exact_replay_and_capabilities (test_stream_tools_gateway.StreamToolsTests.test_parallel_and_content_require_exact_replay_and_capabilities) ... ok
+test_pending_vs_permanent (test_stream_tools_gateway.StreamToolsTests.test_pending_vs_permanent) ... ok
+test_real_bridge_callbacks_reach_c_with_streamed_tool_boundary (test_stream_tools_gateway.StreamToolsTests.test_real_bridge_callbacks_reach_c_with_streamed_tool_boundary) ... ok
+test_requested_stream_tools_is_a_destination_requirement (test_stream_tools_gateway.StreamToolsTests.test_requested_stream_tools_is_a_destination_requirement) ... 
+  test_requested_stream_tools_is_a_destination_requirement (test_stream_tools_gateway.StreamToolsTests.test_requested_stream_tools_is_a_destination_requirement) (declared=True) ... FAIL
+test_source_joins (test_stream_tools_gateway.StreamToolsTests.test_source_joins) ... ok
+test_tool_choice_none (test_stream_tools_gateway.StreamToolsTests.test_tool_choice_none) ... ok
+test_tool_transport_failure_after_done (test_stream_tools_gateway.StreamToolsTests.test_tool_transport_failure_after_done) ... ok
+test_unsolicited_sse_still_captures_pending_boundary (test_stream_tools_gateway.StreamToolsTests.test_unsolicited_sse_still_captures_pending_boundary) ... ok
+
+======================================================================
+FAIL: test_requested_stream_tools_is_a_destination_requirement (test_stream_tools_gateway.StreamToolsTests.test_requested_stream_tools_is_a_destination_requirement) (declared=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_stream_tools_gateway.py", line 77, in test_requested_stream_tools_is_a_destination_requirement
+    with self.subTest(declared=declared), self.router(edit) as (p, sink):
+                                          ~~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+----------------------------------------------------------------------
+Ran 16 tests in 38.806s
+
+FAILED (failures=1)
+
+    Start 21: native_profile_integration
+Errors while running CTest
+2/2 Test #21: native_profile_integration .......***Failed    7.25 sec
+test_a_hermes_shape_switches_to_declared_candidate (test_native_profile.NativeProfileTests.test_a_hermes_shape_switches_to_declared_candidate) ... FAIL
+test_actual_extracted_hermes_profile_switches_when_declared (test_native_profile.NativeProfileTests.test_actual_extracted_hermes_profile_switches_when_declared) ... 
+  test_actual_extracted_hermes_profile_switches_when_declared (test_native_profile.NativeProfileTests.test_actual_extracted_hermes_profile_switches_when_declared) (declared=True) ... FAIL
+  test_actual_extracted_hermes_profile_switches_when_declared (test_native_profile.NativeProfileTests.test_actual_extracted_hermes_profile_switches_when_declared) (declared=False) ... FAIL
+test_b_missing_declaration_stays_baseline (test_native_profile.NativeProfileTests.test_b_missing_declaration_stays_baseline) ... 
+  test_b_missing_declaration_stays_baseline (test_native_profile.NativeProfileTests.test_b_missing_declaration_stays_baseline) (case='no_stream_tools') ... FAIL
+test_b_missing_declaration_stays_baseline (test_native_profile.NativeProfileTests.test_b_missing_declaration_stays_baseline) ... ERROR
+test_c_changed_contract_mid_scope_pins_permanently (test_native_profile.NativeProfileTests.test_c_changed_contract_mid_scope_pins_permanently) ... 
+  test_c_changed_contract_mid_scope_pins_permanently (test_native_profile.NativeProfileTests.test_c_changed_contract_mid_scope_pins_permanently) (case='tools') ... FAIL
+test_c_changed_contract_mid_scope_pins_permanently (test_native_profile.NativeProfileTests.test_c_changed_contract_mid_scope_pins_permanently) ... ERROR
+test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) ... 
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='too_deep') ... FAIL
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='too_many') ... FAIL
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='too_large') ... FAIL
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='duplicate') ... FAIL
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='bad_name') ... FAIL
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='strict_flag') ... FAIL
+  test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='params_array') ... FAIL
+test_d_unknown_or_malformed_options_still_pin (test_native_profile.NativeProfileTests.test_d_unknown_or_malformed_options_still_pin) ... 
+  test_d_unknown_or_malformed_options_still_pin (test_native_profile.NativeProfileTests.test_d_unknown_or_malformed_options_still_pin) (case='unknown') ... FAIL
+test_d_unknown_or_malformed_options_still_pin (test_native_profile.NativeProfileTests.test_d_unknown_or_malformed_options_still_pin) ... ERROR
+test_e_pii_is_private_and_never_public (test_native_profile.NativeProfileTests.test_e_pii_is_private_and_never_public) ... FAIL
+test_example_configs_validate (test_native_profile.NativeProfileTests.test_example_configs_validate) ... ERROR
+test_strict_capability_configuration (test_native_profile.NativeProfileTests.test_strict_capability_configuration) ... FAIL
+
+======================================================================
+ERROR: test_b_missing_declaration_stays_baseline (test_native_profile.NativeProfileTests.test_b_missing_declaration_stays_baseline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 140, in test_b_missing_declaration_stays_baseline
+    self.assertIn(' class=tool_followup_ok reason=baseline', self.decisions(sink)[1])
+                                                                            ^^^^
+UnboundLocalError: cannot access local variable 'sink' where it is not associated with a value
+
+======================================================================
+ERROR: test_c_changed_contract_mid_scope_pins_permanently (test_native_profile.NativeProfileTests.test_c_changed_contract_mid_scope_pins_permanently)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 155, in test_c_changed_contract_mid_scope_pins_permanently
+    self.assertIn('reason=pin', self.decisions(sink)[-1])
+                                               ^^^^
+UnboundLocalError: cannot access local variable 'sink' where it is not associated with a value
+
+======================================================================
+ERROR: test_d_unknown_or_malformed_options_still_pin (test_native_profile.NativeProfileTests.test_d_unknown_or_malformed_options_still_pin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 167, in test_d_unknown_or_malformed_options_still_pin
+    self.assertIn('reason=pin', self.decisions(sink)[-1])
+                                               ^^^^
+UnboundLocalError: cannot access local variable 'sink' where it is not associated with a value
+
+======================================================================
+ERROR: test_example_configs_validate (test_native_profile.NativeProfileTests.test_example_configs_validate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 248, in test_example_configs_validate
+    self.assertEqual(names[alias]['capabilities']['reasoning_effort'], ['low', 'medium', 'high'])
+                     ~~~~~^^^^^^^
+KeyError: 'gpt-4.1'
+
+======================================================================
+FAIL: test_a_hermes_shape_switches_to_declared_candidate (test_native_profile.NativeProfileTests.test_a_hermes_shape_switches_to_declared_candidate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 118, in test_a_hermes_shape_switches_to_declared_candidate
+    with self.router(self.setup) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_actual_extracted_hermes_profile_switches_when_declared (test_native_profile.NativeProfileTests.test_actual_extracted_hermes_profile_switches_when_declared) (declared=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 208, in test_actual_extracted_hermes_profile_switches_when_declared
+    with self.subTest(declared=caps['stream_tools']), self.router(lambda c, s: self.setup(c, s, caps=caps)) as (p, sink):
+                                                      ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_actual_extracted_hermes_profile_switches_when_declared (test_native_profile.NativeProfileTests.test_actual_extracted_hermes_profile_switches_when_declared) (declared=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 208, in test_actual_extracted_hermes_profile_switches_when_declared
+    with self.subTest(declared=caps['stream_tools']), self.router(lambda c, s: self.setup(c, s, caps=caps)) as (p, sink):
+                                                      ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_b_missing_declaration_stays_baseline (test_native_profile.NativeProfileTests.test_b_missing_declaration_stays_baseline) (case='no_stream_tools')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 135, in test_b_missing_declaration_stays_baseline
+    with self.subTest(case=name), self.router(lambda c, s: self.setup(c, s, caps=caps)) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_c_changed_contract_mid_scope_pins_permanently (test_native_profile.NativeProfileTests.test_c_changed_contract_mid_scope_pins_permanently) (case='tools')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 150, in test_c_changed_contract_mid_scope_pins_permanently
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='too_deep')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='too_many')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='too_large')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='duplicate')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='bad_name')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='strict_flag')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_tool_bounds_are_enforced (test_native_profile.NativeProfileTests.test_d_tool_bounds_are_enforced) (case='params_array')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 184, in test_d_tool_bounds_are_enforced
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_unknown_or_malformed_options_still_pin (test_native_profile.NativeProfileTests.test_d_unknown_or_malformed_options_still_pin) (case='unknown')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 164, in test_d_unknown_or_malformed_options_still_pin
+    with self.subTest(case=name), self.router(self.setup) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_e_pii_is_private_and_never_public (test_native_profile.NativeProfileTests.test_e_pii_is_private_and_never_public)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 191, in test_e_pii_is_private_and_never_public
+    with self.router(lambda c, s: self.setup(c, s, compliance=True)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_strict_capability_configuration (test_native_profile.NativeProfileTests.test_strict_capability_configuration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_native_profile.py", line 238, in test_strict_capability_configuration
+    self.assertEqual(result.returncode == 0, expect, (cfg['context']['candidates'][1], result.stderr))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False != True : ({'alias': 'alias', 'quality_evidence': 'operator-fixture-format', 'qualified_tasks': ['tool_followup_ok'], 'context_limit': 100000, 'expected_task_cost': 1.0, 'capabilities': {'tool_history': True, 'function_tools': True, 'parallel_tools': True, 'stream_tools': True, 'nested_tool_schemas': True, 'reasoning_effort': ['low', 'medium', 'high']}}, b'invalid runtime configuration\n')
+
+----------------------------------------------------------------------
+Ran 9 tests in 7.147s
+
+FAILED (failures=15, errors=4)
+
+
+0% tests passed, 2 tests failed out of 2
+
+Total Test time (real) =  46.18 sec
+
+The following tests FAILED:
+	 15 - stream_tools_gateway (Failed)
+	 21 - native_profile_integration (Failed)

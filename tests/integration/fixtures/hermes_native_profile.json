@@ -1,0 +1,887 @@
+{
+ "kind": "sanitized_hermes_request_profile_no_messages_no_credentials",
+ "provenance": "pinned Hermes d0288be5 request tools/options extracted from scripted-provider shape fixture (.hermes/runtime/m3-profile-shape-fixture, 36 requests, 1 unique profile); messages, model, keys and responses removed. Tool schemas are Hermes built-in definitions.",
+ "profile_sha256": "7a8692be41013f8ad0bc593506c57f4d7bb596cac7863ecd4bfeaceb26f1c7a2",
+ "profile_sha256_method": "sha256(json.dumps({tools, reasoning_effort}, sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False))",
+ "request_options": {
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  },
+  "reasoning_effort": "medium",
+  "max_tokens": 4096
+ },
+ "request_keys": [
+  "max_tokens",
+  "messages",
+  "model",
+  "reasoning_effort",
+  "stream",
+  "stream_options",
+  "tools"
+ ],
+ "tools": [
+  {
+   "function": {
+    "description": "Ask the user one or more questions when you need a decision, clarification, or feedback before proceeding. Pass every question in `questions` (1-5 entries) — a single question is a one-entry array, and several INDEPENDENT questions belong in ONE call (one form beats a chain of clarify calls; if one answer would change another question, ask separately). Per question: single-select (up to 4 choices — put your recommended option FIRST, the UI marks it '(Recommended)' and auto-appends an 'Other' free-text row), multi-select (multi_select=true), or open-ended (omit choices). Options go ONLY in `choices`, never enumerated inside the question text (choices render as pickable rows; options written into the question are dead prose the user can't click). Result: {responses: [...]} in question order (plus timed_out=true, and a notice saying why, if the user stopped part-way or the prompt could not be delivered). Prefer deciding low-stakes questions yourself; don't use this for dangerous-command confirmation (the terminal tool handles that).",
+    "name": "clarify",
+    "parameters": {
+     "properties": {
+      "questions": {
+       "description": "The question(s). Each: question text (options excluded), optional choices (recommended first; omit for free-text), optional multi_select. Responses come back in question order with the question text echoed.",
+       "items": {
+        "properties": {
+         "choices": {
+          "items": {
+           "type": "string"
+          },
+          "maxItems": 4,
+          "type": "array"
+         },
+         "multi_select": {
+          "type": "boolean"
+         },
+         "question": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "question"
+        ],
+        "type": "object"
+       },
+       "maxItems": 5,
+       "minItems": 1,
+       "type": "array"
+      }
+     },
+     "required": [
+      "questions"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Spawn subagents in isolated contexts; each gets its own conversation, terminal session, and toolset, and only its final summary returns to you. Pass every task in `tasks` — one entry spawns one subagent, several run in parallel (limit in the tasks description).\n\nSessions without a later-result consumer (including one-shot CLI and cron) join parallel children and return results in this tool call. Otherwise runs in the background: dispatch returns live transcript paths and results re-enter as a new message when subagents finish (one message per call). Background results are delivered only BETWEEN your turns: finish whatever does not depend on them, then give a one-line status and END YOUR TURN. Never wait or poll on transcripts, artifact files, or CI for a child. While children run, `action` (list/steer/stop) controls them live.\n\nUSE FOR: reasoning-heavy subtasks, work that would flood your context, or independent parallel workstreams.\nDO NOT USE FOR (use these instead):\n- Mechanical multi-step work with no reasoning needed -> execute_code\n- A single tool call -> call the tool directly\n- Tasks needing user interaction -> subagents cannot ask questions\n- Durable work that must survive this session -> cronjob or terminal(background=True, notify=True); /stop, /new, or process exit halts running subagents (whole tree); each returns an 'interrupted' completion with partial output.\n\nRULES:\n- Children know nothing of this conversation: pass everything needed via 'context', including any required output language, tone, or style (e.g. \"respond in Chinese\").\n- Child summaries are SELF-REPORTS, not verified facts: a child claiming \"uploaded successfully\" or \"file written\" may be wrong. For external side effects (uploads, remote writes, publishing), require a verifiable handle (URL, ID, absolute path) and verify it yourself before telling the user the operation succeeded.\n- Children cannot close tracked work: a child asked to close it returns findings instead; the parent applies the transition.\n- Children cannot call delegate_task, clarify, or memory.\n- Children inherit the parent model unless pinned via delegation.provider / delegation.model in config.yaml.",
+    "name": "delegate_task",
+    "parameters": {
+     "properties": {
+      "action": {
+       "description": "Default 'spawn'. Live control of running children: 'list' = ids/goals/status/transcripts; 'steer' = queue course-correction text into one child (subagent_id + message) without stopping it; 'stop' = end one child early (subagent_id; partial result still returns). Control actions return immediately; goal/tasks are ignored unless spawning.",
+       "enum": [
+        "spawn",
+        "list",
+        "steer",
+        "stop"
+       ],
+       "type": "string"
+      },
+      "message": {
+       "description": "For action='steer': the course correction, appended to the child's next tool result mid-run. Be directive and specific.",
+       "type": "string"
+      },
+      "subagent_id": {
+       "description": "Target for action='steer'/'stop' (ids from the spawn response or action='list').",
+       "type": "string"
+      },
+      "tasks": {
+       "description": "The task(s), up to 10 in parallel for this user (set via delegation.max_concurrent_children). Each entry spawns one subagent with isolated context and terminal session; a single task is a one-entry array. Required when spawning.",
+       "items": {
+        "properties": {
+         "context": {
+          "description": "Background THIS child needs: file paths, error messages, constraints. Each child sees only its own context — repeat shared background in every task that needs it.",
+          "type": "string"
+         },
+         "goal": {
+          "description": "What this subagent should accomplish. Be specific and self-contained — it knows nothing about your conversation history.",
+          "type": "string"
+         },
+         "images": {
+          "description": "Optional images this child must SEE (max 8): local file paths or http(s) URLs — e.g. a screenshot the user sent, a design mock, a chart. Vision-capable children receive the pixels on their first turn; non-vision children get path hints for vision_analyze. Text files do NOT belong here — put paths in 'context' instead.",
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "output_schema": {
+          "description": "Optional JSON Schema this child's final answer must validate against (told to the child up front; parent validates with one bounded correction retry; result gains schema_valid, plus schema_errors on failure — the child's raw text is still returned as summary, never discarded). Keep it forgiving — require only fields you will read.",
+          "properties": {},
+          "required": [],
+          "type": "object"
+         }
+        },
+        "required": [
+         "goal"
+        ],
+        "type": "object"
+       },
+       "minItems": 1,
+       "type": "array"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Run Python that calls Hermes tools programmatically. Use when you need 3+ tool calls with logic between them: filtering/reducing large outputs before they enter context, branching, or loops (N pages/files, retry on failure). Use normal tool calls for single calls, results you must reason over in full, or anything needing user interaction.\n\nCalls run in a persistent session kernel: variables, imports, and loaded data survive across execute_code calls, so build on earlier work instead of re-loading it. A timed-out or interrupted call loses that state.\n\nAvailable via `from hermes_tools import ...`:\n\n  web_search(query: str, limit: int = 5) -> dict\n    Returns {\"data\": {\"web\": [{\"url\", \"title\", \"description\"}, ...]}}\n  web_extract(urls: list[str], char_limit: int = None) -> dict\n    Returns {\"results\": [{\"url\", \"title\", \"content\", \"error\"}, ...]} where content is markdown.\n    No LLM summarization. Pages over char_limit (default 15000) are head+tail truncated; full text stored on disk (path in the content footer).\n  read_file(path: str, offset: int = 1, limit: int = 2000) -> dict\n    Lines are 1-indexed. Returns {\"content\": \"...\", \"total_lines\": N}\n  write_file(path: str, content: str) -> dict\n    Always overwrites the entire file.\n  search_files(pattern: str, target=\"content\", path=\".\", file_glob=None, limit=50, order=\"discovery\") -> dict\n    target: \"content\" (search inside files) or \"files\" (find files by name). Returns {\"matches\": [...]}\n  patch(path: str, old_string: str, new_string: str, replace_all: bool = False) -> dict\n    Replaces old_string with new_string in the file.\n  terminal(command: str, timeout=None, workdir=None) -> dict\n    Foreground only (no background/pty). Returns {\"output\": \"...\", \"exit_code\": N}\n\nLimits: 5-minute timeout, max 50 tool calls per call. Stdout over 50KB shows head/tail inline; the FULL text is auto-saved to a file whose path rides in the result.\n\nScripts run in the session's working directory. Interpreter: the project's activated venv/conda python when one is active (VIRTUAL_ENV/CONDA_PREFIX — matches terminal()); otherwise Hermes's own python (the common case — stdlib plus Hermes's deps; check `import x` before relying on project packages).\n\nHelpers require imports: `from hermes_tools import json_parse, shell_quote, retry`. json_parse(text) — tolerant json.loads for terminal() output; shell_quote(s) — shlex.quote for dynamic shell args; retry(fn, max_attempts=3, delay=2) — exponential backoff.",
+    "name": "execute_code",
+    "parameters": {
+     "properties": {
+      "code": {
+       "description": "Python code to execute. Import tools with `from hermes_tools import web_search, terminal, ...` and print your final result to stdout.",
+       "type": "string"
+      },
+      "reset": {
+       "description": "Discard the kernel's persistent state and start fresh before running this code.",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "code"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Save durable facts to persistent memory that survive across sessions. Memory is injected into every future turn, so keep entries compact and high-signal.\n\nHOW: make ALL your changes in ONE call via an 'operations' array (each item: {action, content?, old_text?}). The batch applies atomically and the char limit is checked only on the FINAL result — so a single call can remove/replace stale entries to free room AND add new ones, even when an add alone would overflow. The response reports current/limit chars and confirms completion; one batch call finishes the update, so don't repeat it. Use the bare action/content/old_text fields only for a single lone change.\n\nWHEN: only for facts that apply to EVERY session regardless of task: who the user is, stable environment facts, standing conventions with no task home. Anything learned while doing a task (procedures, pitfalls, and the user's preferences and corrections for that kind of work) belongs in the task's skill via skill_manage, where it loads only when relevant; memory is injected into every turn and must stay small.\n\nIF FULL: an add is rejected with the current entries shown. Reissue as ONE batch that removes or shortens enough stale entries and adds the new one together.\n\nTARGETS: 'user' = who the user is (name, role, preferences, style). 'memory' = your notes (environment, conventions, tool quirks, lessons).\n\nSKIP: trivial/obvious info, easily re-discovered facts, raw data dumps, task progress, completed-work logs, temporary TODO state (use session_search for those). Reusable procedures belong in a skill, not memory.",
+    "name": "memory",
+    "parameters": {
+     "properties": {
+      "action": {
+       "description": "The action to perform (single-op shape). Omit when using 'operations'.",
+       "enum": [
+        "add",
+        "replace",
+        "remove"
+       ],
+       "type": "string"
+      },
+      "content": {
+       "description": "The entry content. Required for 'add' and 'replace'. For 'replace' it is the COMPLETE new entry text: the whole matched entry is overwritten, so include everything you want to keep. Alias: 'new_text' is also accepted (same full-entry meaning).",
+       "type": "string"
+      },
+      "new_text": {
+       "description": "Alias for 'content' (single-op shape): the COMPLETE new entry for 'replace', not a patch of old_text. If both are set, 'content' wins.",
+       "type": "string"
+      },
+      "old_text": {
+       "description": "REQUIRED for 'replace' and 'remove' (single-op shape): a short unique substring IDENTIFYING the existing entry to modify -- it locates the entry, it is not spliced out. Omit only for 'add'.",
+       "type": "string"
+      },
+      "operations": {
+       "description": "Batch shape: a list of operations applied atomically in one call against the final char budget. Preferred when making multiple changes or consolidating to make room. Each item is {action, content?, old_text?}.",
+       "items": {
+        "properties": {
+         "action": {
+          "enum": [
+           "add",
+           "replace",
+           "remove"
+          ],
+          "type": "string"
+         },
+         "content": {
+          "description": "Entry content for add/replace. For replace, the COMPLETE new entry (whole entry is overwritten). Alias: 'new_text'.",
+          "type": "string"
+         },
+         "new_text": {
+          "description": "Alias for 'content' in a batch op.",
+          "type": "string"
+         },
+         "old_text": {
+          "description": "Substring identifying the entry for replace/remove.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "action"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "target": {
+       "description": "Which memory store: 'memory' for personal notes, 'user' for user profile.",
+       "enum": [
+        "memory",
+        "user"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "target"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Targeted find-and-replace edits in files. Use this instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences won't break it. Returns a unified diff. Auto-runs syntax checks after editing. Finds a unique string and replaces it.",
+    "name": "patch",
+    "parameters": {
+     "properties": {
+      "new_string": {
+       "description": "Changed replacement text; it must differ from old_string. Pass empty string '' to delete the matched text.",
+       "type": "string"
+      },
+      "old_string": {
+       "description": "Exact text to find and replace. Must be unique in the file unless replace_all=true. Include surrounding context lines to ensure uniqueness.",
+       "type": "string"
+      },
+      "path": {
+       "description": "File path to edit.",
+       "type": "string"
+      },
+      "replace_all": {
+       "default": false,
+       "description": "Replace all occurrences instead of requiring a unique match (default: false)",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "path",
+      "old_string",
+      "new_string"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Read a text file with line numbers and pagination. Use this instead of cat/head/tail in terminal. Output format: 'LINE_NUM|CONTENT'. Suggests similar filenames if not found. Use offset and limit for large files. Reads exceeding ~100K characters are truncated on a line boundary and return a next_offset; continue with offset to read the rest. Documents auto-extract to readable text: .ipynb, Office (.docx/.xlsx/.pptx and legacy .doc/.ppt/.xls), PDF (text layer), OpenDocument, RTF, EPUB, SQLite (.db/.sqlite: schema, row counts, first rows). Cannot read images/binary — use vision_analyze for images.",
+    "name": "read_file",
+    "parameters": {
+     "properties": {
+      "limit": {
+       "default": 2000,
+       "description": "Maximum number of lines to read (default: 2000, max: 2000). Reads are additionally capped at a ~100K-character budget with a next_offset continuation.",
+       "maximum": 2000,
+       "type": "integer"
+      },
+      "offset": {
+       "default": 1,
+       "description": "Line number to start reading from (1-indexed, default: 1)",
+       "minimum": 1,
+       "type": "integer"
+      },
+      "path": {
+       "description": "Path to the file to read (absolute, relative, or ~/path)",
+       "type": "string"
+      }
+     },
+     "required": [
+      "path"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Search file contents or find files by name. Use this instead of grep/rg/find/ls in terminal. Ripgrep-backed, faster than shell equivalents. On macOS, broad searches above the user home automatically skip TCC-protected folders (Desktop, Documents, Downloads, Library, Movies, Music, Pictures); target one directly when access is intentional.\n\nContent search (target='content'): Regex search inside files. Output modes: full matches with line numbers, file paths only, or match counts.\n\nFile search (target='files'): Find files by glob pattern (e.g., '*.py', '*config*'). Also use this instead of ls. Discovery order is the fast bounded default; exact global newest-first order is an explicit opt-in and may scan the full tree.",
+    "name": "search_files",
+    "parameters": {
+     "properties": {
+      "context": {
+       "default": 0,
+       "description": "Number of context lines before and after each match (grep mode only)",
+       "type": "integer"
+      },
+      "file_glob": {
+       "description": "Filter files by pattern in grep mode (e.g., '*.py' to only search Python files)",
+       "type": "string"
+      },
+      "limit": {
+       "default": 50,
+       "description": "Maximum number of results to return (default: 50)",
+       "type": "integer"
+      },
+      "offset": {
+       "default": 0,
+       "description": "Skip first N results for pagination (default: 0)",
+       "type": "integer"
+      },
+      "order": {
+       "default": "discovery",
+       "description": "File-search order: 'discovery' is fast bounded traversal order; 'modified' is exact global newest-first and may scan the full tree; ignored for content",
+       "enum": [
+        "discovery",
+        "modified"
+       ],
+       "type": "string"
+      },
+      "output_mode": {
+       "default": "content",
+       "description": "Output format for grep mode: 'content' shows matching lines with line numbers, 'files_only' lists file paths, 'count' shows match counts per file",
+       "enum": [
+        "content",
+        "files_only",
+        "count"
+       ],
+       "type": "string"
+      },
+      "path": {
+       "default": ".",
+       "description": "Directory or file to search in (default: current working directory)",
+       "type": "string"
+      },
+      "pattern": {
+       "description": "Regex pattern for content search, or glob pattern (e.g., '*.py') for file search",
+       "type": "string"
+      },
+      "target": {
+       "default": "content",
+       "description": "'content' searches inside file contents, 'files' searches for files by name",
+       "enum": [
+        "content",
+        "files"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "pattern"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Create, update, or delete skills — your procedural memory for recurring task types. The call is an operations array (a single edit is a list of one); it applies atomically — any failure rolls every touched skill back. Ops: create (full SKILL.md; lands in the profile's skills directory or configured skills.create_dir; must precede that skill's other ops), patch (targeted old_string/new_string fix — preferred; content alone REPLACES the whole file, read it via skill_view() first), write_file/remove_file (supporting files), delete (sole op only). Existing skills are modified wherever they live. Keep the description's first 57 chars a self-contained trigger: 'Use when <trigger>. <one-line behavior>.' Write lessons, not logs: imperative rule + why, no PR numbers/dates/incident narration, one rule per lesson, references/ named by topic (extend before adding). skill_view() shows format conventions.",
+    "name": "skill_manage",
+    "parameters": {
+     "properties": {
+      "operations": {
+       "description": "Ordered ops; each names its target skill (lowercase, hyphens/underscores, max 64 chars). Each action is its own shape; another action's text slot is invalid.",
+       "items": {
+        "anyOf": [
+         {
+          "additionalProperties": false,
+          "properties": {
+           "action": {
+            "enum": [
+             "create"
+            ],
+            "type": "string"
+           },
+           "category": {
+            "description": "Optional category subdir (e.g. 'devops').",
+            "type": "string"
+           },
+           "content": {
+            "description": "Full SKILL.md text (YAML frontmatter + markdown body).",
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "name",
+           "action",
+           "content"
+          ],
+          "type": "object"
+         },
+         {
+          "additionalProperties": false,
+          "properties": {
+           "action": {
+            "enum": [
+             "patch"
+            ],
+            "type": "string"
+           },
+           "file_path": {
+            "description": "Optional supporting file (write_file's shape); default SKILL.md.",
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           },
+           "new_string": {
+            "description": "Replacement; empty string deletes the match.",
+            "type": "string"
+           },
+           "old_string": {
+            "description": "Text to find (same matching semantics as the patch tool).",
+            "type": "string"
+           },
+           "replace_all": {
+            "description": "Replace all occurrences (default false).",
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "name",
+           "action",
+           "old_string",
+           "new_string"
+          ],
+          "type": "object"
+         },
+         {
+          "additionalProperties": false,
+          "properties": {
+           "action": {
+            "enum": [
+             "patch"
+            ],
+            "type": "string"
+           },
+           "content": {
+            "description": "Full SKILL.md rewrite (REPLACES the whole file; last resort).",
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "name",
+           "action",
+           "content"
+          ],
+          "type": "object"
+         },
+         {
+          "additionalProperties": false,
+          "properties": {
+           "action": {
+            "enum": [
+             "write_file"
+            ],
+            "type": "string"
+           },
+           "file_content": {
+            "description": "Full text of the supporting file.",
+            "type": "string"
+           },
+           "file_path": {
+            "description": "Path RELATIVE to the skill's own directory, e.g. 'references/api.md' — no leading slash, never absolute; first segment references/, templates/, scripts/, or assets/.",
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "name",
+           "action",
+           "file_path",
+           "file_content"
+          ],
+          "type": "object"
+         },
+         {
+          "additionalProperties": false,
+          "properties": {
+           "action": {
+            "enum": [
+             "remove_file"
+            ],
+            "type": "string"
+           },
+           "file_path": {
+            "description": "Supporting file (write_file's shape).",
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "name",
+           "action",
+           "file_path"
+          ],
+          "type": "object"
+         },
+         {
+          "additionalProperties": false,
+          "properties": {
+           "absorbed_into": {
+            "description": "Curator consolidation only: umbrella skill that absorbed this one (must exist).",
+            "type": "string"
+           },
+           "action": {
+            "enum": [
+             "delete"
+            ],
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "name",
+           "action"
+          ],
+          "type": "object"
+         }
+        ]
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "operations"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Skills allow for loading information about specific tasks and workflows, as well as scripts and templates. Load a skill's full content or access its linked files (references, templates, scripts). First call returns SKILL.md content plus a 'linked_files' dict showing available references/templates/scripts. To access those, call again with file_path parameter.",
+    "name": "skill_view",
+    "parameters": {
+     "properties": {
+      "file_path": {
+       "description": "OPTIONAL: Path to a linked file within the skill (e.g., 'references/api.md', 'templates/config.yaml', 'scripts/validate.py'). Omit to get the main SKILL.md content.",
+       "type": "string"
+      },
+      "name": {
+       "description": "The skill name (use skills_list to see available skills). For plugin-provided skills, use the qualified form 'plugin:skill' (e.g. 'superpowers:writing-plans').",
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "List available skills (name + description). Use skill_view(name) to load full content.",
+    "name": "skills_list",
+    "parameters": {
+     "properties": {
+      "category": {
+       "description": "Optional category filter to narrow results",
+       "type": "string"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Execute shell commands. The host OS, shell, and terminal backend are stated in your environment section — write commands for THAT platform. Filesystem, current working directory, and exported environment variables persist between calls.\n\nDo NOT use cat/head/tail (use read_file), grep/rg/find/ls (use search_files), sed/awk (use patch), or echo/heredoc file creation (use write_file). Reserve terminal for: builds, installs, git, processes, scripts, network, package managers — anything that needs a shell. Output is auto-truncated with the full text saved to a file — never pipe through tail/head to shorten it.\nEnvironment state persists: activate a virtualenv or export variables once per session, not before every command.\n\nForeground (default): returns INSTANTLY when the command finishes, even with a high timeout — set timeout generously for long builds and fixed waits.\nBackground: set background=true (returns a session_id) only for commands that must keep running independently after this tool call returns; add notify=true for bounded tasks, leave silent only for servers/daemons that never exit. Do not start sleep, timers, cooldowns, delays, or polling loops with background=true — to wait a fixed time, run the wait as a normal foreground command with a high enough timeout. After starting a server, verify readiness with a health check in a separate call (no blind sleep loops); manage with process(action=\"poll\"/\"wait\").\nWorking directory: use 'workdir' for per-command cwd; when a command changes the session cwd (cd, pushd), trust the result's \"cwd\" field instead of prefixing every command with 'cd'.\nPTY: pty=true + background=true for interactive CLIs (they hang without a terminal); drive them with process(action=\"write\"/\"submit\"). Local backend only.\nPersist: background=true, persist_on_release=true keeps the job alive across agent lifecycle cleanup (session end, /new, compression, error recovery, stop-on-max-iterations). Use ONLY for long-running jobs the user explicitly wants to outlive the conversation; the user can still stop it on purpose.\n",
+    "name": "terminal",
+    "parameters": {
+     "properties": {
+      "background": {
+       "default": false,
+       "description": "Run in the background, returning a session_id. Pair with notify=true for anything with a defined end (tests, builds, deploys) — without it the process runs silently. Only servers/watchers/daemons that never exit should stay silent. Short commands: prefer foreground with a generous timeout.",
+       "type": "boolean"
+      },
+      "command": {
+       "description": "The shell command to execute",
+       "type": "string"
+      },
+      "heartbeat": {
+       "description": "With background=true: also notify every N seconds (min 60) with the output since the last notice. For long jobs you must react to mid-run (merge trains, full suites); implies notify=true.",
+       "minimum": 60,
+       "type": "integer"
+      },
+      "notify": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       ],
+       "description": "With background=true: notify=true fires exactly one notification when the process exits (the right choice for nearly every bounded task — builds, tests, deploys). notify=['pattern', ...] instead notifies when a line matches a pattern — ONLY for one-shot readiness signals on processes that never exit (e.g. ['Application startup complete']); rate-limited and auto-disabled if it over-fires. Omit for silent daemons."
+      },
+      "persist_on_release": {
+       "default": false,
+       "description": "With background=true: keep the process alive across agent lifecycle cleanup (session end, /new, context compression, error recovery, max-iteration stop). Use ONLY for long-running jobs the user explicitly wants to outlive the conversation (overnight batches, watchful daemons); it still dies with the host process, and the user (or a later turn via process kill) can stop it on purpose. Default false.",
+       "type": "boolean"
+      },
+      "pty": {
+       "default": false,
+       "description": "With background=true: run in a pseudo-terminal for interactive CLI tools (Codex, Claude Code, Python REPL). Local backend only. Default: false.",
+       "type": "boolean"
+      },
+      "timeout": {
+       "description": "Max seconds to wait (default: 180, foreground max: 600). Returns INSTANTLY when command finishes — set high for long tasks, you won't wait unnecessarily. A foreground timeout above 600s runs the command as a tracked background process with notify_on_complete=true instead (the result says so; do not re-run it).",
+       "minimum": 1,
+       "type": "integer"
+      },
+      "workdir": {
+       "description": "Working directory for this command (absolute path). Defaults to the session working directory.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "command"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Convert text to speech audio. Returns a MEDIA: path that the platform delivers as native audio. Compatible providers render as a voice bubble on Telegram; otherwise audio is sent as a regular attachment. In CLI mode, saves to ~/voice-memos/. Voice and provider are user-configured (built-in providers like edge/openai or custom command providers under tts.providers.<name>), not model-selected.",
+    "name": "text_to_speech",
+    "parameters": {
+     "properties": {
+      "instructions": {
+       "description": "Optional voice-design guidance: tone, emotion, pacing, accent, whispering, impressions (e.g. 'Speak in a cheerful, excited whisper'). Forwarded to the OpenAI backend (gpt-4o-mini-tts and OpenAI-compatible voice-design servers). Silently ignored by backends that don't support it.",
+       "type": "string"
+      },
+      "output_path": {
+       "description": "Optional custom file path to save the audio. Defaults to /isolated/hermes/audio_cache/<timestamp>.mp3",
+       "type": "string"
+      },
+      "provider": {
+       "description": "Optional TTS provider override. Accepts built-in names (edge, openai, elevenlabs, minimax, xai, mistral, gemini, neutts, kittentts, piper), user-declared command provider names from tts.providers.<name>, or plugin-registered names. When omitted, the configured tts.provider from config.yaml is used.",
+       "type": "string"
+      },
+      "speed": {
+       "description": "Playback speed multiplier. 1.0 = normal, 0.5 = very slow (language learning), 2.0 = fast. Range: 0.25-4.0. Overrides the speed configured in config.yaml.",
+       "type": "number"
+      },
+      "text": {
+       "description": "The text to convert to speech. Provider-specific per-request character caps apply automatically (OpenAI 4096, xAI 15000, MiniMax 10000, ElevenLabs 5k-40k depending on model); longer input is split into ordered chunks without silent truncation.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Load an image into the conversation so you can see it. Call it any time the user references an image — then answer from what you see.",
+    "name": "vision_analyze",
+    "parameters": {
+     "properties": {
+      "image_url": {
+       "description": "Image URL (http/https), local file path, or data: URL to load.",
+       "type": "string"
+      },
+      "question": {
+       "description": "Your question or request about the image.",
+       "type": "string"
+      },
+      "region": {
+       "description": "Optional [x1, y1, x2, y2] crop in ORIGINAL-image pixel coordinates, applied before any downscaling — the crop keeps full resolution. Load the full image first, then re-call with a region to zoom into small text or fine detail.",
+       "items": {
+        "type": "integer"
+       },
+       "maxItems": 4,
+       "minItems": 4,
+       "type": "array"
+      }
+     },
+     "required": [
+      "image_url",
+      "question"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Extract content from web page URLs. Returns clean page content in markdown/text (no LLM summarization — fast). Also works with PDF URLs (arxiv papers, documents) — pass the PDF link directly. Pages within the char budget (default 15000) return whole; larger pages return a head+tail window with a footer telling you the full text's saved file path and the read_file call to page through the omitted middle. Inline images appear as [IMAGE: alt] placeholders; real image URLs are kept as links. If a URL fails or times out, use the browser tool instead.",
+    "name": "web_extract",
+    "parameters": {
+     "properties": {
+      "char_limit": {
+       "description": "Optional per-page character budget sent back (default 15000). Pages larger than this are head+tail truncated with the full text stored to disk. Raise it when you need more of a long page inline.",
+       "minimum": 2000,
+       "type": "integer"
+      },
+      "urls": {
+       "description": "List of URLs to extract content from (max 5 URLs per call)",
+       "items": {
+        "type": "string"
+       },
+       "maxItems": 5,
+       "type": "array"
+      }
+     },
+     "required": [
+      "urls"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Search the web for information. Returns up to 5 results by default with titles, URLs, and descriptions. The query is passed through to the configured backend, so operators such as site:domain, filetype:pdf, intitle:word, -term, and \"exact phrase\" may work when the backend supports them.",
+    "name": "web_search",
+    "parameters": {
+     "properties": {
+      "limit": {
+       "default": 5,
+       "description": "Maximum number of results to return. Defaults to 5.",
+       "maximum": 100,
+       "minimum": 1,
+       "type": "integer"
+      },
+      "query": {
+       "description": "The search query to look up on the web. You may include backend-supported operators such as site:example.com, filetype:pdf, intitle:word, -term, or \"exact phrase\".",
+       "type": "string"
+      }
+     },
+     "required": [
+      "query"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Write content to a file, completely replacing existing content. Use this instead of echo/cat heredoc in terminal. Creates parent directories automatically. OVERWRITES the entire file — use 'patch' for targeted edits. For an EXISTING file, call read_file first: write_file refuses (file untouched) when this task has no current full read/write of the file or the file changed on disk since; on refusal, read_file, merge, then retry. Auto-runs syntax checks on .py/.json/.yaml/.toml and other linted languages; only NEW errors introduced by this write are surfaced (pre-existing errors are filtered out). The result's verified:true means the on-disk content hash was confirmed — do NOT re-read the file to check the write landed.",
+    "name": "write_file",
+    "parameters": {
+     "properties": {
+      "content": {
+       "description": "Complete content to write to the file",
+       "type": "string"
+      },
+      "path": {
+       "description": "Path to the file to write (will be created if it doesn't exist, overwritten if it does)",
+       "type": "string"
+      }
+     },
+     "required": [
+      "path",
+      "content"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Search 15 additional tools that are loaded on demand. Takes a list of queries searched in parallel against the same catalog; send one query per distinct capability you need. Queries are keyword searches, not questions: the app or service name plus an action and object, no filler words (`gmail send email`, `nvidia driver status`, not `what's my GPU driver version?`); a word no tool contains makes the query return nothing. Returns matching tool names grouped per query plus a shared map with each tool's description. Follow with `tool_describe` to load full parameter schemas, then `tool_call` to invoke. Tools listed at the top of this system prompt are already available and do not need to be searched.\n\nEvery deferred capability is listed below. If a tool name appears here, do NOT claim it is unavailable — load it with `tool_describe` (skip `tool_search` when you already see the exact name).\n\nDeferred tool catalog (call schemas via `tool_describe`, invoke via `tool_call`):\ndesktop_ui tools (10):\n- annotate_preview: Highlight elements on the preview-pane page, lastingly…\n- apply_layout: Apply a saved layout preset to the Hermes desktop app when…\n- close_terminal: Hide a background process's terminal tab (process keeps…\n- desktop_preview: Open, close, or read the preview pane beside the chat.\n- drive_preview: Use the web page open in the desktop preview pane (the one…\n- focus_pane: Reveal and focus a Hermes desktop pane when the user asks…\n- gui_tour: Guided tour in the desktop GUI: dim the screen, highlight…\n- read_terminal: Read the in-app terminal pane beside this chat.\n- read_window_below: Identify the app window directly behind the Hermes desktop…\n- show_tip: Point at one thing in the desktop UI with a small arrow…\nproject tools (1):\n- desktop_project: Create or switch desktop Projects (named workspaces).\nsession_search tools (1):\n- session_search: Recall past conversations: search or read old Hermes…\nterminal tools (1):\n- process_manage: Poll, wait on, or kill background terminal processes (from…\ntodo tools (1):\n- todo_list: Track a task list for multi-step work (3+ steps).\nvideo tools (1):\n- video_analyze: Analyze a video from a URL or local file path using a…",
+    "name": "tool_search",
+    "parameters": {
+     "properties": {
+      "limit": {
+       "description": "Maximum number of matches per query. Defaults to 5 and is clamped to the configured maximum (25 by default).",
+       "type": "integer"
+      },
+      "queries": {
+       "description": "Keyword queries, one per capability: app or service name + action + object (e.g. ['github create issue', 'slack send message', 'gmail fetch emails']). Not questions or sentences: every word must appear in tool text, or the query returns nothing. Searched in parallel; results come back grouped per query. A single string is accepted and treated as one query.",
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "queries"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Load the full JSON schemas for tools returned by `tool_search`. Required before `tool_call` if a tool's parameters are unknown. Batch every schema you need into one call.",
+    "name": "tool_describe",
+    "parameters": {
+     "properties": {
+      "names": {
+       "description": "Exact tool names (as returned by tool_search). A single string is accepted and treated as one name.",
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "names"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  },
+  {
+   "function": {
+    "description": "Invoke deferred tools. Takes `calls`, an array of {name, arguments} — one entry per invocation; a single call is an array of one. Local tools require one entry per tool_call. Only connectors__ names may be batched together; mixed and multi-local batches are rejected. Connector entries execute individually with results in input order. Argument shapes match each tool's schema (see `tool_describe`). Policy, hooks, and approvals run as for directly-listed tools.",
+    "name": "tool_call",
+    "parameters": {
+     "properties": {
+      "calls": {
+       "description": "One local invocation, or one or more connector invocations. Never mix local and connector tools.",
+       "items": {
+        "properties": {
+         "arguments": {
+          "description": "Arguments matching the tool schema.",
+          "type": "object"
+         },
+         "name": {
+          "description": "Exact tool name to invoke.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "name",
+         "arguments"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "calls"
+     ],
+     "type": "object"
+    }
+   },
+   "type": "function"
+  }
+ ]
+}

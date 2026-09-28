@@ -64,15 +64,23 @@ class StreamToolsTests(unittest.TestCase):
             self.assertEqual(self.continuation(p, scope, history)[0], 200)
             self.assertEqual(sink.seen[-1][2]['model'], 'physical')
 
-    def test_requested_stream_tools_stays_pinned_until_profile_dependency(self):
-        # Base request parser deliberately rejects stream+tools. Keep this honest:
-        # unsolicited SSE proves finish capture, not native request qualification.
-        with self.router(self.setup) as (p, sink):
-            scope, history = self.start(p, sink, {'stream': True})
-            self.advice(p, scope)
-            history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'result'})
-            self.assertEqual(self.continuation(p, scope, history)[0], 200)
-            self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+    def test_requested_stream_tools_is_a_destination_requirement(self):
+        # Contract change (m3-native-profile): stream:true + tools used to be a
+        # deliberate permanent pin. It is now requirement STREAM_TOOLS: only a
+        # destination whose operator declared capabilities.stream_tools=true may
+        # receive the continuation; an undeclared destination leaves the scope on
+        # its (unpinned) baseline owner. The body is forwarded unchanged.
+        for declared in (False, True):
+            def edit(c, s):
+                self.setup(c, s)
+                if declared: c['context']['candidates'][1]['capabilities']['stream_tools'] = True
+            with self.subTest(declared=declared), self.router(edit) as (p, sink):
+                scope, history = self.start(p, sink, {'stream': True})
+                self.advice(p, scope)
+                history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'result'})
+                self.assertEqual(self.continuation(p, scope, history, stream=True)[0], 200)
+                self.assertEqual(sink.seen[-1][2]['model'], 'physical' if declared else 'frontier')
+                self.assertTrue(sink.seen[-1][2]['stream'])
 
     def test_done_is_not_transport_or_executor_completion(self):
         import threading
