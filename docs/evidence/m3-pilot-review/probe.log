@@ -1,0 +1,11 @@
+.
+----------------------------------------------------------------------
+Ran 1 test in 2.641s
+
+OK
+control (nonstream, 1 tool)                    models=['frontier', 'physical', 'physical'] decisions=['none reason=baseline chosen=baseline est', 'tool_followup_ok reason=cheapest chosen=', 'tool_followup_ok reason=cheapest chosen=']
+stream=true                                    models=['frontier', 'frontier', 'frontier'] decisions=['none reason=baseline chosen=baseline est', 'none reason=pin', 'none reason=pin']
+reasoning_effort=medium                        models=['frontier', 'frontier', 'frontier'] decisions=['none reason=baseline chosen=baseline est', 'none reason=pin', 'none reason=pin']
+19 tools / 36KB                                models=['frontier', 'frontier', 'frontier'] decisions=['none reason=baseline chosen=baseline est', 'none reason=pin', 'none reason=pin']
+Hermes: stream+include_usage+reasoning+19 tools models=['frontier', 'frontier', 'frontier'] decisions=['none reason=baseline chosen=baseline est', 'none reason=pin', 'none reason=pin']
+RESULT {"control": ["frontier", "physical", "physical"], "stream": ["frontier", "frontier", "frontier"], "reasoning": ["frontier", "frontier", "frontier"], "bigtools": ["frontier", "frontier", "frontier"], "hermes": ["frontier", "frontier", "frontier"]}

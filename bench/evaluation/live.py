@@ -226,6 +226,11 @@ def validate_live(config):
             raise ValueError('declare reasoning usage semantics')
         if not upstream.get('tokenizer') or not upstream.get('serving_evidence'):
             raise ValueError('model/tokenizer/context/output capability evidence required')
+        if kind=='public':
+            # Presence only; the value is never read into evidence or messages.
+            key_env=upstream.get('api_key_env')
+            if not isinstance(key_env,str) or not key_env or not os.environ.get(key_env):
+                raise ValueError('public upstream '+name+' needs a set, non-empty credential env '+str(key_env))
     if config.get('baseline_endpoint') not in ('private','public') or not config.get('baseline_model'):
         raise ValueError('explicit baseline required')
     baseline=resolve_upstream(config,config['baseline_endpoint'],config.get('baseline_provider'))

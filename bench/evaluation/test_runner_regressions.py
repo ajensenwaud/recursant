@@ -60,6 +60,9 @@ class AllocationRegressionTests(unittest.TestCase):
         cfg.update(approved=True, isolation_reviewed=True, router_binary=str(binary),
                    router_sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
         cfg['upstreams']['openrouter']['url'] = 'https://127.0.0.1:1/v1'
+        # Loopback dummy credential name; preflight checks presence, never the value.
+        cfg['upstreams']['openrouter']['api_key_env'] = 'M3_TEST_PUBLIC_KEY'
+        os.environ.setdefault('M3_TEST_PUBLIC_KEY', 'loopback-dummy-not-a-key')
         for upstream in cfg['upstreams'].values():
             upstream['serving_evidence'] = 'synthetic preflight only'
         return cfg

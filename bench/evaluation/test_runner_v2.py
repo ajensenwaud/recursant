@@ -141,6 +141,28 @@ class ProviderConfigTests(unittest.TestCase):
             wrong = dict(cfg, baseline_provider='gx10')
             with self.assertRaises(ValueError): live.validate_live(wrong)
 
+    def test_preflight_requires_public_credential_env_present_without_reading_it_out(self):
+        # A public upstream without a resolvable key would send unauthenticated
+        # requests: each 401 still consumes a counted, reserved attempt.
+        from unittest.mock import patch
+        from bench.evaluation.test_runner_regressions import AllocationRegressionTests
+        with tempfile.TemporaryDirectory() as temp:
+            cfg = AllocationRegressionTests.preflight_config(None, Path(temp))
+            name = cfg['upstreams']['openrouter']['api_key_env']
+            nokey = json.loads(json.dumps(cfg)); del nokey['upstreams']['openrouter']['api_key_env']
+            with self.assertRaises(ValueError): live.validate_live(nokey)
+            for value in (None, ''):
+                env = {k: v for k, v in __import__('os').environ.items() if k != name}
+                if value is not None: env[name] = value
+                with self.subTest(value=value), patch.dict('os.environ', env, clear=True):
+                    with self.assertRaises(ValueError) as caught: live.validate_live(cfg)
+                    self.assertIn(name, str(caught.exception))
+            with patch.dict('os.environ', {name: 'sk-secret-value'}):
+                live.validate_live(cfg)
+                bad = json.loads(json.dumps(cfg)); bad['upstreams']['openrouter']['api_key_env'] = 'M3_ABSENT_KEY'
+                with self.assertRaises(ValueError) as caught: live.validate_live(bad)
+                self.assertNotIn('sk-secret-value', str(caught.exception))
+
 
 class ArmTests(unittest.TestCase):
     def test_arm_names_and_legacy_mapping(self):
