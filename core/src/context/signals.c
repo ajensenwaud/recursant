@@ -41,11 +41,49 @@ static bool scan(const char *p, const char *end) {
     }
     return false;
 }
-bool rc_signals_failed_text(const char *text, size_t length) {
-    if (!text) return false;
+static bool scan_text(const char *text, size_t length) {
     const char *end=text+length;
     if (length<=2*RC_SIGNALS_SCAN_BYTES) return scan(text,end);
     return scan(text,text+RC_SIGNALS_SCAN_BYTES) || scan(end-RC_SIGNALS_SCAN_BYTES,end);
+}
+/* Structured tool-result envelope (e.g. pinned Hermes terminal:
+ * {"output":...,"exit_code":0,"error":null}). Field NAMES are protocol, not
+ * failure text. Returns 1 failed, 0 clean, -1 not a recognized envelope. */
+static int envelope_failed(const char *text, size_t length) {
+    size_t i=0; while (i<length && (text[i]==' '||text[i]=='\n'||text[i]=='\t'||text[i]=='\r')) ++i;
+    if (i==length || text[i]!='{' || length>(size_t)4*RC_SIGNALS_SCAN_BYTES) return -1;
+    json_t *o=json_loadb(text,length,JSON_REJECT_DUPLICATES,NULL);
+    if (!json_is_object(o)) { json_decref(o); return -1; }
+    static const char *known="|output||exit_code||error||success||status||stdout||stderr|";
+    bool recognized=false; int failed=0; const char *k; json_t *v;
+    json_object_foreach(o,k,v) {
+        char token[40];
+        if (strlen(k)>30) { json_decref(o); return -1; }
+        token[0]='|'; strcpy(token+1,k); strcat(token,"|");
+        if (!strstr(known,token)) { json_decref(o); return -1; }
+        recognized=true;
+        if (!strcmp(k,"exit_code")) {
+            if (!json_is_integer(v)) { if (!json_is_null(v)) failed=1; }
+            else if (json_integer_value(v)!=0) failed=1;
+        } else if (!strcmp(k,"error")) {
+            if (!json_is_null(v) && !json_is_false(v) && !(json_is_string(v) && !json_string_length(v))) failed=1;
+        } else if (!strcmp(k,"success")) {
+            if (!json_is_true(v)) failed=1;
+        } else if (!strcmp(k,"status")) {
+            const char *s=json_string_value(v);
+            if (!s || (strcmp(s,"ok") && strcmp(s,"success") && strcmp(s,"completed"))) failed=1;
+        } else if (json_is_string(v)) {
+            if (scan_text(json_string_value(v),json_string_length(v))) failed=1;
+        } else if (!json_is_null(v)) failed=1;
+    }
+    json_decref(o);
+    return recognized ? failed : -1;
+}
+bool rc_signals_failed_text(const char *text, size_t length) {
+    if (!text) return false;
+    int envelope=envelope_failed(text,length);
+    if (envelope>=0) return envelope==1;
+    return scan_text(text,length);
 }
 static bool role_is(json_t *m, const char *role) {
     const char *r=json_string_value(json_object_get(m,"role"));

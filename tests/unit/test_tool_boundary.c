@@ -89,7 +89,11 @@ static void parallel_tests(void) {
     json_object_set_new(json_array_get(h,0),"content",json_string("fabricated"));
     assert(replay_json(b,h)==RC_TOOL_INVALID);
     json_object_set_new(json_array_get(h,0),"content",json_string("run"));
+    /* Equivalent JSON arguments (Hermes compact re-serialization) replay;
+     * a decoded-value change still does not. */
     json_object_set_new(json_object_get(json_array_get(cs,0),"function"),"arguments",json_string("{ }"));
+    assert(replay_json(b,h)==RC_TOOL_COMPLETE);
+    json_object_set_new(json_object_get(json_array_get(cs,0),"function"),"arguments",json_string("{\"x\":1}"));
     assert(replay_json(b,h)==RC_TOOL_INVALID);
     json_object_set_new(json_object_get(json_array_get(cs,0),"function"),"arguments",json_string("{}"));
     json_object_set_new(r,"opaque",json_null()); assert(replay_json(b,h)==RC_TOOL_INVALID);
@@ -156,7 +160,33 @@ static void edge_tests(void) {
     assert(rc_tool_boundary_capture(hs,strlen(hs),assistant,strlen(assistant),&b)==RC_TOOL_COMPLETE);
     rc_tool_boundary_free(b); free(hs); json_decref(m); json_decref(h);
 }
+/* Hermes (pinned d0288be) replays tool-call arguments re-serialized compactly
+ * after json.loads: whitespace may differ, decoded JSON must not. */
+static void argument_spelling_tests(void) {
+    const char *spaced="{\"role\":\"assistant\",\"content\":\"step\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"terminal\",\"arguments\":\"{\\\"command\\\": \\\"pwd\\\", \\\"n\\\": [1, 2]}\"}}]}";
+    rc_tool_boundary *b=NULL;
+    assert(rc_tool_boundary_capture(history,strlen(history),spaced,strlen(spaced),&b)==RC_TOOL_COMPLETE);
+    const char *head="[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",\"content\":\"step\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"terminal\",\"arguments\":";
+    const char *tail="}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"ok\"}]";
+    const char *same[]={"\"{\\\"command\\\":\\\"pwd\\\",\\\"n\\\":[1,2]}\"", "\"{\\\"n\\\":[1,2],\\\"command\\\":\\\"pwd\\\"}\"",
+                        "\"{\\\"command\\\": \\\"pwd\\\", \\\"n\\\": [1, 2]}\""};
+    const char *changed[]={"\"{\\\"command\\\":\\\"ls\\\",\\\"n\\\":[1,2]}\"", "\"{\\\"command\\\":\\\"pwd\\\",\\\"n\\\":[2,1]}\"",
+                           "\"{\\\"command\\\":\\\"pwd\\\"}\"", "\"{\\\"command\\\":\\\"pwd\\\",\\\"n\\\":[1,2],\\\"x\\\":null}\"",
+                           "\"not json\"", "\"{\\\"command\\\":\\\"pwd\\\",\\\"command\\\":\\\"pwd\\\",\\\"n\\\":[1,2]}\""};
+    char buf[1024];
+    for(size_t i=0;i<sizeof same/sizeof *same;i++){snprintf(buf,sizeof buf,"%s%s%s",head,same[i],tail);assert(rc_tool_boundary_replay(b,buf,strlen(buf))==RC_TOOL_COMPLETE);}
+    for(size_t i=0;i<sizeof changed/sizeof *changed;i++){snprintf(buf,sizeof buf,"%s%s%s",head,changed[i],tail);assert(rc_tool_boundary_replay(b,buf,strlen(buf))==RC_TOOL_INVALID);}
+    rc_tool_boundary_free(b);
+    /* Non-JSON original arguments keep exact string comparison. */
+    const char *raw="{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"t\",\"arguments\":\"not json\"}}]}";
+    assert(rc_tool_boundary_capture(history,strlen(history),raw,strlen(raw),&b)==RC_TOOL_COMPLETE);
+    const char *rhead="[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"t\",\"arguments\":";
+    snprintf(buf,sizeof buf,"%s\"not json\"%s",rhead,tail);assert(rc_tool_boundary_replay(b,buf,strlen(buf))==RC_TOOL_COMPLETE);
+    snprintf(buf,sizeof buf,"%s\"not  json\"%s",rhead,tail);assert(rc_tool_boundary_replay(b,buf,strlen(buf))==RC_TOOL_INVALID);
+    rc_tool_boundary_free(b);
+}
 int main(void) {
+    argument_spelling_tests();
     edge_tests();
     parallel_tests(); malformed_tests();
     schema_tests(); history_tests(); bounds_tests();

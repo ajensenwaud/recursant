@@ -259,7 +259,8 @@ class NativeToolsTests(unittest.TestCase):
                 if case == 'duplicate': history.append(copy.deepcopy(history[-1]))
                 if case == 'foreign': history[-1]['tool_call_id'] = 'foreign'
                 if case == 'modified': history[0]['content'] = 'different'
-                if case == 'assistant_modified': history[1]['tool_calls'][0]['function']['arguments'] = '{ }'
+                # A decoded-value change (whitespace-only respelling is equivalent).
+                if case == 'assistant_modified': history[1]['tool_calls'][0]['function']['arguments'] = '{"x": 1}'
                 if case == 'extra_user': history.append({'role': 'user', 'content': 'extra'})
                 if case == 'unknown': extra['future'] = None
                 if case == 'reasoning': extra['reasoning_effort'] = 'medium'

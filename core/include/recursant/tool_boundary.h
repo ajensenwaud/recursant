@@ -30,8 +30,10 @@ typedef enum {
  * subset only, unknown fields rejected even if null. No inert-null equivalence
  * is used: stronger than the gateway's optional compatibility. JSON whitespace,
  * object key order and string escape spelling may differ; decoded UTF-8 string
- * bytes, array order and every member/value must match (arguments are strings,
- * never parsed/repaired). Embedded NULs rejected by parser. IDs are nonempty
+ * bytes, array order and every member/value must match. Function-call arguments
+ * are compared as JSON when the observed arguments decode as JSON (harnesses
+ * replay them re-serialized); otherwise as exact strings. Never repaired or
+ * rewritten; the forwarded request is unchanged. Embedded NULs rejected by parser. IDs are nonempty
  * opaque strings <=128 bytes, not normalized. Bounds apply per input, plus at
  * most 128 messages and 32 distinct tool IDs across the entire history.
  *

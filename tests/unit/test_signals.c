@@ -131,7 +131,26 @@ static void malformed(void) {
     CHECK(rc_signals_classify(b,&ONE)==0);
     json_decref(b);
 }
+static void structured_envelopes(void) {
+    /* Pinned Hermes terminal results are JSON envelopes. The literal key
+     * "error": null or exit_code 0 is not a failure marker. */
+    const char *clean[]={"{\"output\": \"/workspace\", \"exit_code\": 0, \"error\": null}",
+        "{\"output\": \"\", \"exit_code\": 0, \"error\": null}",
+        "{\"output\": \"{\\\"finish\\\": {}, \\\"makespan\\\": 0}\", \"exit_code\": 0, \"error\": null}",
+        "{\"success\": true, \"error\": \"\"}", "{\"exit_code\": 0}"};
+    for (size_t i=0; i<sizeof clean/sizeof *clean; ++i) CHECK(!rc_signals_failed_text(clean[i],strlen(clean[i])));
+    const char *failed[]={"{\"output\": \"\", \"exit_code\": 1, \"error\": null}",
+        "{\"output\": \"x\", \"exit_code\": 0, \"error\": \"permission denied\"}",
+        "{\"output\": \"Traceback (most recent call last):\", \"exit_code\": 0, \"error\": null}",
+        "{\"output\": \"3 tests FAILED\", \"exit_code\": 0, \"error\": null}",
+        "{\"success\": false}", "{\"exit_code\": -9, \"error\": null}", "{\"status\": \"error\"}"};
+    for (size_t i=0; i<sizeof failed/sizeof *failed; ++i) CHECK(rc_signals_failed_text(failed[i],strlen(failed[i])));
+    /* Envelope with an error inside output text still counts (plain scan of output). */
+    const char *follow="{\"messages\":[" USER("s") "," CALL("c1") ",{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"{\\\"output\\\": \\\"ok\\\", \\\"exit_code\\\": 0, \\\"error\\\": null}\"}]," TOOLS "}";
+    CHECK(classify(follow,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
+}
 int main(void) {
+    structured_envelopes();
     taxonomy();
     followup_and_final();
     failures_and_recovery();

@@ -97,6 +97,45 @@ rc_tool_status rc_tool_boundary_capture(const char *h, size_t hn,
     if (status!=RC_TOOL_COMPLETE) { rc_tool_boundary_free(b); return status; }
     *out = b; return RC_TOOL_COMPLETE;
 }
+/* Replayed assistant equals the observed one. Function-call arguments are
+ * JSON text: harnesses (e.g. pinned Hermes) replay them re-serialized, so when
+ * the OBSERVED arguments decode to JSON, the replayed string must decode
+ * (duplicates rejected) to a deep-equal value; whitespace/key order may differ,
+ * every decoded member/value/array order must match. Non-JSON observed
+ * arguments keep exact string equality. All other members stay exact. */
+static bool args_equal(json_t *observed, json_t *replayed) {
+    if (!json_is_string(observed) || !json_is_string(replayed)) return false;
+    if (json_equal(observed, replayed)) return true;
+    json_t *a = json_loadb(json_string_value(observed), json_string_length(observed), JSON_REJECT_DUPLICATES, NULL);
+    if (!a) return false;
+    json_t *b = json_loadb(json_string_value(replayed), json_string_length(replayed), JSON_REJECT_DUPLICATES, NULL);
+    bool same = b && json_equal(a, b);
+    json_decref(a); json_decref(b); return same;
+}
+static bool assistant_equal(json_t *replayed, json_t *observed) {
+    if (!json_is_object(replayed) || json_object_size(replayed) != json_object_size(observed)) return false;
+    const char *k; json_t *v;
+    json_object_foreach(observed, k, v) {
+        json_t *r = json_object_get(replayed, k);
+        if (!r) return false;
+        if (strcmp(k, "tool_calls")) { if (!json_equal(r, v)) return false; continue; }
+        if (!json_is_array(r) || json_array_size(r) != json_array_size(v)) return false;
+        for (size_t i = 0; i < json_array_size(v); ++i) {
+            json_t *oc = json_array_get(v, i), *rc = json_array_get(r, i);
+            if (!json_is_object(rc) || json_object_size(rc) != json_object_size(oc)) return false;
+            const char *ck; json_t *cv;
+            json_object_foreach(oc, ck, cv) {
+                json_t *rv = json_object_get(rc, ck);
+                if (!rv) return false;
+                if (strcmp(ck, "function")) { if (!json_equal(rv, cv)) return false; continue; }
+                if (!json_is_object(rv) || json_object_size(rv) != json_object_size(cv) ||
+                    !json_equal(json_object_get(rv, "name"), json_object_get(cv, "name")) ||
+                    !args_equal(json_object_get(cv, "arguments"), json_object_get(rv, "arguments"))) return false;
+            }
+        }
+    }
+    return true;
+}
 rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *b, const char *m, size_t n) {
     if (!b || !m) return RC_TOOL_INVALID;
     if (n > RC_TOOL_MAX_BYTES) return RC_TOOL_LIMIT;
@@ -109,7 +148,7 @@ rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *b, const char *m,
         total >= count + 1 && total <= count + 1 + nc;
     for (size_t i=0; ok && i<count; ++i)
         ok = json_equal(json_array_get(v,i),json_array_get(b->history,i));
-    if (ok) ok = json_equal(json_array_get(v,count), b->assistant);
+    if (ok) ok = assistant_equal(json_array_get(v,count), b->assistant);
     for (size_t i=count+1; ok && i<total; ++i) {
         json_t *r = json_array_get(v,i);
         const char *role = json_string_value(json_object_get(r,"role"));
