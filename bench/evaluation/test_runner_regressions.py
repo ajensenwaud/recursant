@@ -42,8 +42,9 @@ def config_for(root, url):
     cfg.update(allocation_path=str(root/'allocation.jsonl'),
                allocation_reference='LOOPBACK-ONLY-NOT-LIVE-APPROVAL',
                approval_reference='LOOPBACK-ONLY', request_cap=188, paid_cap_usd=9.99)
+    # One loopback upstream per configured provider (named form: gx10, openrouter).
     cfg['upstreams'] = {name: dict(url=url, model='private-fixture',
-        reasoning_semantics='inclusive', tokenizer='synthetic') for name in ('private', 'public')}
+        reasoning_semantics='inclusive', tokenizer='synthetic') for name in cfg['upstreams']}
     return cfg
 
 
@@ -58,7 +59,7 @@ class AllocationRegressionTests(unittest.TestCase):
         binary.write_bytes(b'not executed by preflight')
         cfg.update(approved=True, isolation_reviewed=True, router_binary=str(binary),
                    router_sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
-        cfg['upstreams']['public']['url'] = 'https://127.0.0.1:1/v1'
+        cfg['upstreams']['openrouter']['url'] = 'https://127.0.0.1:1/v1'
         for upstream in cfg['upstreams'].values():
             upstream['serving_evidence'] = 'synthetic preflight only'
         return cfg
@@ -183,18 +184,25 @@ class AdmissionRegressionTests(unittest.TestCase):
             root = Path(temp)
             cfg = config_for(root, url)
             cfg['router_binary'] = binary
-            cfg['router_config']['private']['model'] = 'private-fixture'
+            # The c2aa46c router predates S4 context.signals; signals stay off here.
+            cfg['router_signals'] = 'off'
+            cfg['router_config']['private_default']['model'] = 'private-fixture'
+            for alias in cfg['router_config']['aliases']:
+                if alias['provider'] == 'gx10': alias['model'] = 'private-fixture'
             cfg['router_config']['context']['candidates'] = [dict(alias='baseline',
                 quality_evidence='synthetic-loopback-only', qualified_tasks=[],
-                context_limit=65536, expected_task_cost=1.0)]
+                context_limit=65536, price=dict(input_per_mtok=2.0, output_per_mtok=8.0,
+                                                cached_input_per_mtok=0.5))]
             live.create_allocation(cfg)
-            with live.RouteSession(cfg, root, 'probe', 'text-aware') as route:
+            with live.RouteSession(cfg, root, 'probe', 'routed-full') as route:
                 status, raw, _ = route.handle('/v1/chat/completions', BODY, {})
                 self.assertEqual(status, 200, raw)
                 self.assertEqual(len(route.calls), 1)
                 self.assertEqual(len(seen), 1)
                 self.assertEqual(seen[0]['provider'], {'allow_fallbacks':False})
                 self.assertEqual(route.calls[0]['requested_model'], BODY['model'])
+                self.assertEqual(route.calls[0]['provider'], 'openrouter')
+                self.assertEqual(route.calls[0]['endpoint'], 'public')
                 self.assertGreater(Decimal(route.calls[0]['liability_reserved_usd']), 0)
 
     def test_only_exact_m2_provider_controls_are_qualified(self):

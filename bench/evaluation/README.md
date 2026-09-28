@@ -57,6 +57,10 @@ The example proposes **96 total physical egress attempts and US$8 reserved publi
 - Admission reserves `(serialized UTF-8 bytes + 4096 + 128*(message count + function count))*input_rate + max_output*output_rate`, with no caching discount. This is a **conservative byte-fallback tokenizer/framing liability bound, not measured tokens**. The reviewer must validate that bound for permitted models/provider serialization; unknown tokenization/provider-added work is not qualified. The same bound plus output must fit the configured common context or dispatch is rejected. A metadata-only context declaration is not relied upon. Both output-limit spellings are bounded at 4096.
 - Private admission reserves zero **public-provider exposure only**. Private token usage/API cost/resource economics remain unknown unless actually reported; this is not a zero-cost-GPU assumption.
 
+## Runner v2 (current router: named providers, priced candidates, signals)
+
+See [`../../docs/evidence/m3-runner-v2.md`](../../docs/evidence/m3-runner-v2.md). Arms are now `baseline-direct` / `routed-structured` / `routed-full` (legacy `baseline` / `structured-only` / `text-aware` map 1:1). Reported dollars use `pricing.call_cost` identically for every arm: provider `usage.cost` first, else usage tokens x frozen list price with cached tokens at the cached price, labelled per call. The admission rates below are reservation bounds only.
+
 ## Arm treatment and accounting
 
 All arms use identical unchanged Hermes, default toolsets, prompt, observer and header-only GatewayBridge, context/output/turn/deadline/resource limits and grading. The baseline harness model name remains identical even in treatments (avoids model-dependent prompt/tool heuristics). Only the host routing ingress rewrites its model to the auto alias.

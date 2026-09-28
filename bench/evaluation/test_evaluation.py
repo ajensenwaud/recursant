@@ -214,10 +214,11 @@ class ReportTests(unittest.TestCase):
         report=summarize(assignments,rows)
         self.assertEqual(report['assigned'],6)
         self.assertEqual(report['missing_outcomes'],5)
-        self.assertEqual(report['arms']['baseline']['known_tokens'],17)
-        self.assertIsNone(report['arms']['baseline']['total_tokens'])
-        self.assertIsNone(report['arms']['baseline']['cost_usd'])
-        self.assertEqual(report['arms']['baseline']['successes'],0)
+        # Legacy arm names map to canonical report arms (runner v2).
+        self.assertEqual(report['arms']['baseline-direct']['known_tokens'],17)
+        self.assertIsNone(report['arms']['baseline-direct']['total_tokens'])
+        self.assertIsNone(report['arms']['baseline-direct']['cost_usd'])
+        self.assertEqual(report['arms']['baseline-direct']['successes'],0)
         self.assertFalse(report['release_gate'])
 
 

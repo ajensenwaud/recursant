@@ -22,7 +22,7 @@ SETTINGS=dict(model='fixture',turns=8,output=4096,deadline_s=180,
               reasoning='pinned upstream defaults; not disabled', sampling='pinned upstream defaults',
               toolsets='pinned upstream default', cpus=2, memory='2g', pids=128,
               request_cap=16)
-ARMS=('baseline','structured-only','text-aware')
+from .live import CANONICAL_ARMS as ARMS
 HERE=Path(__file__).resolve().parent
 
 
