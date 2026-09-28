@@ -1,0 +1,50 @@
+[100%] Linking C executable recursant
+[100%] Built target recursant
+/work/tests/unit/test_config.c:266:11: error: implicit declaration of function 'rc_provider_adapter_known' [-Wimplicit-function-declaration]
+/work/tests/unit/test_config.c:273:11: error: implicit declaration of function 'rc_provider_name_ok' [-Wimplicit-function-declaration]
+/work/tests/unit/test_config.c:287:18: error: implicit declaration of function 'rc_provider_legacy_public_adapter' [-Wimplicit-function-declaration]
+/work/tests/unit/test_config.c:287:18: error: passing argument 1 of 'strcmp' makes pointer from integer without a cast [-Wint-conversion]
+/work/tests/unit/test_config.c:288:18: error: passing argument 1 of 'strcmp' makes pointer from integer without a cast [-Wint-conversion]
+/work/tests/unit/test_config.c:289:18: error: passing argument 1 of 'strcmp' makes pointer from integer without a cast [-Wint-conversion]
+/work/tests/unit/test_config.c:290:18: error: passing argument 1 of 'strcmp' makes pointer from integer without a cast [-Wint-conversion]
+/work/tests/unit/test_config.c:291:18: error: passing argument 1 of 'strcmp' makes pointer from integer without a cast [-Wint-conversion]
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router_providers.py", line 166, in test_04_each_alias_reaches_its_own_provider
+    with self.router() as (p, private, gw_a, gw_b):
+         ~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router_providers.py", line 78, in router
+    self.fail('router exited: ' + proc.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+======================================================================
+FAIL: test_05_compliance_redirects_only_to_private_default_provider (test_router_providers.ProviderRegistryTests.test_05_compliance_redirects_only_to_private_default_provider)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router_providers.py", line 187, in test_05_compliance_redirects_only_to_private_default_provider
+    with self.router(edit) as (p, private, gw_a, gw_b):
+         ~~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router_providers.py", line 78, in router
+    self.fail('router exited: ' + proc.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+======================================================================
+FAIL: test_07_context_provider_form_requires_private_default_without_key (test_router_providers.ProviderRegistryTests.test_07_context_provider_form_requires_private_default_without_key)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router_providers.py", line 226, in test_07_context_provider_form_requires_private_default_without_key
+    self.assertEqual(validate(cfg, env=env).returncode, 0, validate(cfg, env=env).stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : b'invalid runtime configuration\n'
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.729s
+
+FAILED (failures=4)

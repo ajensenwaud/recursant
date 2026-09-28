@@ -50,6 +50,16 @@ static char *dup_str(const char *s) {
     return out;
 }
 
+/* True when the first n bytes of a equal b ignoring ASCII case. */
+static bool ascii_prefix_ieq(const char *a, const char *b, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+        unsigned char x = (unsigned char)a[i], y = (unsigned char)b[i];
+        if (!x || tolower(x) != tolower(y))
+            return false;
+    }
+    return true;
+}
+
 /* ------------------------------------------------------------------ */
 /* URL validation (shared with the future endpoint registry)           */
 /* ------------------------------------------------------------------ */
@@ -119,6 +129,148 @@ bool rc_config_url_is_valid(const char *url, bool https_only,
             err_set(err, err_len, "url port is malformed");
             return false;
         }
+    }
+    return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Provider registry helpers                                           */
+/* ------------------------------------------------------------------ */
+
+bool rc_provider_adapter_known(const char *adapter) {
+    return adapter && (strcmp(adapter, "openai-compatible") == 0 ||
+                       strcmp(adapter, "openrouter") == 0);
+}
+
+bool rc_provider_name_ok(const char *name) {
+    if (!name || !name[0])
+        return false;
+    size_t n = 0;
+    for (const unsigned char *p = (const unsigned char *)name; *p; ++p, ++n) {
+        if (n >= RC_PROVIDER_NAME_MAX)
+            return false;
+        if (!(isalnum(*p) || *p == '-' || *p == '_' || *p == '.') || *p >= 0x80)
+            return false;
+    }
+    return true;
+}
+
+const char *rc_provider_legacy_public_adapter(const char *url) {
+    static const char host[] = "openrouter.ai";
+    if (url && strncmp(url, "https://", 8) == 0) {
+        const char *h = url + 8;
+        size_t n = strlen(host);
+        if (ascii_prefix_ieq(h, host, n) && (h[n] == '\0' || h[n] == '/' || h[n] == ':'))
+            return "openrouter";
+    }
+    return "openai-compatible";
+}
+
+size_t rc_config_find_provider(const rc_config *cfg, const char *name) {
+    if (!cfg || !name)
+        return RC_PROVIDER_NONE;
+    for (size_t i = 0; i < cfg->provider_count; ++i) {
+        if (cfg->providers[i].name && strcmp(cfg->providers[i].name, name) == 0)
+            return i;
+    }
+    return RC_PROVIDER_NONE;
+}
+
+bool rc_config_validate_providers(const rc_config *cfg, char *err, size_t err_len) {
+    if (!cfg || cfg->provider_count == 0 || !cfg->providers) {
+        err_set(err, err_len, "providers must contain at least one provider");
+        return false;
+    }
+    if (cfg->provider_count > RC_PROVIDER_MAX) {
+        err_set(err, err_len, "providers must not exceed %d entries", RC_PROVIDER_MAX);
+        return false;
+    }
+    for (size_t i = 0; i < cfg->provider_count; ++i) {
+        const rc_provider *p = &cfg->providers[i];
+        if (!rc_provider_name_ok(p->name)) {
+            err_set(err, err_len, "provider %zu name must be an ASCII token of at most %d bytes",
+                    i + 1, RC_PROVIDER_NAME_MAX);
+            return false;
+        }
+        for (size_t j = 0; j < i; ++j) {
+            if (strcmp(cfg->providers[j].name, p->name) == 0) {
+                err_set(err, err_len, "duplicate provider name");
+                return false;
+            }
+        }
+        if (p->trust != RC_ENDPOINT_PRIVATE && p->trust != RC_ENDPOINT_PUBLIC) {
+            err_set(err, err_len, "provider %zu trust must be private or public", i + 1);
+            return false;
+        }
+        if (!p->url || !p->url[0]) {
+            err_set(err, err_len, "provider %zu url is required", i + 1);
+            return false;
+        }
+        if (!rc_provider_adapter_known(p->adapter)) {
+            err_set(err, err_len, "provider %zu adapter is not a known adapter", i + 1);
+            return false;
+        }
+        if (p->trust == RC_ENDPOINT_PUBLIC && !p->key_env) {
+            err_set(err, err_len, "provider %zu with public trust requires key_env", i + 1);
+            return false;
+        }
+        if (p->key_env && !ascii_name_ok(p->key_env)) {
+            err_set(err, err_len, "provider %zu key_env must be an ASCII environment-variable name", i + 1);
+            return false;
+        }
+    }
+    for (size_t i = 0; i < cfg->alias_count; ++i) {
+        const rc_alias *a = &cfg->aliases[i];
+        if (a->provider >= cfg->provider_count) {
+            err_set(err, err_len, "alias %zu references an unknown provider", i + 1);
+            return false;
+        }
+        if (a->endpoint != cfg->providers[a->provider].trust) {
+            err_set(err, err_len, "alias %zu trust does not match its provider", i + 1);
+            return false;
+        }
+    }
+    if (cfg->has_private_default &&
+        (cfg->private_provider >= cfg->provider_count ||
+         cfg->providers[cfg->private_provider].trust != RC_ENDPOINT_PRIVATE)) {
+        err_set(err, err_len, "private_default must reference a private-trust provider");
+        return false;
+    }
+    return true;
+}
+
+/* Maps legacy private/public sections to implicit providers. */
+static bool legacy_providers(rc_config *cfg, char *err, size_t err_len) {
+    cfg->providers = calloc(2, sizeof *cfg->providers);
+    if (!cfg->providers) {
+        err_set(err, err_len, "out of memory");
+        return false;
+    }
+    size_t n = 0;
+    const char *urls[2] = { cfg->private_url, cfg->public_url };
+    const char *keys[2] = { cfg->private_key_env, cfg->public_key_env };
+    for (int i = 0; i < 2; ++i) {
+        if (!urls[i])
+            continue;
+        rc_provider *p = &cfg->providers[n];
+        p->trust = i ? RC_ENDPOINT_PUBLIC : RC_ENDPOINT_PRIVATE;
+        p->name = dup_str(i ? "public" : "private");
+        p->url = dup_str(urls[i]);
+        p->key_env = keys[i] ? dup_str(keys[i]) : NULL;
+        p->adapter = dup_str(i ? rc_provider_legacy_public_adapter(urls[i]) : "openai-compatible");
+        ++n;
+        cfg->provider_count = n;
+        if (!p->name || !p->url || !p->adapter || (keys[i] && !p->key_env)) {
+            err_set(err, err_len, "out of memory");
+            return false;
+        }
+    }
+    cfg->has_private_default = cfg->private_url != NULL;
+    cfg->private_provider = 0;
+    for (size_t i = 0; i < cfg->alias_count; ++i) {
+        rc_alias *a = &cfg->aliases[i];
+        a->provider = a->endpoint == RC_ENDPOINT_PUBLIC ? (cfg->public_url ? n - 1 : RC_PROVIDER_NONE)
+                                                        : (cfg->private_url ? 0 : RC_PROVIDER_NONE);
     }
     return true;
 }
@@ -877,7 +1029,7 @@ static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_le
         cfg->max_body_bytes = 8L * 1024L * 1024L;
     if (cfg->max_inflight <= 0)
         cfg->max_inflight = 64;
-    return true;
+    return legacy_providers(cfg, err, err_len);
 }
 
 bool rc_config_load(rc_config *cfg, const char *doc, size_t len,
@@ -1018,7 +1170,7 @@ bool rc_config_validate(const rc_config *cfg, char *err, size_t err_len) {
             }
         }
     }
-    return true;
+    return rc_config_validate_providers(cfg, err, err_len);
 }
 
 bool rc_config_check_secrets(const rc_config *cfg, rc_secret_lookup lookup,
@@ -1073,5 +1225,12 @@ void rc_config_free(rc_config *cfg) {
         free(cfg->projects[i].token_env);
     }
     free(cfg->projects);
+    for (size_t i = 0; cfg->providers && i < cfg->provider_count; ++i) {
+        free(cfg->providers[i].name);
+        free(cfg->providers[i].url);
+        free(cfg->providers[i].key_env);
+        free(cfg->providers[i].adapter);
+    }
+    free(cfg->providers);
     memset(cfg, 0, sizeof *cfg);
 }
