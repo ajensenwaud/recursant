@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
+#include "recursant/stream_tools.h"
 
 static bool keys(json_t *o, const char *ordinary, const char *nullable) {
     if(!json_is_object(o))return false;
@@ -81,17 +83,20 @@ static bool chunk(rc_response_observer *o,json_t *root) {
        (stop&&(!json_is_integer(stop)||json_integer_value(stop)<0)))return false;
     json_t *delta=json_object_get(c,"delta"),*finish=json_object_get(c,"finish_reason");
     json_t *native=json_object_get(c,"native_finish_reason");
-    /* Only the observed successful completion spelling is inert. */
+    /* Match terminal native metadata to its exact supported finish mode. */
     if(native&&!json_is_null(native)&&
-       (!string_is(native,"completed")||!string_is(finish,"stop")))return false;
-    if(!keys(delta,"|role||content|","|refusal||annotations||audio||function_call|"))return false;
+       !((string_is(native,"completed")&&string_is(finish,"stop"))||
+         (string_is(native,"tool_calls")&&string_is(finish,"tool_calls"))))return false;
+    if(!keys(delta,"|role||content||tool_calls|","|refusal||annotations||audio||function_call|"))return false;
     json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
     /* OpenRouter repeats the empty terminal choice with accounting. This is
      * not a second completion or permission to append state after finish. */
     if(o->finished){
-        if(o->accounting_tail||!usage(u)||!string_is(finish,"stop")||
+        if(o->accounting_tail||!usage(u)||!string_is(finish,o->tool_finish?"tool_calls":"stop")||
+           json_object_get(delta,"tool_calls")||
            (text&&!string_is(text,""))||
-           o->native_completed!=string_is(native,"completed"))return false;
+           o->native_completed!=string_is(native,"completed")||
+           o->native_tool_calls!=string_is(native,"tool_calls"))return false;
         o->accounting_tail=true;
     }
     if(role){if(!string_is(role,"assistant"))return false;o->role=true;}
@@ -102,10 +107,26 @@ static bool chunk(rc_response_observer *o,json_t *root) {
         if(n!=strlen(json_string_value(text))||n>RC_RESPONSE_LIMIT-o->text_used)return false;
         memcpy(o->text+o->text_used,json_string_value(text),n);o->text_used+=n;
     }
+    json_t *calls=json_object_get(delta,"tool_calls");
+    if(calls){
+        if(!json_is_array(calls))return false;
+        if(json_array_size(calls)){
+            char *encoded=json_dumps(calls,JSON_COMPACT);
+            if(!encoded)return false;
+            size_t n=strlen(encoded)+1;
+            if(n>RC_RESPONSE_LIMIT-o->tool_used){free(encoded);return false;}
+            memcpy(o->tool_deltas+o->tool_used,encoded,n);o->tool_used+=n;
+            free(encoded);
+        }
+    }
     if(!finish)return false;
     if(!json_is_null(finish)){
-        if(!string_is(finish,"stop"))return false;
+        bool tools=string_is(finish,"tool_calls");
+        if(!tools&&!string_is(finish,"stop"))return false;
+        if(tools!=(o->tool_used!=0))return false;
+        o->tool_finish=tools;
         o->native_completed=string_is(native,"completed");
+        o->native_tool_calls=string_is(native,"tool_calls");
         o->finished=true;
     }
     return true;
@@ -160,5 +181,28 @@ void rc_response_observer_feed(rc_response_observer *o,const char *data,size_t n
 }
 json_t *rc_response_observer_message(const rc_response_observer *o) {
     if(!o||o->failed||!o->done||!o->finished||!o->role||o->line_used||o->event_used)return NULL;
-    return json_pack("{s:s,s:s#}","role","assistant","content",o->text,(int)o->text_used);
+    json_t *m=json_pack("{s:s,s:s#}","role","assistant","content",o->text,(int)o->text_used);
+    if(!m||!o->tool_finish)return m;
+    rc_stream_tools *tools=rc_stream_tools_new();
+    if(!tools){json_decref(m);return NULL;}
+    bool valid=true;
+    for(size_t offset=0;valid&&offset<o->tool_used;){
+        size_t n=strlen(o->tool_deltas+offset);
+        json_error_t error;
+        json_t *delta=json_loadb(o->tool_deltas+offset,n,JSON_REJECT_DUPLICATES,&error);
+        valid=delta&&rc_stream_tools_feed(tools,delta);
+        json_decref(delta);offset+=n+1;
+    }
+    json_t *calls=valid?rc_stream_tools_complete(tools):NULL;
+    rc_stream_tools_free(tools);
+    if(!calls||json_object_set_new(m,"tool_calls",calls)){
+        json_decref(m);return NULL;
+    }
+    /* Pinned Hermes storage flattens stream None to "" before replay.
+     * Do not equate a caller's null/missing content with this exact snapshot. */
+    char *encoded=json_dumps(m,JSON_COMPACT);
+    valid=encoded&&strlen(encoded)<=RC_STREAM_TOOLS_MAX_BYTES;
+    free(encoded);
+    if(!valid){json_decref(m);return NULL;}
+    return m;
 }

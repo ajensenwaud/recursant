@@ -267,4 +267,113 @@ static void replay(const char *path,const char *expected) {
     }
     free(wire);printf("private wire replay passed (%zu bytes; every split, 1/37-byte fragments)\n",n);
 }
-int main(int argc,char **argv){assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+static json_t *tool_event(const char *content) {
+    json_error_t error;
+    json_t *v=json_loads("{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"tool_calls\"}]}",0,&error);assert(v);
+    json_t *delta=json_object_get(json_array_get(json_object_get(v,"choices"),0),"delta");
+    if(content)assert(!json_object_set_new(delta,"content",json_string(content)));
+    return v;
+}
+static void tool_terminal_contract(void) {
+    /* Empty/missing/null stream content normalizes to exact empty replay text. */
+    for(int mode=0;mode<5;mode++){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        json_t *v=tool_event(mode==0?NULL:mode==1?"":"café 🦀");
+        json_t *c=json_array_get(json_object_get(v,"choices"),0),*d=json_object_get(c,"delta");
+        if(mode==3)json_object_set_new(d,"content",json_null());
+        feed_json(o,v);assert(!rc_response_observer_message(o));
+        if(mode==4){
+            json_object_set_new(c,"delta",json_pack("{s:s,s:s}","role","assistant","content",""));
+            json_error_t error;json_object_set_new(v,"usage",json_loads(or_usage,0,&error));
+            feed_json(o,v);
+        }
+        feed(o,"data: [DONE]\n\n");
+        json_t *m=rc_response_observer_message(o);assert(m);
+        assert(!strcmp(json_string_value(json_object_get(m,"content")),mode==2||mode==4?"café 🦀":""));
+        json_decref(m);json_decref(v);free(o);
+    }
+}
+static void tool_guards(void) {
+    for(int mode=0;mode<24;mode++){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        json_t *v=tool_event(NULL),*c=json_array_get(json_object_get(v,"choices"),0);
+        json_t *d=json_object_get(c,"delta"),*calls=json_object_get(d,"tool_calls");
+        json_t *call=json_array_get(calls,0),*fn=json_object_get(call,"function");
+        switch(mode){
+        case 0: json_object_set_new(c,"finish_reason",json_string("stop"));break;
+        case 1: json_object_set_new(c,"finish_reason",json_string("length"));break;
+        case 2: json_object_set_new(c,"finish_reason",json_null());break;
+        case 3: json_object_del(d,"tool_calls");break;
+        case 4: json_object_set_new(d,"reasoning_content",json_string("opaque"));break;
+        case 5: json_object_set_new(d,"refusal",json_string("refused"));break;
+        case 6: json_object_set_new(call,"extra_content",json_pack("{s:s}","signature","opaque"));break;
+        case 7: json_object_del(call,"id");break;
+        case 8: json_object_set_new(call,"index",json_integer(1));break;
+        case 9: json_object_del(fn,"arguments");break;
+        case 10: json_object_set_new(fn,"arguments",json_null());break;
+        case 11: json_object_set_new(d,"tool_calls",json_null());break;
+        case 12: json_object_set_new(c,"native_finish_reason",json_string("completed"));break;
+        case 13: json_object_set_new(d,"signature",json_string("opaque"));break;
+        case 14: json_object_set_new(c,"index",json_integer(1));break;
+        case 15: {json_t *other=json_deep_copy(call);json_object_set_new(other,"index",json_integer(1));json_array_append_new(calls,other);break;}
+        default: break;
+        }
+        feed_json(o,v);
+        if(mode>=16&&mode<=20){
+            json_object_set_new(c,"delta",json_object());
+            json_error_t error;json_object_set_new(v,"usage",json_loads(or_usage,0,&error));
+            if(mode==16)json_object_set_new(json_object_get(c,"delta"),"content",json_string("late"));
+            if(mode==17)json_object_set_new(json_object_get(c,"delta"),"tool_calls",json_array());
+            if(mode==18){json_object_set_new(c,"finish_reason",json_string("stop"));json_object_del(c,"native_finish_reason");}
+            if(mode==19)json_object_del(c,"native_finish_reason");
+            feed_json(o,v);
+            if(mode==20)feed_json(o,v);
+        }
+        if(mode!=21)feed(o,"data: [DONE]\n\n");
+        if(mode==22)feed(o,"data: [DONE]\n\n");
+        if(mode==23)feed_json(o,v);
+        assert(!rc_response_observer_message(o));json_decref(v);free(o);
+    }
+}
+static void tool_message_and_wire_bounds(void) {
+    for(int overflow=0;overflow<=1;overflow++){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        json_t *v=tool_event(NULL),*c=json_array_get(json_object_get(v,"choices"),0);
+        json_t *fn=json_object_get(json_array_get(json_object_get(json_object_get(c,"delta"),"tool_calls"),0),"function");
+        feed_json(o,v);feed(o,"data: [DONE]\n\n");
+        json_t *m=rc_response_observer_message(o);assert(m);
+        char *encoded=json_dumps(m,JSON_COMPACT);assert(encoded);
+        size_t n=32768-strlen(encoded)+2+(size_t)overflow;
+        char *args=malloc(n+1);assert(args);memset(args,'x',n);args[n]=0;
+        json_object_set_new(fn,"arguments",json_string(args));free(args);free(encoded);json_decref(m);
+        memset(o,0,sizeof *o);feed_json(o,v);feed(o,"data: [DONE]\n\n");
+        assert(o->total<RC_RESPONSE_LIMIT);
+        m=rc_response_observer_message(o);assert((m!=NULL)==!overflow);json_decref(m);
+        if(!overflow){
+            /* Full wire bound includes framing/comments, independent of retained message. */
+            size_t n=RC_RESPONSE_LIMIT-o->total;
+            char *padding=malloc(n);assert(padding);memset(padding,'x',n);padding[0]=':';padding[n-1]='\n';
+            rc_response_observer_feed(o,padding,n);free(padding);
+            m=rc_response_observer_message(o);assert(m);json_decref(m);
+            feed(o,"\n");assert(!rc_response_observer_message(o));
+        }
+        json_decref(v);free(o);
+    }
+}
+static void streamed_tools(void) {
+    const char *wire="data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{\"}}]},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n";
+    for(size_t split=0;split<=strlen(wire);split++){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        rc_response_observer_feed(o,wire,split);
+        rc_response_observer_feed(o,wire+split,strlen(wire)-split);
+        json_t *m=rc_response_observer_message(o);assert(m);
+        assert(json_is_string(json_object_get(m,"content"))&&!strcmp(json_string_value(json_object_get(m,"content")),""));
+        json_t *calls=json_object_get(m,"tool_calls");assert(json_array_size(calls)==1);
+        json_t *call=json_array_get(calls,0);
+        assert(!json_object_get(call,"index"));
+        assert(!strcmp(json_string_value(json_object_get(call,"id")),"call-1"));
+        assert(!strcmp(json_string_value(json_object_get(json_object_get(call,"function"),"arguments")),"{}"));
+        json_decref(m);free(o);
+    }
+}
+int main(int argc,char **argv){tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
