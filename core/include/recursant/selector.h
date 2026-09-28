@@ -35,8 +35,18 @@ typedef struct {
     uint64_t task_class, context_tokens;
     uint32_t required_capabilities;
     double minimum_saving;
+    /* S4 structured signal: zero or one class bit derived synchronously from
+     * authoritative request facts. Not freshness-gated (it describes THIS
+     * request), but still subject to continuity, eligibility, per-class
+     * qualification and the minimum_saving test exactly like task_class. */
+    uint64_t signal_class;
+    /* S4 escalation request: zero or one class bit (e.g. repeated tool
+     * failures). Candidates whose qualified_tasks include that bit are the
+     * operator-marked escalation set; the cheapest eligible one wins even if
+     * it costs more than baseline. Quality decision, reason ESCALATE. */
+    uint64_t escalation_class;
 } rc_selection_request;
-typedef enum { RC_SELECT_BASELINE, RC_SELECT_CHEAPEST, RC_SELECT_PIN } rc_selection_reason;
+typedef enum { RC_SELECT_BASELINE, RC_SELECT_CHEAPEST, RC_SELECT_PIN, RC_SELECT_ESCALATE } rc_selection_reason;
 typedef struct { size_t alias_index; rc_selection_reason reason; } rc_selection;
 typedef enum { RC_SELECT_OK, RC_SELECT_INVALID, RC_SELECT_BLOCKED } rc_select_status;
 /* Pure bounded selection: no allocation, I/O, clock reads, state mutation, or
@@ -67,6 +77,11 @@ typedef enum { RC_SELECT_OK, RC_SELECT_INVALID, RC_SELECT_BLOCKED } rc_select_st
  *   for this task class. No qualification is inferred from price/capabilities.
  * - Select strictly cheaper alternatives only when saving > minimum_saving.
  *   Equal cost retains baseline; alternative ties prefer smaller alias_index.
+ * - escalation_class (REPLAYABLE only, baseline still hard-eligible): the
+ *   cheapest eligible candidate qualified for that bit wins regardless of baseline cost
+ *   (ties: smaller alias_index); reason ESCALATE unless that is the baseline.
+ *   No eligible escalation candidate falls back to the ordinary rules. PINNED
+ *   and UNKNOWN continuity are decided before escalation is considered.
  *
  * Caller must validate alias indices against its immutable config generation,
  * then recheck current policy and continuity on the final payload/destination

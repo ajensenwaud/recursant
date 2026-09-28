@@ -221,6 +221,107 @@ static void safety_matrix(void) {
     }
     printf("safety matrix: %zu cases passed\n",cases);
 }
+/* S4: escalation is a quality decision for the REPLAYABLE path only.
+ * Escalation candidates are those qualified for the escalation class bit (8). */
+static void escalation(void) {
+    /* baseline 7 ($10), cheap 3 ($1, qualified bit 2), strong 5 ($30, escalation),
+     * stronger 9 ($50, escalation). */
+    rc_candidate c[]={{7,0,4096,3},{3,2,4096,3},{5,8,4096,3},{9,8,4096,3}};
+    rc_candidate_quote quotes[]={{true,10},{true,1},{true,30},{true,50}};
+    rc_selection_request q={.registry_version=1,.baseline_alias=7,.pinned_alias=9,
+        .continuity=RC_CONTINUITY_REPLAYABLE,.now=10,.context_tokens=100,.escalation_class=8};
+    rc_candidate_registry *r=rc_candidates_create(1,c,4);CHECK(r);
+    rc_selection out={0};
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK);
+    CHECK(out.alias_index==5 && out.reason==RC_SELECT_ESCALATE);
+    /* Cheapest eligible escalation candidate; ties -> smaller alias index. */
+    quotes[3].expected_task_cost=30;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==5);
+    quotes[3].expected_task_cost=20;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==9 && out.reason==RC_SELECT_ESCALATE);
+    quotes[3].expected_task_cost=50;
+    /* Escalation ignores minimum_saving and a cheaper qualified signal. */
+    q.minimum_saving=1000; q.signal_class=2;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==5 && out.reason==RC_SELECT_ESCALATE);
+    q.minimum_saving=0; q.signal_class=0;
+    /* Eligibility still applies: M2 denial, context limit, capabilities. */
+    quotes[2].permitted=false;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==9);
+    quotes[3].permitted=false;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+    quotes[2].permitted=quotes[3].permitted=true;
+    c[2].context_limit=50; c[3].capabilities=1; rc_candidates_destroy(r);
+    r=rc_candidates_create(1,c,4);CHECK(r);
+    q.required_capabilities=2;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+    q.required_capabilities=0;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==9);
+    c[2].context_limit=4096; c[3].capabilities=3; rc_candidates_destroy(r);
+    r=rc_candidates_create(1,c,4);CHECK(r);
+    /* Without an escalation request, escalation qualification never upshifts. */
+    q.escalation_class=0;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+    /* Multi-bit escalation class is invalid. */
+    q.escalation_class=12;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_INVALID);
+    q.escalation_class=8;
+    /* A baseline hard-eligibility failure still blocks (no invented recovery). */
+    quotes[0].permitted=false; out=(rc_selection){42,RC_SELECT_PIN};
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_BLOCKED && out.alias_index==42);
+    quotes[0].permitted=true;
+    /* Pinned still wins over escalation. */
+    q.continuity=RC_CONTINUITY_PINNED;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==9 && out.reason==RC_SELECT_PIN);
+    q.pinned_alias=7;
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==7 && out.reason==RC_SELECT_PIN);
+    /* Unknown continuity still blocks. */
+    q.continuity=RC_CONTINUITY_UNKNOWN; out=(rc_selection){42,RC_SELECT_PIN};
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_BLOCKED && out.alias_index==42);
+    /* Baseline itself escalation-qualified and cheapest: stays baseline. */
+    q.continuity=RC_CONTINUITY_REPLAYABLE; c[0].qualified_tasks=8; rc_candidates_destroy(r);
+    r=rc_candidates_create(1,c,4);CHECK(r);
+    CHECK(rc_select(r,quotes,4,&q,&out)==RC_SELECT_OK && out.alias_index==7 && out.reason==RC_SELECT_BASELINE);
+    rc_candidates_destroy(r);
+}
+/* S4: a structured signal needs no fresh interpreter context but keeps every
+ * other gate: qualification for that class, eligibility, minimum_saving. */
+static void structured_signal(void) {
+    rc_candidate c[]={{7,0,4096,3},{3,2,4096,3},{5,4,4096,3}};
+    rc_candidate_quote quotes[]={{true,10},{true,1},{true,2}};
+    rc_selection_request q={.registry_version=1,.baseline_alias=7,
+        .continuity=RC_CONTINUITY_REPLAYABLE,.now=10,.context_tokens=100,.signal_class=2};
+    rc_candidate_registry *r=rc_candidates_create(1,c,3);CHECK(r);
+    rc_selection out={0};
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==3 && out.reason==RC_SELECT_CHEAPEST);
+    q.signal_class=4;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==5 && out.reason==RC_SELECT_CHEAPEST);
+    /* An unqualified class (bit 8) keeps baseline. */
+    q.signal_class=8;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+    q.signal_class=2; q.minimum_saving=9;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+    q.minimum_saving=0; quotes[1].permitted=false;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+    quotes[1].permitted=true;
+    /* Interpreter class and signal class combine (OR): either qualifies. */
+    q.context_usable=true; q.context_observed_at=9; q.context_expires_at=11; q.task_class=1;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==3);
+    q.signal_class=0;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==7);
+    /* Pinned ignores signals. */
+    q.signal_class=2; q.continuity=RC_CONTINUITY_PINNED; q.pinned_alias=7;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==7 && out.reason==RC_SELECT_PIN);
+    q.continuity=RC_CONTINUITY_UNKNOWN;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_BLOCKED);
+    /* Multi-bit signal class is invalid, like task_class. */
+    q.continuity=RC_CONTINUITY_REPLAYABLE; q.signal_class=6;
+    CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_INVALID);
+    /* Same class, same costs: repeated decisions are stable (no flip-flop). */
+    q.signal_class=2;
+    for (int i=0; i<8; ++i)
+        CHECK(rc_select(r,quotes,3,&q,&out)==RC_SELECT_OK && out.alias_index==3);
+    rc_candidates_destroy(r);
+}
 int main(void) {
     registry_bounds();
     conservative_baseline();
@@ -230,6 +331,8 @@ int main(void) {
     invalid_inputs();
     deterministic_hysteresis();
     safety_matrix();
+    escalation();
+    structured_signal();
     puts("selector tests passed");
     return 0;
 }

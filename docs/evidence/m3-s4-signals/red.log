@@ -1,0 +1,459 @@
+Test project /tmp/n
+    Start  1: selector_unit
+1/3 Test  #1: selector_unit ....................***Failed    0.00 sec
+escalation:236: out.alias_index==5 && out.reason==RC_SELECT_ESCALATE
+safety matrix: 4608 cases passed
+
+    Start 13: signals_unit
+2/3 Test #13: signals_unit .....................***Failed    0.00 sec
+taxonomy:23: rc_task_qualifiable("format_simple",&bit) && bit==RC_TASK_FORMAT_SIMPLE
+
+    Start 20: gateway_signals_integration
+3/3 Test #20: gateway_signals_integration ......***Failed    7.39 sec
+test_a_signal_on_without_advice_downshifts_successful_tool_followup (test_gateway_signals.GatewaySignalsTests.test_a_signal_on_without_advice_downshifts_successful_tool_followup) ... FAIL
+test_b_signals_off_or_absent_keep_baseline (test_gateway_signals.GatewaySignalsTests.test_b_signals_off_or_absent_keep_baseline) ... 
+  test_b_signals_off_or_absent_keep_baseline (test_gateway_signals.GatewaySignalsTests.test_b_signals_off_or_absent_keep_baseline) (signals='off') ... FAIL
+  test_b_signals_off_or_absent_keep_baseline (test_gateway_signals.GatewaySignalsTests.test_b_signals_off_or_absent_keep_baseline) (signals=None) ... FAIL
+test_c_recovery_without_escalation_candidate_keeps_baseline (test_gateway_signals.GatewaySignalsTests.test_c_recovery_without_escalation_candidate_keeps_baseline) ... FAIL
+test_c_two_failed_tool_results_escalate (test_gateway_signals.GatewaySignalsTests.test_c_two_failed_tool_results_escalate) ... FAIL
+test_d_pii_in_tool_result_final_m2_wins (test_gateway_signals.GatewaySignalsTests.test_d_pii_in_tool_result_final_m2_wins) ... 
+  test_d_pii_in_tool_result_final_m2_wins (test_gateway_signals.GatewaySignalsTests.test_d_pii_in_tool_result_final_m2_wins) (results=1) ... FAIL
+  test_d_pii_in_tool_result_final_m2_wins (test_gateway_signals.GatewaySignalsTests.test_d_pii_in_tool_result_final_m2_wins) (results=2) ... FAIL
+test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) ... 
+  test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) (case='unknown') ... FAIL
+  test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) (case='modified') ... FAIL
+  test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) (case='reasoning') ... FAIL
+test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive (test_gateway_signals.GatewaySignalsTests.test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive) ... 
+  test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive (test_gateway_signals.GatewaySignalsTests.test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive) (cached=99000) ... FAIL
+test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive (test_gateway_signals.GatewaySignalsTests.test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive) ... ERROR
+test_final_answer_class_needs_its_own_qualification (test_gateway_signals.GatewaySignalsTests.test_final_answer_class_needs_its_own_qualification) ... 
+  test_final_answer_class_needs_its_own_qualification (test_gateway_signals.GatewaySignalsTests.test_final_answer_class_needs_its_own_qualification) (tasks=('tool_followup_ok',)) ... FAIL
+  test_final_answer_class_needs_its_own_qualification (test_gateway_signals.GatewaySignalsTests.test_final_answer_class_needs_its_own_qualification) (tasks=('final_answer',)) ... FAIL
+test_no_flip_flop_while_class_stays_the_same (test_gateway_signals.GatewaySignalsTests.test_no_flip_flop_while_class_stays_the_same) ... FAIL
+test_strict_signal_configuration (test_gateway_signals.GatewaySignalsTests.test_strict_signal_configuration) ... FAIL
+
+======================================================================
+ERROR: test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive (test_gateway_signals.GatewaySignalsTests.test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 191, in test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive
+    self.decisions(sink)[-1])
+                   ^^^^
+UnboundLocalError: cannot access local variable 'sink' where it is not associated with a value
+
+======================================================================
+FAIL: test_a_signal_on_without_advice_downshifts_successful_tool_followup (test_gateway_signals.GatewaySignalsTests.test_a_signal_on_without_advice_downshifts_successful_tool_followup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 81, in test_a_signal_on_without_advice_downshifts_successful_tool_followup
+    with self.router(self.setup) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_b_signals_off_or_absent_keep_baseline (test_gateway_signals.GatewaySignalsTests.test_b_signals_off_or_absent_keep_baseline) (signals='off')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 96, in test_b_signals_off_or_absent_keep_baseline
+    with self.router(lambda c, s: self.setup(c, s, signals=signals)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_b_signals_off_or_absent_keep_baseline (test_gateway_signals.GatewaySignalsTests.test_b_signals_off_or_absent_keep_baseline) (signals=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 96, in test_b_signals_off_or_absent_keep_baseline
+    with self.router(lambda c, s: self.setup(c, s, signals=signals)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_c_recovery_without_escalation_candidate_keeps_baseline (test_gateway_signals.GatewaySignalsTests.test_c_recovery_without_escalation_candidate_keeps_baseline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 124, in test_c_recovery_without_escalation_candidate_keeps_baseline
+    with self.router(self.setup) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_c_two_failed_tool_results_escalate (test_gateway_signals.GatewaySignalsTests.test_c_two_failed_tool_results_escalate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 113, in test_c_two_failed_tool_results_escalate
+    with self.router(lambda c, s: self.setup(c, s, strong=True)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_pii_in_tool_result_final_m2_wins (test_gateway_signals.GatewaySignalsTests.test_d_pii_in_tool_result_final_m2_wins) (results=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 138, in test_d_pii_in_tool_result_final_m2_wins
+    with self.subTest(results=len(results)), self.router(edit) as (p, sink):
+                                             ~~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_d_pii_in_tool_result_final_m2_wins (test_gateway_signals.GatewaySignalsTests.test_d_pii_in_tool_result_final_m2_wins) (results=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 138, in test_d_pii_in_tool_result_final_m2_wins
+    with self.subTest(results=len(results)), self.router(edit) as (p, sink):
+                                             ~~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) (case='unknown')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 153, in test_e_opaque_tool_state_stays_pinned
+    with self.subTest(case=case), self.router(lambda c, s: self.setup(c, s, strong=True)) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) (case='modified')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 153, in test_e_opaque_tool_state_stays_pinned
+    with self.subTest(case=case), self.router(lambda c, s: self.setup(c, s, strong=True)) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_e_opaque_tool_state_stays_pinned (test_gateway_signals.GatewaySignalsTests.test_e_opaque_tool_state_stays_pinned) (case='reasoning')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 153, in test_e_opaque_tool_state_stays_pinned
+    with self.subTest(case=case), self.router(lambda c, s: self.setup(c, s, strong=True)) as (p, sink):
+                                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive (test_gateway_signals.GatewaySignalsTests.test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive) (cached=99000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 184, in test_f_warm_owner_cache_keeps_owner_when_saving_does_not_survive
+    with self.subTest(cached=cached), self.router(lambda c, s: self.priced(c, s, cheap)) as (p, sink):
+                                      ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_final_answer_class_needs_its_own_qualification (test_gateway_signals.GatewaySignalsTests.test_final_answer_class_needs_its_own_qualification) (tasks=('tool_followup_ok',))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 103, in test_final_answer_class_needs_its_own_qualification
+    with self.router(lambda c, s: self.setup(c, s, cheap_tasks=tasks)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_final_answer_class_needs_its_own_qualification (test_gateway_signals.GatewaySignalsTests.test_final_answer_class_needs_its_own_qualification) (tasks=('final_answer',))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 103, in test_final_answer_class_needs_its_own_qualification
+    with self.router(lambda c, s: self.setup(c, s, cheap_tasks=tasks)) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_no_flip_flop_while_class_stays_the_same (test_gateway_signals.GatewaySignalsTests.test_no_flip_flop_while_class_stays_the_same)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_router.py", line 65, in router
+    self.fail('router exited: ' + process.stderr.read().decode())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router exited: invalid runtime configuration
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 194, in test_no_flip_flop_while_class_stays_the_same
+    with self.router(self.setup) as (p, sink):
+         ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_gateway_context.py", line 63, in router
+    with test_router.RouterTests.router(self, edit) as value:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/work/tests/integration/test_router.py", line 79, in router
+    self.assertEqual(process.returncode, 0, stderr.decode())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : 
+
+======================================================================
+FAIL: test_strict_signal_configuration (test_gateway_signals.GatewaySignalsTests.test_strict_signal_configuration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/integration/test_gateway_signals.py", line 233, in test_strict_signal_configuration
+    self.assertEqual(result.returncode == 0, expect, (cfg['context'], result.stderr))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False != True : ({'mode': 'active', 'tenant': 'local', 'project': 'single', 'source_key_env': 'RC_TEST_SOURCE', 'auto_alias': 'auto', 'baseline_alias': 'baseline', 'ttl_ms': 2000, 'candidates': [{'alias': 'baseline', 'quality_evidence': 'operator-fixture-baseline', 'qualified_tasks': [], 'context_limit': 100000, 'expected_task_cost': 10.0}, {'alias': 'alias', 'quality_evidence': 'operator-fixture-format', 'qualified_tasks': ['tool_followup_ok'], 'context_limit': 100000, 'expected_task_cost': 1.0, 'capabilities': {'tool_history': True, 'function_tools': True, 'parallel_tools': True}}, {'alias': 'strong', 'quality_evidence': 'operator-fixture-strong', 'qualified_tasks': [], 'escalation': True, 'context_limit': 100000, 'expected_task_cost': 30.0, 'capabilities': {'tool_history': True, 'function_tools': True, 'parallel_tools': True}}], 'signals': 'on'}, b'invalid runtime configuration\n')
+
+----------------------------------------------------------------------
+Ran 10 tests in 7.264s
+
+FAILED (failures=15, errors=1)
+
+
+0% tests passed, 3 tests failed out of 3
+
+Total Test time (real) =   7.39 sec
+
+The following tests FAILED:
+	  1 - selector_unit (Failed)
+	 13 - signals_unit (Failed)
+	 20 - gateway_signals_integration (Failed)
+Errors while running CTest
