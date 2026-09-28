@@ -109,6 +109,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_attempts PRIVATE recursant_attempts)
   target_compile_options(test_attempts PRIVATE -Wall -Wextra -Wpedantic -Werror -UNDEBUG)
   add_test(NAME attempts_unit COMMAND test_attempts)
+  add_executable(test_attempts_capacity tests/unit/test_attempts_capacity.c)
+  target_link_libraries(test_attempts_capacity PRIVATE recursant_attempts)
+  target_compile_options(test_attempts_capacity PRIVATE -Wall -Wextra -Wpedantic -Werror -UNDEBUG)
+  add_test(NAME attempts_capacity COMMAND test_attempts_capacity)
   add_executable(test_attempts_internal tests/unit/test_attempts_internal.c)
   target_link_libraries(test_attempts_internal PRIVATE recursant_auth)
   target_compile_options(test_attempts_internal PRIVATE -Wall -Wextra -Wpedantic -Werror -UNDEBUG)
@@ -156,7 +160,7 @@ if(BUILD_TESTING)
     if(INTERPRETER_DEPS_FOUND)
       add_executable(test_interpreter tests/unit/test_interpreter.c)
       target_link_libraries(test_interpreter PRIVATE recursant_interpreter recursant_context)
-      target_compile_options(test_interpreter PRIVATE -Wall -Wextra -Wpedantic -Werror)
+      target_compile_options(test_interpreter PRIVATE -Wall -Wextra -Wpedantic -Werror -UNDEBUG)
       add_test(NAME interpreter_loopback COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_SOURCE_DIR}/tests/integration/test_interpreter.py -v)
       set_tests_properties(interpreter_loopback PROPERTIES TIMEOUT 45
@@ -191,6 +195,10 @@ if(BUILD_TESTING)
       add_test(NAME gateway_context_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_context.py -v)
       set_tests_properties(gateway_context_integration PROPERTIES TIMEOUT 120
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      add_test(NAME gateway_capacity_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_capacity.py -v)
+      set_tests_properties(gateway_capacity_integration PROPERTIES TIMEOUT 180
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME hermes_observer
                COMMAND ${Python3_EXECUTABLE} -m unittest discover -s

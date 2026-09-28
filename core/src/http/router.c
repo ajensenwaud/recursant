@@ -147,7 +147,7 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(now.tv_sec>r->deadline.tv_sec || (now.tv_sec==r->deadline.tv_sec && now.tv_nsec>=r->deadline.tv_nsec))return MHD_NO;
     const char *auth=MHD_lookup_connection_value(c,MHD_HEADER_KIND,"Authorization");
     bool health=!strcmp(url,"/healthz")&&!strcmp(method,"GET");
-    bool context_path=rt->gateway&&(!strcmp(url,"/v1/context")||!strcmp(url,"/v1/context/open"));
+    bool context_path=rt->gateway&&(!strcmp(url,"/v1/context")||!strcmp(url,"/v1/context/open")||!strcmp(url,"/v1/context/close"));
     const char *expected=context_path?rt->source_key:rt->auth_key;
     if(!health && (!auth||!expected||strncmp(auth,"Bearer ",7)||strcmp(auth+7,expected)))r->rejection=401;
     if(*upload_size){
@@ -171,7 +171,7 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
         if(!s)return error_reply(c,500);
         enum MHD_Result result=reply(c,200,s,"application/json");free(s);return result;
     }
-    if((!strcmp(url,"/v1/context/open")||!strcmp(url,"/v1/context"))&&!strcmp(method,"POST")){
+    if(context_path&&!strcmp(method,"POST")){
         r->replied=true;json_error_t error;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&error),*out=NULL;
         unsigned status=rc_gateway_event(rt,url,body,&out);json_decref(body);
         char *text=out?json_dumps(out,JSON_COMPACT):NULL;json_decref(out);

@@ -24,16 +24,20 @@ struct scope {
     bool pending_parallel;
     json_t *pending_choice;
     int last_row, evidence_row;
-    uint64_t revision, sequence, observed;
+    bool open;
+    uint64_t revision, sequence, observed, active;
     rc_context_key key;rc_interpreter_result interpretation;
 };
-struct physical {rc_attempt_headers headers;rc_attempt_id id;int scope;bool complete;};
+/* Mirror row slots never move: scopes and tickets hold indices. A slot is only
+ * freed when settled, expired, not referenced by any open scope, and no live
+ * row shares its full key (same tombstone horizon as the ledger). */
+struct physical {rc_attempt_headers headers;rc_attempt_id id;int scope;bool complete,in_use,settled;uint64_t begun;};
 struct rc_gateway_context {
     pthread_mutex_t lock;
     bool active;
     char tenant[64], project[64], auto_alias[64];
-    size_t baseline, count, used;
-    uint64_t ttl, boot;
+    size_t baseline, count;
+    uint64_t ttl, attempt_ttl, boot, generations;
     rc_candidate candidates[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
@@ -68,7 +72,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -76,6 +80,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     pthread_mutex_init(&g->lock,NULL);rt->gateway=g;
     g->active=eq(o,"mode","active");strcpy(g->tenant,tenant);strcpy(g->project,project);strcpy(g->auto_alias,automatic);
     if(!integer(o,"ttl_ms",180000,&g->ttl)||!alias(rt,baseline,&g->baseline))return false;
+    g->attempt_ttl=180000;
+    if(json_object_get(o,"attempt_ttl_ms")&&!integer(o,"attempt_ttl_ms",180000,&g->attempt_ttl))return false;
     if(!strcmp(automatic,rt->config.private_model)||(rt->config.public_model&&!strcmp(automatic,rt->config.public_model)))return false;
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(automatic,rt->config.aliases[i].from)||!strcmp(automatic,rt->config.aliases[i].model))return false;
     json_t *list=json_object_get(o,"candidates");g->count=json_array_size(list);
@@ -111,8 +117,12 @@ bool rc_gateway_start(rc_runtime *rt) {
     g->auth_config.project_count=1;g->auth.cfg=&g->auth_config;g->auth.tokens=&rt->auth_key;
     g->authorization=malloc(strlen(rt->auth_key)+8);if(!g->authorization)return false;
     sprintf(g->authorization,"Bearer %s",rt->auth_key);
-    g->ledger=rc_attempt_create(&g->auth,RC_ATTEMPT_MAX_ROWS,180000);
-    g->contexts=rc_context_create(SCOPES,180000);
+    g->ledger=rc_attempt_create(&g->auth,RC_ATTEMPT_MAX_ROWS,g->attempt_ttl);
+    /* Generations are server-unique (boot entropy + monotonic counter) and an
+     * unknown/closed generation is rejected before any registry call, so the
+     * registry's closed-generation tombstone only needs to outlive this tick.
+     * Spare slots absorb tombstones not yet purged. */
+    g->contexts=rc_context_create(RC_CONTEXT_MAX_SLOTS,1);
     char url[2049];size_t n=strlen(rt->config.private_url);while(n&&rt->config.private_url[n-1]=='/')n--;
     if(snprintf(url,sizeof url,"%.*s/chat/completions",(int)n,rt->config.private_url)>=(int)sizeof url)return false;
     rc_interpreter_config cfg={.enabled=true,.url=url,.model=rt->config.private_model,.max_tokens=4096,.deadline_ms=180000,.structured_output=true};
@@ -123,7 +133,7 @@ void rc_gateway_destroy(rc_runtime *rt) {
     struct rc_gateway_context *g=rt->gateway;if(!g)return;
     rc_interpreter_destroy(g->worker);rc_context_destroy(g->contexts);rc_attempt_destroy(g->ledger);
     pthread_mutex_lock(&g->lock);
-    for(size_t i=0;i<g->used;i++){
+    for(size_t i=0;i<SCOPES;i++){
         json_decref(g->scopes[i].history);json_decref(g->scopes[i].pending);
         json_decref(g->scopes[i].pending_choice);json_decref(g->scopes[i].pending_tools);json_decref(g->scopes[i].observed_calls);rc_tool_boundary_free(g->scopes[i].boundary);
     }
@@ -131,6 +141,33 @@ void rc_gateway_destroy(rc_runtime *rt) {
     free(g->authorization);rc_candidates_destroy(g->registry);pthread_mutex_destroy(&g->lock);free(g);rt->gateway=NULL;
 }
 static unsigned ingest(rc_runtime *,json_t *);
+static uint64_t now_ms(void);
+static int scope_find(struct rc_gateway_context *,const char *,const char *);
+/* Frees all per-scope JSON/boundary state. The generation is never reissued
+ * (monotonic counter), so a request still carrying it matches no open scope and
+ * is rejected (403) exactly like an unknown scope. Caller holds the lock and
+ * guarantees !inflight so no ticket references the slot. */
+static void scope_reclaim(struct rc_gateway_context *g,int slot,uint64_t now) {
+    struct scope *s=&g->scopes[slot];
+    rc_context_close(g->contexts,&s->key,now);
+    json_decref(s->history);json_decref(s->pending);json_decref(s->pending_choice);
+    json_decref(s->pending_tools);json_decref(s->observed_calls);rc_tool_boundary_free(s->boundary);
+    for(size_t i=0;i<RC_ATTEMPT_MAX_ROWS;i++)if(g->rows[i].in_use&&g->rows[i].scope==slot)g->rows[i].scope=-1;
+    memset(s,0,sizeof *s);
+}
+/* Idle expiry only under slot pressure. The scope must be open, not inflight,
+ * have no captured tool boundary awaiting replay, and be idle past the context
+ * TTL. M2-derived private_only authority is never timed out; only an explicit
+ * authenticated close releases it. */
+static int scope_idle(struct rc_gateway_context *g,uint64_t now) {
+    int best=-1;
+    for(int i=0;i<SCOPES;i++){
+        struct scope *s=&g->scopes[i];
+        if(!s->open||s->inflight||s->boundary||s->private_only||now<s->active||now-s->active<=g->ttl)continue;
+        if(best<0||s->active<g->scopes[best].active)best=i;
+    }
+    return best;
+}
 unsigned rc_gateway_event(rc_runtime *rt,const char *path,json_t *body,json_t **out) {
     struct rc_gateway_context *g=rt->gateway;if(!g)return 404;
     if(!strcmp(path,"/v1/context")){
@@ -138,14 +175,26 @@ unsigned rc_gateway_event(rc_runtime *rt,const char *path,json_t *body,json_t **
         if(status==202){*out=json_pack("{s:s}","status","accepted");if(!*out)return 500;}
         return status;
     }
+    if(!strcmp(path,"/v1/context/close")){
+        const char *generation=token(body,"generation",32),*branch=token(body,"branch",63);
+        if(!keys(body,"|generation||branch|")||!generation||!branch)return 400;
+        pthread_mutex_lock(&g->lock);uint64_t now=now_ms();
+        int slot=scope_find(g,generation,branch);unsigned status=slot<0?403:g->scopes[slot].inflight?409:200;
+        if(status==200)scope_reclaim(g,slot,now);
+        pthread_mutex_unlock(&g->lock);
+        if(status==200){*out=json_pack("{s:s}","status","closed");if(!*out)return 500;}
+        return status;
+    }
     if(strcmp(path,"/v1/context/open"))return 404;
     const char *task=token(body,"task_id",63),*session=token(body,"session_id",63),*branch=token(body,"branch",63);
     if(!keys(body,"|task_id||session_id||branch|")||!task||!session||!branch)return 400;
-    pthread_mutex_lock(&g->lock);
-    for(size_t i=0;i<g->used;i++)if(!strcmp(g->scopes[i].task,task)&&!strcmp(g->scopes[i].session,session)&&!strcmp(g->scopes[i].branch,branch)){pthread_mutex_unlock(&g->lock);return 409;}
-    if(g->used==SCOPES){pthread_mutex_unlock(&g->lock);return 503;}
-    struct scope *s=&g->scopes[g->used++];strcpy(s->task,task);strcpy(s->session,session);strcpy(s->branch,branch);
-    snprintf(s->generation,sizeof s->generation,"%016llx%016llx",(unsigned long long)g->boot,(unsigned long long)g->used);
+    pthread_mutex_lock(&g->lock);uint64_t now=now_ms();int slot=-1;
+    for(int i=0;i<SCOPES;i++)if(g->scopes[i].open&&!strcmp(g->scopes[i].task,task)&&!strcmp(g->scopes[i].session,session)&&!strcmp(g->scopes[i].branch,branch)){pthread_mutex_unlock(&g->lock);return 409;}
+    for(int i=0;i<SCOPES&&slot<0;i++)if(!g->scopes[i].open)slot=i;
+    if(slot<0&&(slot=scope_idle(g,now))>=0)scope_reclaim(g,slot,now);
+    if(slot<0||g->generations==UINT64_MAX){pthread_mutex_unlock(&g->lock);return 503;}
+    struct scope *s=&g->scopes[slot];s->open=true;s->active=now;strcpy(s->task,task);strcpy(s->session,session);strcpy(s->branch,branch);
+    snprintf(s->generation,sizeof s->generation,"%016llx%016llx",(unsigned long long)g->boot,(unsigned long long)++g->generations);
     s->last_row=-1;s->evidence_row=-1;
     strcpy(s->key.tenant,g->tenant);strcpy(s->key.project,g->project);strcpy(s->key.task_generation,s->generation);strcpy(s->key.branch,s->branch);strcpy(s->key.step,"trajectory");strcpy(s->key.attempt,"aggregate");
     *out=json_pack("{s:s,s:s,s:s,s:s}","task_id",task,"session_id",session,"branch",branch,"generation",s->generation);
@@ -169,7 +218,7 @@ void rc_gateway_header(rc_gateway_headers *h,const char *name,const char *value)
     strcpy(out,value);
 }
 static int scope_find(struct rc_gateway_context *g,const char *generation,const char *branch) {
-    for(size_t i=0;i<g->used;i++)if(!strcmp(g->scopes[i].generation,generation)&&!strcmp(g->scopes[i].branch,branch))return (int)i;
+    for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&!strcmp(g->scopes[i].generation,generation)&&!strcmp(g->scopes[i].branch,branch))return (int)i;
     return -1;
 }
 static bool same_headers(const rc_attempt_headers *a,const rc_attempt_headers *b) {
@@ -177,8 +226,31 @@ static bool same_headers(const rc_attempt_headers *a,const rc_attempt_headers *b
     for(size_t i=0;i<5;i++)if(strcmp(a->values[i],b->values[i]))return false;
     return true;
 }
+/* Returns a free mirror slot, reclaiming under pressure only. A row is freed if
+ * settled and expired, if no open scope's last/evidence index names it, and
+ * if no live row shares its key. Live and referenced rows are never moved or
+ * reused. -1 means capacity is truly exhausted: the caller records loss. */
+static int row_slot(struct rc_gateway_context *g,uint64_t now) {
+    if(g->rows_used<RC_ATTEMPT_MAX_ROWS)return (int)g->rows_used;
+    for(size_t i=0;i<RC_ATTEMPT_MAX_ROWS;i++)if(!g->rows[i].in_use)return (int)i;
+    int found=-1;
+    for(size_t i=0;i<RC_ATTEMPT_MAX_ROWS;i++){
+        struct physical *r=&g->rows[i];
+        if(!r->settled||now-r->begun<g->attempt_ttl||now<r->begun)continue;
+        bool keep=false;
+        for(size_t j=0;!keep&&j<SCOPES;j++)if(g->scopes[j].open&&(g->scopes[j].last_row==(int)i||g->scopes[j].evidence_row==(int)i))keep=true;
+        for(size_t j=0;!keep&&j<RC_ATTEMPT_MAX_ROWS;j++){
+            struct physical *o=&g->rows[j];
+            if(o->in_use&&(now<o->begun||now-o->begun<g->attempt_ttl)&&same_headers(&o->headers,&r->headers))keep=true;
+        }
+        if(keep)continue;
+        memset(r,0,sizeof *r);r->scope=-1;
+        if(found<0)found=(int)i;
+    }
+    return found;
+}
 static bool exact(struct rc_gateway_context *g,int row,uint64_t now) {
-    if(row<0||(size_t)row>=g->rows_used)return false;
+    if(row<0||(size_t)row>=g->rows_used||!g->rows[row].in_use)return false;
     struct physical *r=&g->rows[row];rc_attempt_view v;
     return rc_attempt_get(g->ledger,g->authorization,&r->headers,r->id,now,&v)&&v.exact&&v.count_known&&v.physical_count==1;
 }
@@ -217,7 +289,7 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     rc_attempt_headers h={.mask=31};
     for(size_t i=0;i<5;i++){const char *v=token(event,names[i],128);if(!v)goto done;strcpy(h.values[i],v);}
     int row=-1;
-    for(size_t i=0;i<g->rows_used;i++)if(same_headers(&h,&g->rows[i].headers)){
+    for(size_t i=0;i<g->rows_used;i++)if(g->rows[i].in_use&&same_headers(&h,&g->rows[i].headers)){
         if(row!=-1){status=409;goto done;}row=(int)i;
     }
     if(row<0||g->rows[row].scope!=slot){status=403;goto done;}
@@ -263,7 +335,7 @@ static unsigned ingest(rc_runtime *rt,json_t *body) {
     if(!exact(g,row,now)){status=409;goto done;}
     if(rc_context_put(g->contexts,&s->key,revision,now,g->ttl,"authorized source response",false)!=RC_CONTEXT_OK){status=409;goto done;}
     if(tool_event)s->callback_seen[callback]=true;
-    s->revision=revision;s->sequence=sequence;s->observed=now;s->evidence_row=row;memset(&s->interpretation,0,sizeof s->interpretation);
+    s->revision=revision;s->sequence=sequence;s->observed=now;s->active=now;s->evidence_row=row;memset(&s->interpretation,0,sizeof s->interpretation);
     status=metadata_only?202:(rc_interpreter_try_submit(g->worker,&in)?202:503);
 done:
     pthread_mutex_unlock(&g->lock);return status;
@@ -371,11 +443,14 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     if(!g)return rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)?403:0;
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
-    if(g->rows_used==RC_ATTEMPT_MAX_ROWS||h->invocation.invalid||h->invocation.mask!=31)rc_attempt_lost(g->ledger);
+    /* Capacity fence BEFORE selection: an unrecordable next request is a
+     * windowed loss covering every row it could duplicate (see attempts.c). */
+    int free_row=row_slot(g,now);
+    if(free_row<0||!rc_attempt_capacity(g->ledger,now)||h->invocation.invalid||h->invocation.mask!=31)rc_attempt_lost_at(g->ledger,now);
     if(!h->generation[0]&&!h->branch[0]){
         /* Diagnostic identity is only a loss fence, never a fallback join.
          * Even a partial match may denote a registered workflow/branch. */
-        for(size_t i=0;i<g->used;i++)if(!strcmp(g->scopes[i].task,h->invocation.values[0])||!strcmp(g->scopes[i].session,h->invocation.values[1])){status=403;goto done;}
+        for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&(!strcmp(g->scopes[i].task,h->invocation.values[0])||!strcmp(g->scopes[i].session,h->invocation.values[1]))){status=403;goto done;}
     }
     if(h->generation[0]||h->branch[0]||h->invalid) {
         int slot=scope_find(g,h->generation,h->branch);
@@ -397,7 +472,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(automatic&&s->pinned&&s->owner){*endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}}
         else if(automatic) {
             rc_context_snapshot snapshot;bool usable=rc_context_get(g->contexts,&s->key,now,&snapshot)==RC_CONTEXT_OK&&snapshot.has_interpretation&&snapshot.revision==s->interpretation.revision&&exact(g,s->evidence_row,now)&&s->evidence_row==s->last_row;
-            for(size_t i=0;i<g->rows_used;i++)if(same_headers(&h->invocation,&g->rows[i].headers))usable=false;
+            for(size_t i=0;i<g->rows_used;i++)if(g->rows[i].in_use&&same_headers(&h->invocation,&g->rows[i].headers))usable=false;
             char *wire=json_dumps(body,JSON_COMPACT);uint64_t tokens=wire?strlen(wire):0;free(wire);
             json_t *max=json_object_get(body,"max_tokens");if(json_is_integer(max)&&json_integer_value(max)>0&&json_integer_value(max)<=100000)tokens+=(uint64_t)json_integer_value(max);else usable=false;
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
@@ -445,7 +520,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if((!automatic||(s->requirements&&s->owner))&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
         if(!automatic&&s->requirements&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
         if(s->pinned&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
-        s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;
+        s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;s->active=now;
         rc_tool_boundary_free(s->boundary);s->boundary=NULL;
         json_decref(s->observed_calls);s->observed_calls=NULL;memset(s->callback_seen,0,sizeof s->callback_seen);
         if(s->pinned){json_decref(s->history);s->history=NULL;}
@@ -461,9 +536,10 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         }
     }
     rc_attempt_result recorded=rc_attempt_begin(g->ledger,g->authorization,&h->invocation,now,&ticket->id);ticket->begun=true;
-    if(recorded==RC_ATTEMPT_TRACKED&&g->rows_used<RC_ATTEMPT_MAX_ROWS){
-        ticket->row=(int)g->rows_used;g->rows[g->rows_used++]=(struct physical){.headers=h->invocation,.id=ticket->id,.scope=ticket->scope};
-    }
+    if(recorded==RC_ATTEMPT_TRACKED&&free_row>=0){
+        ticket->row=free_row;g->rows[free_row]=(struct physical){.headers=h->invocation,.id=ticket->id,.scope=ticket->scope,.in_use=true,.begun=now};
+        if((size_t)free_row>=g->rows_used)g->rows_used=(size_t)free_row+1;
+    }else if(recorded==RC_ATTEMPT_TRACKED)rc_attempt_lost_at(g->ledger,now);
     if(s)s->last_row=ticket->row;
 done:
     pthread_mutex_unlock(&g->lock);return status;
@@ -493,9 +569,9 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
     struct rc_gateway_context *g=rt->gateway;if(!g||!ticket->begun)return;
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();
     rc_attempt_finish(g->ledger,ticket->id,complete,now);
-    if(ticket->row>=0)g->rows[ticket->row].complete=complete;
+    if(ticket->row>=0){g->rows[ticket->row].complete=complete;g->rows[ticket->row].settled=true;}
     if(ticket->scope>=0){
-        struct scope *s=&g->scopes[ticket->scope];s->inflight=false;
+        struct scope *s=&g->scopes[ticket->scope];s->inflight=false;s->active=now;
         json_error_t error;json_t *root=complete&&!sse&&response&&length?json_loadb(response,length,JSON_REJECT_DUPLICATES,&error):NULL;
         json_t *choices=json_object_get(root,"choices"),*choice=json_array_get(choices,0),*message=json_object_get(choice,"message");
         json_t *fingerprint=json_object_get(root,"system_fingerprint"),*stop=json_object_get(choice,"stop_reason");

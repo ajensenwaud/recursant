@@ -75,13 +75,19 @@ patch Hermes, invent source callbacks, or synthesize a missing Relay event.
 Times are monotonic ticks, serialized by caller across ingress/completion/ingest
 and selection. TTL is fixed at first receipt of each physical row; later source
 callbacks never renew it. Expiry is exclusive (`now >= expires` is ineligible).
-Expired rows remain permanent **generation-lifetime tombstones** and participate
-in duplicate counts. No LRU, no TTL eviction, no same-generation key reuse. This
-is intentionally conservative and bounded, not a throughput retention policy.
+Expired rows remain duplicate **tombstones** while any live row shares their
+full key. Under capacity pressure only, a row that is expired, settled
+(transport finished) and not shared by any live row is reclaimed (M3-S1). The
+duplicate horizon is therefore exactly the TTL. There is no LRU and live rows
+are never evicted.
 
-Capacity exhaustion, invalid/missing identity on an accepted request, backwards
-clock, arithmetic overflow, or explicit `rc_attempt_lost()` irreversibly disables
-exactness for the entire ledger generation. This broad abstention avoids losing
+Exhaustion by LIVE rows and invalid/missing identity on an accepted request are
+**windowed losses** (`rc_attempt_lost_at`). Every row begun before
+`loss_time + ttl` is permanently `count_known=false`. Only attempts begun after
+every row that could coexist with the unrecorded attempt has expired can be
+exact again. Backwards clock, arithmetic overflow, serial exhaustion, missing
+output ID, or explicit `rc_attempt_lost()` still irreversibly disable exactness
+for the entire ledger generation. This broad abstention avoids losing
 an unrecorded duplicate and later resurrecting exactness. It cannot grant or
 remove any explicit M1/M2 route privilege. Call `lost()` on source channel drops,
 unknown coverage, gaps, reconnects or failed ingestion; never turn an unknown

@@ -30,5 +30,12 @@ void rc_attempt_source_complete(rc_attempt_ledger *, const char *authorization,
     const rc_attempt_headers *, uint64_t now);
 bool rc_attempt_get(rc_attempt_ledger *, const char *authorization,
     const rc_attempt_headers *, rc_attempt_id, uint64_t now, rc_attempt_view *);
+/* Permanent: exactness never returns for this ledger generation. */
 void rc_attempt_lost(rc_attempt_ledger *);
+/* Windowed: an unrecorded attempt at `now`. Only rows begun at or after
+ * now+ttl can be exact again. A backwards clock falls back to permanent. */
+void rc_attempt_lost_at(rc_attempt_ledger *, uint64_t now);
+/* Reclaims expired, settled, unshared rows under pressure. It returns whether
+ * the next begin has a row. Use it as a fence BEFORE selection. */
+bool rc_attempt_capacity(rc_attempt_ledger *, uint64_t now);
 #endif
