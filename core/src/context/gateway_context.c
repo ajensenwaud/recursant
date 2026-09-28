@@ -505,7 +505,14 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
             (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0));
         if(s->requirements)safe=safe&&tool_envelope(root,choice);
-        bool tool=safe&&eq(choice,"finish_reason","tool_calls")&&tool_envelope(root,choice)&&!s->pinned&&s->pending&&s->pending_tools;
+        json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
+        bool tool_response=safe&&eq(choice,"finish_reason","tool_calls")&&tool_envelope(root,choice);
+        if(sse){
+            message=stream_message;
+            safe=message!=NULL;
+            tool_response=safe&&json_object_get(message,"tool_calls")!=NULL;
+        }
+        bool tool=tool_response&&!s->pinned&&s->pending&&s->pending_tools;
         if(tool){
             json_t *calls=json_object_get(message,"tool_calls");
             tool=json_array_size(calls)>0&&(s->pending_parallel||json_array_size(calls)==1)&&
@@ -526,9 +533,9 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
                 if(!s->observed_calls){tool=false;rc_tool_boundary_free(s->boundary);s->boundary=NULL;}
             }
         }
-        safe=safe&&eq(choice,"finish_reason","stop")&&plain_message(message)&&eq(message,"role","assistant");
-        json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
-        if(sse){message=stream_message;safe=message!=NULL;}
+        /* A failed tool capture must never fall through as plain history. */
+        safe=safe&&!tool_response&&(sse||eq(choice,"finish_reason","stop"))&&
+            plain_message(message)&&eq(message,"role","assistant");
         if(!tool&&(!safe||!s->pending||json_array_append(s->pending,message)))s->pinned=true;
         if(!s->pinned&&!tool){json_decref(s->history);s->history=s->pending;s->pending=NULL;}
         json_decref(s->pending_choice);s->pending_choice=NULL;
