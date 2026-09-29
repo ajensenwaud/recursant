@@ -107,6 +107,14 @@ class LiveProtocolTests(unittest.TestCase):
         finally:
             server.shutdown(); server.server_close(); thread.join()
 
+    def test_task_pack_v2_requires_file_artifact_identically(self):
+        from bench.evaluation.tasks import TASKS, ARTIFACT_INSTRUCTION, CASES
+        self.assertEqual(sorted(t['id'] for t in TASKS), sorted(CASES))
+        for t in TASKS:
+            self.assertTrue(t['prompt'].endswith(ARTIFACT_INSTRUCTION))
+            self.assertEqual(t['prompt'].count(ARTIFACT_INSTRUCTION), 1)
+        self.assertIn('/workspace/solution.py', ARTIFACT_INSTRUCTION)
+
     def test_admission_prefix_extension_uses_reported_tokens(self):
         """Pilot-1: ~50KB Hermes requests (~9.3k real tokens) were refused by the
         byte-only bound after two turns. Reported prefix tokens + new-message bytes."""

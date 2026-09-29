@@ -1,4 +1,4 @@
-"""Frozen synthetic task pack v1. Host-only: never mount in model containers.
+"""Frozen synthetic task pack v2 (v1 specifications + explicit artifact instruction). Host-only: never mount in model containers.
 
 Original public-domain (CC0) specifications/data, authored for this benchmark.
 These are development tasks, not an uncontaminated third-party holdout.
@@ -78,8 +78,19 @@ FIXTURE_SOLUTIONS = {
 FIXTURE_SOLUTIONS = {k:v+CLI for k,v in FIXTURE_SOLUTIONS.items()}
 
 
+# v2 (2026-09-29): pilot-3 showed 6/18 episodes (2 per arm, all on turn-1
+# gpt-4.1 before any routing) answering with code in chat and never writing
+# the file, which the verifier scores as missing_or_invalid_artifact. The
+# instruction is identical for every arm; specifications and cases unchanged.
+ARTIFACT_INSTRUCTION = ('\n\nUse your file tools to create /workspace/solution.py on disk. '
+                        'Code shown only in a chat reply does not count and will be graded as missing.')
+for _task in TASKS:
+    _task['prompt'] += ARTIFACT_INSTRUCTION
+del _task
+
+
 def fingerprint():
-    return hashlib.sha256(json.dumps({'version':1,'tasks':TASKS,'cases':CASES},
+    return hashlib.sha256(json.dumps({'version':2,'tasks':TASKS,'cases':CASES},
                                     sort_keys=True).encode()).hexdigest()
 
 
