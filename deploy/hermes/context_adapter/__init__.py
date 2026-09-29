@@ -93,9 +93,12 @@ class Adapter:
                 message = context.get('assistant_message')
                 text = {k: v for k, v in (
                     ('assistant_plan', getattr(message, 'content', None)),
-                    ('reasoning', getattr(message, 'reasoning_content', None))) if isinstance(v, str)}
-                event['text'] = {k: v[:2048] for k, v in text.items()}
-                event['text_truncated'] = {k: len(v) > 2048 for k, v in text.items()}
+                    ('reasoning', getattr(message, 'reasoning_content', None))) if isinstance(v, str) and v}
+                # Empty segments are absent text (Hermes flattens a tool-only
+                # reply's None content to ''), not lost evidence.
+                if text:
+                    event['text'] = {k: v[:2048] for k, v in text.items()}
+                    event['text_truncated'] = {k: len(v) > 2048 for k, v in text.items()}
         self.emit(event)
 
     @serialized

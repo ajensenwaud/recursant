@@ -22,9 +22,9 @@ class AdapterTests(unittest.TestCase):
         return module.install(**kwargs)
 
     def identity(self, **overrides):
-        return dict(task_id='task', session_id='session', turn_id='turn',
-                    api_request_id='opaque:not:parsed', api_call_count=1,
-                    base_url='http://local/v1', finish_reason='stop', **overrides)
+        return {**dict(task_id='task', session_id='session', turn_id='turn',
+                       api_request_id='opaque:not:parsed', api_call_count=1,
+                       base_url='http://local/v1', finish_reason='stop'), **overrides}
 
     def test_request_exact_endpoint_only_headers_unique_invocations(self):
         import copy
@@ -375,11 +375,31 @@ class AdapterTests(unittest.TestCase):
             adapter.request({}, **self.identity())
             adapter.response(**self.identity(), assistant_message=NS(content='x' * size,
                              reasoning_content='r' * size, tool_calls=[NS(id='call')]))
+            # Empty segments are absent text, not an empty exported segment.
             self.assertEqual(events[-1].get('text_truncated'),
-                             {'assistant_plan': size > 2048, 'reasoning': size > 2048})
+                             {'assistant_plan': size > 2048, 'reasoning': size > 2048} if size else None)
             adapter.tool(**self.identity(), tool_call_id='call', result='t' * size)
             self.assertEqual(events[-1].get('text_truncated'), {'tool_result': size > 2048})
             self.assertEqual(len(events[-1]['text']['tool_result']), min(size, 2048))
+
+    def test_empty_tool_call_content_is_absent_not_loss(self):
+        """Pilot-3: Hermes flattens a tool-only reply's None content to ''. That is
+        no exposed text, not a lost segment; it must not poison the scope."""
+        from types import SimpleNamespace as NS
+        adapter = self.adapter(ctx=Context(), enabled=True, endpoint='http://local/v1')
+        events = []; adapter.emit = events.append; adapter.content_enabled = True
+        adapter.request({}, **self.identity(finish_reason='tool_calls'))
+        adapter.response(**self.identity(finish_reason='tool_calls'),
+                         assistant_message=NS(content='', reasoning_content=None, tool_calls=[NS(id='call')]))
+        self.assertEqual(events[-1]['kind'], 'response')
+        self.assertTrue(events[-1]['routing_eligible'])
+        self.assertNotIn('text', events[-1]); self.assertNotIn('text_truncated', events[-1])
+        # Nonempty text is still exported with explicit truncation flags.
+        adapter.request({}, **self.identity(api_request_id='second', finish_reason='tool_calls'))
+        adapter.response(**self.identity(api_request_id='second', finish_reason='tool_calls'),
+                         assistant_message=NS(content='plan', reasoning_content='', tool_calls=[NS(id='c2')]))
+        self.assertEqual(events[-1]['text'], {'assistant_plan': 'plan'})
+        self.assertEqual(events[-1]['text_truncated'], {'assistant_plan': False})
 
     def test_disabled_registers_nothing(self):
         ctx = Context()

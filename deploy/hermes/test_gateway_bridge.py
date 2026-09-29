@@ -228,7 +228,7 @@ class BridgeTests(unittest.TestCase):
         adapter, _ = self.install(f, content_enabled=True)
         f.seen.get(timeout=1)
         for i, raw in enumerate(('x' * 1025, '\u2603' * 342, 'x' * 2049,
-                                 'BAD' + chr(0xd800), 'bad\x00text', '')):
+                                 'BAD' + chr(0xd800), 'bad\x00text')):
             with self.subTest(i=i):
                 ids = self.ids(f, api_request_id='bad-' + str(i))
                 tags = adapter.request({}, **ids)['request']['extra_headers']
@@ -239,6 +239,14 @@ class BridgeTests(unittest.TestCase):
                 self.assertEqual(event['attempt'], tags['X-Recursant-attempt'])
                 self.assertNotIn('text', event)
                 self.assertGreater(event['dropped'], 0)
+        # Empty content (Hermes tool-only reply) is absent text: a metadata-only
+        # response, not loss. It never invents or repairs a segment.
+        ids = self.ids(f, api_request_id='empty')
+        adapter.request({}, **ids)
+        adapter.response(**ids, assistant_message=NS(content='', reasoning_content=''))
+        event = f.seen.get(timeout=1)[2]['event']
+        self.assertEqual(event['kind'], 'response')
+        self.assertNotIn('text', event)
         ids = self.ids(f, api_request_id='tool')
         adapter.request({}, **ids)
         adapter.response(**ids, assistant_message=NS(content='model text', tool_calls=[NS(id='call')]))
