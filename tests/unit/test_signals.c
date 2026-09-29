@@ -149,7 +149,38 @@ static void structured_envelopes(void) {
     const char *follow="{\"messages\":[" USER("s") "," CALL("c1") ",{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"{\\\"output\\\": \\\"ok\\\", \\\"exit_code\\\": 0, \\\"error\\\": null}\"}]," TOOLS "}";
     CHECK(classify(follow,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
 }
+static void rejected_invocations(void) {
+    /* Pilot-2/3: Hermes rejects a malformed call before executing anything:
+     * {"error":"notify/heartbeat only apply to background commands ..."}.
+     * The tool never ran: it is not an executed failure (no recovery run) and
+     * not a success. It is transparent to the window once an executed clean
+     * result follows; a trailing rejection itself gets no class. */
+#define REJ "{\\\"error\\\": \\\"notify/heartbeat only apply to background commands\\\"}"
+#define OKE "{\\\"output\\\": \\\"3 passed\\\", \\\"exit_code\\\": 0, \\\"error\\\": null}"
+    const char *trailing="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3",REJ) "]," TOOLS "}";
+    CHECK(classify(trailing,&ONE)==0);
+    const char *after="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3",REJ) "," CALL("c4") "," RESULT("c4",REJ) "," CALL("c5") "," RESULT("c5",OKE) "]," TOOLS "}";
+    CHECK(classify(after,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
+    /* Rejections do not hide an EXECUTED failure in the window. */
+    const char *hidden="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","Traceback (most recent call last)") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3",OKE) "]," TOOLS "}";
+    CHECK(classify(hidden,&ONE)==0);
+    /* Executed failures around a rejection still form a recovery run. */
+    const char *run="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ERROR: x") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3","command failed") "]," TOOLS "}";
+    CHECK(classify(run,&ONE)==RC_TASK_RECOVERY);
+    /* Only an exact single-key {"error": nonempty string} is a rejection. */
+    CHECK(rc_signals_failed_text("{\"error\": \"x\"}",14));
+    const char *exec_err="{\"output\": \"\", \"exit_code\": 0, \"error\": \"x\"}";
+    const char *after_exec="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","{\\\"output\\\": \\\"\\\", \\\"exit_code\\\": 1, \\\"error\\\": \\\"x\\\"}") "," CALL("c2") "," RESULT("c2",OKE) "]," TOOLS "}";
+    CHECK(rc_signals_failed_text(exec_err,strlen(exec_err)));
+    CHECK(classify(after_exec,&ONE)==0);
+    const char *empty_err="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","{\\\"error\\\": \\\"\\\"}") "," CALL("c2") "," RESULT("c2",OKE) "]," TOOLS "}";
+    CHECK(classify(empty_err,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK); /* empty error = clean envelope */
+    /* Many rejections cannot scan unboundedly; still bounded by MAX_MESSAGES. */
+#undef REJ
+#undef OKE
+}
 int main(void) {
+    rejected_invocations();
     structured_envelopes();
     taxonomy();
     followup_and_final();

@@ -93,6 +93,19 @@ static bool known_role(json_t *m) {
     return role_is(m,"system")||role_is(m,"developer")||role_is(m,"user")||
         role_is(m,"assistant")||role_is(m,"tool");
 }
+/* Harness rejection of a malformed call before execution (e.g. pinned Hermes
+ * {"error":"notify/heartbeat only apply to background commands ..."}): an
+ * object with exactly one key "error" holding a nonempty string. The tool did
+ * not run, so it is neither an executed failure nor a success. */
+static bool rejected_call(const char *text, size_t length) {
+    size_t i=0; while (i<length && (text[i]==' '||text[i]=='\n'||text[i]=='\t'||text[i]=='\r')) ++i;
+    if (i==length || text[i]!='{' || length>(size_t)RC_SIGNALS_SCAN_BYTES) return false;
+    json_t *o=json_loadb(text,length,JSON_REJECT_DUPLICATES,NULL);
+    json_t *e=json_object_get(o,"error");
+    bool r=json_is_object(o) && json_object_size(o)==1 && json_is_string(e) && json_string_length(e);
+    json_decref(o);
+    return r;
+}
 uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {
     if (!json_is_object(body) || !scope || !scope->completed_turns) return 0;
     json_t *messages=json_object_get(body,"messages");
@@ -107,14 +120,19 @@ uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {
     if (choice && !json_is_string(choice) && !json_is_object(choice)) return 0;
     bool offered=tools && !(json_is_string(choice) && !strcmp(json_string_value(choice),"none"));
     if (!role_is(json_array_get(messages,n-1),"tool")) return 0;
-    unsigned seen=0, run=0; bool running=true, failed_any=false;
+    unsigned seen=0, run=0; bool running=true, failed_any=false, first=true;
     for (size_t i=n; i-- > 0 && seen<RC_SIGNALS_WINDOW;) {
         json_t *m=json_array_get(messages,i);
         if (role_is(m,"assistant")) continue;
         if (!role_is(m,"tool")) { running=false; continue; }
         json_t *content=json_object_get(m,"content");
         if (!json_is_string(content)) return 0;
-        bool failed=rc_signals_failed_text(json_string_value(content),json_string_length(content));
+        const char *text=json_string_value(content); size_t length=json_string_length(content);
+        /* Rejected (never executed) calls are transparent to the window and
+         * the recovery run; the latest result itself must be executed. */
+        if (rejected_call(text,length)) { if (first) return 0; continue; }
+        first=false;
+        bool failed=rc_signals_failed_text(text,length);
         ++seen;
         if (failed) { failed_any=true; if (running) ++run; }
         else running=false;

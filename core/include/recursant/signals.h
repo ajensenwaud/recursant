@@ -24,6 +24,10 @@
  *                    tool_choice "none": the next step is the final answer.
  *   RECOVERY         >= 2 consecutive failed tool results ending at the last
  *                    message: escalation signal, never a downshift class.
+ * A harness REJECTION of a malformed call (tool result that is exactly
+ * {"error": "<nonempty>"}, e.g. pinned Hermes argument validation) means the
+ * tool never executed: it is skipped by the window and the recovery run, and
+ * a trailing rejection yields no class (baseline), never a downshift.
  * At most one bit is returned. Anything else, including a first turn, a
  * trailing user/assistant message, one failure, unknown tool-result content
  * or any malformed message, returns 0 (no class: baseline). */
