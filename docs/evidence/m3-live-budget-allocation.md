@@ -35,3 +35,8 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - Arms (6 episodes each): baseline 3/6 pass US$0.4251; routed-structured 3/6 US$0.2628 (-38%); routed-full 4/6 US$0.2561 (-40%).
 - 6 of 18 failures were turn-1 gpt-4.1 text answers without a tool call (2 per arm, before any routing). 1 possible routed quality loss: ledger r1 routed-structured failed after mini turns.
 - Interpreter: zero non-main calls recorded in routed-full; interpreter contribution unverified.
+
+## B-interp-check (2026-09-29)
+
+- Anders approved the small interpreter check. routed-full only, ledger-v1, task pack v2, 2 repeats. Request cap 31 (all remaining B), US$1.00 cap. Adapter fix 2fa392e (mounted), router 57eb756.
+- Result: 18 requests (16 public, 2 local GLM), both PASS. Interpreter requested 3 times across 2 episodes; 1 returned 200 after 156s (3253 output tokens); main turns took 1-10s, so no advice reached any route decision. Every switch came from signals. r1 hit the US$1.00 reservation cap (not spend) and then pinned. B is now exhausted.
