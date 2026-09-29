@@ -40,3 +40,9 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 
 - Anders approved the small interpreter check. routed-full only, ledger-v1, task pack v2, 2 repeats. Request cap 31 (all remaining B), US$1.00 cap. Adapter fix 2fa392e (mounted), router 57eb756.
 - Result: 18 requests (16 public, 2 local GLM), both PASS. Interpreter requested 3 times across 2 episodes; 1 returned 200 after 156s (3253 output tokens); main turns took 1-10s, so no advice reached any route decision. Every switch came from signals. r1 hit the US$1.00 reservation cap (not spend) and then pinned. B is now exhausted.
+
+## C-jev allocation (2026-09-29)
+
+- Anders approved: build Jev decision interpreter; step-2 probe + step-3 live check within US$2.00 total public spend. Synthetic recorded pilot states only. Two smoke calls US$0.000034.
+- Step 2 probe: 96 decisions, US$0.003809. Step 3: signals vs signals+Jev, 3 tasks x 2 repeats, cap US$1.90 / 150 requests, router 003181c.
+- Step 3 result: 43 requests, actual US$0.222940 (reserved US$1.891 = cap reached; r1 episodes got 0 calls). C-jev total US$0.226749. r0: signals 3/3 pass US$0.1446; Jev 2/3 pass US$0.0784. Jev latency 348-513 ms; 2/6 verdicts unavailable (timeout 500 ms). ledger-jev failed 2/4 verifier cases after mini turns incl. solution writes.
