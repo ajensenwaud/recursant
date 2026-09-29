@@ -79,6 +79,9 @@ def episode_router_config(config, base_url, port, arm):
     cfg['context']['source_key_env']='M3_EPISODE_SOURCE'
     if config.get('router_signals')=='on': cfg['context']['signals']='on'
     else: cfg['context'].pop('signals',None)
+    # Judge egress (optional, routed arms only) goes through the metering sink.
+    if 'judge' in cfg['context']:
+        cfg['context']['judge']['url']=f'{base_url}/judge/api/alpha/decisions'
     sections=cfg['providers'] if 'providers' in cfg else [dict(cfg[n],name=n) for n in trust]
     for section in sections:
         name=section['name']
@@ -323,6 +326,8 @@ class RouteSession:
     def sink(self, path, body):
         """Router egress: /<token>/<provider>/v1/chat/completions -> that provider's real upstream."""
         parts=path.split('/')
+        if len(parts)==6 and parts[1]==self.egress_token and parts[2]=='judge' and parts[3:]==['api','alpha','decisions']:
+            return self.egress.judge(body)
         if (len(parts)!=6 or parts[1]!=self.egress_token or parts[2] not in self.routes or
                 parts[3:]!=['v1','chat','completions']):
             return 404,b'{}','application/json'
@@ -380,6 +385,47 @@ class Egress:
         for path in paths:
             with path.open('a') as stream:
                 stream.write(json.dumps(call,allow_nan=False)+'\n'); stream.flush(); os.fsync(stream.fileno())
+
+    JUDGE_URL='https://openrouter.ai/api/alpha/decisions'
+    JUDGE_MODELS=('typesafe/jev-1.13',)
+    JUDGE_INPUT_PER_TOKEN=Decimal('0.000000042')
+
+    def judge(self, body):
+        """Metered Jev Decisions call (public). Same cap/journal as chat calls."""
+        judge_cfg=self.config['router_config']['context'].get('judge') or {}
+        if body.get('model') not in self.JUDGE_MODELS or not isinstance(body.get('state'),(dict,str)):
+            return 400,b'{"error":"unqualified_judge_request"}','application/json'
+        raw_request=json.dumps(body).encode()
+        liability=(len(raw_request)+512)*self.JUDGE_INPUT_PER_TOKEN
+        with self.budget['lock']:
+            if (self.budget['count']>=self.config['request_cap'] or
+                    self.budget['reserved']+liability>Decimal(str(self.config['paid_cap_usd']))):
+                return 429,b'{"error":"global_admission_cap"}','application/json'
+            self.budget['count']+=1; self.budget['reserved']+=liability
+            call=dict(dispatch_id=uuid.uuid4().hex,task_id=self.task_id,arm=self.arm,attempt=len(self.calls)+1,
+                      role='judge',role_evidence='router_judge_path',evidence_kind='actual',evidence_ref='attempts.private.jsonl',
+                      input_tokens=None,output_tokens=None,reasoning_tokens=None,cached_input_tokens=None,cost_usd=None,
+                      reasoning_semantics='unknown',tokenizer='jev',started_at=time.time(),status=None,
+                      liability_reserved_usd=str(liability),endpoint='public',requested_model=body.get('model'),
+                      provider_model=None,input_token_upper_bound=len(raw_request),provider=judge_cfg.get('provider'))
+            self.calls.append(call); self.journal(call)
+        url=urlsplit(self.JUDGE_URL); conn=http.client.HTTPSConnection(url.hostname,timeout=10)
+        try:
+            auth=os.environ.get(self.config['upstreams'][judge_cfg['provider']]['api_key_env'],'')
+            conn.request('POST',url.path,raw_request,{'Content-Type':'application/json','Authorization':'Bearer '+auth})
+            response=conn.getresponse(); raw=response.read(65537)
+            call['status']=response.status
+            try:
+                record=json.loads(raw); usage=record.get('usage') or {}
+                call.update(input_tokens=usage.get('input_tokens'),output_tokens=usage.get('output_tokens'),
+                            cost_usd=usage.get('cost'),provider_model=record.get('model'))
+            except ValueError: call['error']='provider_error'
+            return response.status,raw[:65536],'application/json'
+        except (OSError,http.client.HTTPException) as exc:
+            call['error']=type(exc).__name__
+            return 502,b'{"error":"ambiguous_upstream_attempt"}','application/json'
+        finally:
+            conn.close(); call['finished_at']=time.time(); self.journal(call)
 
     def forward(self, endpoint, body, headers, upstream=None):
         from contextlib import nullcontext
