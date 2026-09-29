@@ -25,12 +25,17 @@
  *   RECOVERY         >= 2 consecutive failed tool results ending at the last
  *                    message: escalation signal, never a downshift class.
  * A harness REJECTION of a malformed call (tool result that is exactly
- * {"error": "<nonempty>"}, e.g. pinned Hermes argument validation) means the
- * tool never executed: it is skipped by the window and the recovery run, and
- * a trailing rejection yields no class (baseline), never a downshift.
+ * {"error": "<nonempty>"}, optionally followed by one bracketed harness note,
+ * e.g. pinned Hermes argument validation) means the tool never executed: it
+ * is skipped by the window and the recovery run. Up to
+ * RC_SIGNALS_MAX_REJECTIONS trailing rejections keep the class of the executed
+ * window before them (an argument repair is a routine step); more trailing
+ * rejections, or no executed result at all, yield no class (baseline).
+ * A rejection never turns an executed failure into success.
  * At most one bit is returned. Anything else, including a first turn, a
  * trailing user/assistant message, one failure, unknown tool-result content
  * or any malformed message, returns 0 (no class: baseline). */
+#define RC_SIGNALS_MAX_REJECTIONS 2u
 #define RC_TASK_FORMAT_SIMPLE    UINT64_C(1)
 #define RC_TASK_TOOL_FOLLOWUP_OK UINT64_C(2)
 #define RC_TASK_FINAL_ANSWER     UINT64_C(4)

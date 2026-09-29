@@ -157,8 +157,39 @@ static void rejected_invocations(void) {
      * result follows; a trailing rejection itself gets no class. */
 #define REJ "{\\\"error\\\": \\\"notify/heartbeat only apply to background commands\\\"}"
 #define OKE "{\\\"output\\\": \\\"3 passed\\\", \\\"exit_code\\\": 0, \\\"error\\\": null}"
+    /* Fix 2: up to RC_SIGNALS_MAX_REJECTIONS trailing rejections after a clean
+     * executed window keep the clean class (the retry is an argument repair;
+     * baseline-direct gpt-4.1 made the identical rejected calls). A longer
+     * rejection loop gets no class (baseline) so a stronger owner may break it. */
+    const char *one="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2",REJ) "]," TOOLS "}";
+    CHECK(classify(one,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
     const char *trailing="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3",REJ) "]," TOOLS "}";
-    CHECK(classify(trailing,&ONE)==0);
+    CHECK(classify(trailing,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
+    const char *three="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3",REJ) "," CALL("c4") "," RESULT("c4",REJ) "]," TOOLS "}";
+    CHECK(classify(three,&ONE)==0);
+    /* Only rejections, no executed result at all: no class. */
+    const char *only="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1",REJ) "]," TOOLS "}";
+    CHECK(classify(only,&ONE)==0);
+    /* A trailing rejection never converts an executed failure into success. */
+    const char *failed_then_rej="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","Traceback (most recent call last)") "," CALL("c2") "," RESULT("c2",REJ) "]," TOOLS "}";
+    CHECK(classify(failed_then_rej,&ONE)==0);
+    /* Real Hermes repeated-call note is still a rejection; other trailing text is not. */
+    const char *noted="{\"error\": \"notify/heartbeat only apply\"}\n\n[hermes note: this is the 3rd consecutive identical call. Do not repeat it.]";
+    const char *junk="{\"error\": \"x\"}\n\nTraceback (most recent call last)";
+    const char *two_notes="{\"error\": \"x\"}\n[a]\n[b]";
+    json_t *b=json_pack("{s:[{s:s,s:s},{s:s,s:n,s:[{s:s,s:s,s:{s:s,s:s}}]},{s:s,s:s,s:s},{s:s,s:n,s:[{s:s,s:s,s:{s:s,s:s}}]},{s:s,s:s,s:s}],s:[{s:s,s:{s:s}}]}",
+        "messages","role","user","content","s",
+        "role","assistant","content","tool_calls","id","c1","type","function","function","name","f","arguments","{}",
+        "role","tool","tool_call_id","c1","content","ok",
+        "role","assistant","content","tool_calls","id","c2","type","function","function","name","f","arguments","{}",
+        "role","tool","tool_call_id","c2","content",noted,
+        "tools","type","function","function","name","f");
+    CHECK(b && rc_signals_classify(b,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
+    json_object_set_new(json_array_get(json_object_get(b,"messages"),4),"content",json_string(junk));
+    CHECK(rc_signals_classify(b,&ONE)==0);
+    json_object_set_new(json_array_get(json_object_get(b,"messages"),4),"content",json_string(two_notes));
+    CHECK(rc_signals_classify(b,&ONE)==0);
+    json_decref(b);
     const char *after="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2",REJ) "," CALL("c3") "," RESULT("c3",REJ) "," CALL("c4") "," RESULT("c4",REJ) "," CALL("c5") "," RESULT("c5",OKE) "]," TOOLS "}";
     CHECK(classify(after,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
     /* Rejections do not hide an EXECUTED failure in the window. */
