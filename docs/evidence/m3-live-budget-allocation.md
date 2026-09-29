@@ -46,3 +46,7 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - Anders approved: build Jev decision interpreter; step-2 probe + step-3 live check within US$2.00 total public spend. Synthetic recorded pilot states only. Two smoke calls US$0.000034.
 - Step 2 probe: 96 decisions, US$0.003809. Step 3: signals vs signals+Jev, 3 tasks x 2 repeats, cap US$1.90 / 150 requests, router 003181c.
 - Step 3 result: 43 requests, actual US$0.222940 (reserved US$1.891 = cap reached; r1 episodes got 0 calls). C-jev total US$0.226749. r0: signals 3/3 pass US$0.1446; Jev 2/3 pass US$0.0784. Jev latency 348-513 ms; 2/6 verdicts unavailable (timeout 500 ms). ledger-jev failed 2/4 verifier cases after mini turns incl. solution writes.
+
+## Allocation D (2026-09-29)
+
+- Anders approved US$20 (asked US$25). Cap US$20 public settled to billed cost, 1200 requests. 10 tasks (pack v3) x 3 arms (baseline / signals / signals+Jev 700 ms) x 3 repeats, seed 7321, router 003181c, runner fbc7ae3+. No local GLM. Quality bar frozen before run: routed passes >= baseline passes - 1 over 30.
