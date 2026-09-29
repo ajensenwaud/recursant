@@ -49,6 +49,13 @@ static void mixed_identity(void) {
         assert(!m);free(o);
     }
 }
+static void line_bound(void) {
+    /* A single SSE line longer than 64KiB fails closed even though the
+     * whole-stream wire bound is larger. */
+    rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+    char *big=malloc(RC_RESPONSE_LIMIT+2);assert(big);memset(big,'x',RC_RESPONSE_LIMIT+1);big[0]=':';big[RC_RESPONSE_LIMIT+1]='\n';
+    rc_response_observer_feed(o,big,RC_RESPONSE_LIMIT+2);assert(o->failed);free(big);free(o);
+}
 static void framing_and_bounds(void) {
     const char *wire=": keepalive\r\ndata: {\"choices\":\r\ndata: [{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"café 🦀\"},\"finish_reason\":\"stop\"}]}\r\n\r\ndata: [DONE]\r\n\r\n";
     rc_response_observer *o=calloc(1,sizeof *o);assert(o);
@@ -56,11 +63,13 @@ static void framing_and_bounds(void) {
     json_t *m=rc_response_observer_message(o);assert(m);
     assert(!strcmp(json_string_value(json_object_get(m,"content")),"café 🦀"));json_decref(m);
     memset(o,0,sizeof *o);
-    char *full=malloc(RC_RESPONSE_LIMIT);assert(full);
-    size_t pad=RC_RESPONSE_LIMIT-strlen(first)-strlen(last);
-    memset(full,'x',pad);full[0]=':';full[pad-2]='\n';full[pad-1]='\n';
+    char *full=malloc(RC_RESPONSE_WIRE_LIMIT);assert(full);
+    size_t pad=RC_RESPONSE_WIRE_LIMIT-strlen(first)-strlen(last);
+    /* Wire bound filled with many bounded comment lines (each line <=64KiB). */
+    memset(full,'x',pad);for(size_t i=0;i+1<pad;i+=4096){full[i]=':';size_t e=i+4095<pad-2?i+4095:pad-2;full[e]='\n';}
+    full[pad-2]='\n';full[pad-1]='\n';
     memcpy(full+pad,first,strlen(first));memcpy(full+pad+strlen(first),last,strlen(last));
-    rc_response_observer_feed(o,full,RC_RESPONSE_LIMIT);
+    rc_response_observer_feed(o,full,RC_RESPONSE_WIRE_LIMIT);
     m=rc_response_observer_message(o);assert(m);json_decref(m);
     feed(o,"\n");assert(!rc_response_observer_message(o));feed(o,first);feed(o,last);assert(!rc_response_observer_message(o));
     free(full);free(o);
@@ -293,6 +302,47 @@ static void tool_terminal_contract(void) {
         json_decref(m);json_decref(v);free(o);
     }
 }
+/* Exact shape recorded from live OpenRouter openai/gpt-4.1 (pilot-1, 2026-09-29):
+ * content:null tool deltas, then finish_reason tool_calls WITH
+ * native_finish_reason "completed", repeated once with the accounting usage. */
+static void openrouter_real_tool_finish(void) {
+    /* Per-token OpenRouter chunks: ~300 wire bytes per argument token. A
+     * 1500-token write_file call is ~450KB on the wire but ~6KB retained. */
+    {
+        const char *env="data: {\"id\":\"gen-2\",\"object\":\"chat.completion.chunk\",\"created\":7,\"model\":\"openai/gpt-4.1\",\"provider\":\"OpenAI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,%s\"function\":{%s\"arguments\":\"%s\"}}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\n";
+        char buf[1024];
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        snprintf(buf,sizeof buf,env,"\"id\":\"call_long\",\"type\":\"function\",","\"name\":\"write_file\",","{\\\"content\\\":\\\"");feed(o,buf);
+        for(int i=0;i<1500;i++){snprintf(buf,sizeof buf,env,"","","ab");feed(o,buf);}
+        snprintf(buf,sizeof buf,env,"","","\\\"}");feed(o,buf);
+        feed(o,"data: {\"id\":\"gen-2\",\"object\":\"chat.completion.chunk\",\"created\":7,\"model\":\"openai/gpt-4.1\",\"provider\":\"OpenAI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"completed\"}]}\n\n");
+        feed(o,"data: [DONE]\n\n");
+        assert(o->total>4*65536);
+        json_t *m=rc_response_observer_message(o);assert(m);
+        const char *args=json_string_value(json_object_get(json_object_get(json_array_get(json_object_get(m,"tool_calls"),0),"function"),"arguments"));
+        assert(strlen(args)==strlen("{\"content\":\"\"}")+3000);
+        json_decref(m);free(o);
+    }
+    const char *base="{\"id\":\"gen-1\",\"object\":\"chat.completion.chunk\",\"created\":7,\"model\":\"openai/gpt-4.1\",\"provider\":\"OpenAI\",";
+    char buf[1024];
+    rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+    snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_x4\",\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"arguments\":\"\"}}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\n",base);feed(o,buf);
+    snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"path\\\": \\\"a\\\"}\"}}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\n",base);feed(o,buf);
+    snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"completed\"}]}\n\n",base);feed(o,buf);
+    snprintf(buf,sizeof buf,"data: %s\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"completed\"}],\"usage\":%s}\n\n",base,or_usage);feed(o,buf);
+    feed(o,"data: [DONE]\n\n");
+    json_t *m=rc_response_observer_message(o);assert(m);
+    json_t *call=json_array_get(json_object_get(m,"tool_calls"),0);
+    assert(!strcmp(json_string_value(json_object_get(json_object_get(call,"function"),"arguments")),"{\"path\": \"a\"}"));
+    assert(!strcmp(json_string_value(json_object_get(m,"content")),""));
+    json_decref(m);free(o);
+    /* Terminal/tail native mismatch still fails closed. */
+    o=calloc(1,sizeof *o);assert(o);
+    snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"completed\"}]}\n\n",base);feed(o,buf);
+    snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"tool_calls\"}],\"usage\":%s}\n\n",base,or_usage);feed(o,buf);
+    feed(o,"data: [DONE]\n\n");
+    assert(!rc_response_observer_message(o));free(o);
+}
 static void tool_guards(void) {
     for(int mode=0;mode<24;mode++){
         rc_response_observer *o=calloc(1,sizeof *o);assert(o);
@@ -312,7 +362,7 @@ static void tool_guards(void) {
         case 9: json_object_del(fn,"arguments");break;
         case 10: json_object_set_new(fn,"arguments",json_null());break;
         case 11: json_object_set_new(d,"tool_calls",json_null());break;
-        case 12: json_object_set_new(c,"native_finish_reason",json_string("completed"));break;
+        case 12: json_object_set_new(c,"native_finish_reason",json_string("length"));break;
         case 13: json_object_set_new(d,"signature",json_string("opaque"));break;
         case 14: json_object_set_new(c,"index",json_integer(1));break;
         case 15: {json_t *other=json_deep_copy(call);json_object_set_new(other,"index",json_integer(1));json_array_append_new(calls,other);break;}
@@ -347,12 +397,13 @@ static void tool_message_and_wire_bounds(void) {
         char *args=malloc(n+1);assert(args);memset(args,'x',n);args[n]=0;
         json_object_set_new(fn,"arguments",json_string(args));free(args);free(encoded);json_decref(m);
         memset(o,0,sizeof *o);feed_json(o,v);feed(o,"data: [DONE]\n\n");
-        assert(o->total<RC_RESPONSE_LIMIT);
+        assert(o->total<RC_RESPONSE_WIRE_LIMIT);
         m=rc_response_observer_message(o);assert((m!=NULL)==!overflow);json_decref(m);
         if(!overflow){
             /* Full wire bound includes framing/comments, independent of retained message. */
-            size_t n=RC_RESPONSE_LIMIT-o->total;
-            char *padding=malloc(n);assert(padding);memset(padding,'x',n);padding[0]=':';padding[n-1]='\n';
+            size_t n=RC_RESPONSE_WIRE_LIMIT-o->total;
+            char *padding=malloc(n);assert(padding);memset(padding,'x',n);
+            for(size_t i=0;i<n;i+=4096){padding[i]=':';size_t e=i+4095<n-1?i+4095:n-1;padding[e]='\n';}
             rc_response_observer_feed(o,padding,n);free(padding);
             m=rc_response_observer_message(o);assert(m);json_decref(m);
             feed(o,"\n");assert(!rc_response_observer_message(o));
@@ -457,4 +508,4 @@ static void usage_capture(void) {
         json_decref(m);free(o);
     }
 }
-int main(int argc,char **argv){usage_capture();adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}

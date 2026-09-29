@@ -8,20 +8,28 @@
  * bytes. Only the upstream thread feeds; after joining it, the completion owner
  * may ask for an owned normalized assistant message. NULL means fail closed.
  * Transport/downstream completion is independently required by gateway_finish.
- * Subset: one assistant, stop or tool_calls then delimited DONE, <=64KiB
- * total SSE including framing/comments. Tool fragments are kept in a bounded
+ * Subset: one assistant, stop or tool_calls then delimited DONE, <=64KiB per SSE event,
+ * <=4MiB total SSE including framing/comments. Tool fragments are kept in a bounded
  * inline log, then passed through stream_tools at snapshot time; no owned
  * allocations survive feed/abort. Tool snapshots are <=32KiB compact JSON,
  * with exact concatenated content (absent/null/empty fragments become "").
  * A tool snapshot is NOT plain replay history: gateway_finish must capture
  * the pending tool boundary and require exact results before switching. */
 #define RC_RESPONSE_LIMIT 65536
+/* Whole-stream wire bound (framing, envelopes, comments). Separate from the
+ * per-line/event and retained-text bounds: OpenRouter emits ~300 envelope
+ * bytes per streamed token, so a 1.5k-token tool call is ~450KB on the wire
+ * while retaining only a few KB (live pilot-1, 2026-09-29). */
+#define RC_RESPONSE_WIRE_LIMIT (4u*1024u*1024u)
+/* NUL-separated compact delta arrays (per-token {"index":0,"function":...}
+ * wrappers, ~45 bytes each). Retained snapshot remains <=32KiB. */
+#define RC_RESPONSE_TOOL_DELTA_LIMIT (256u*1024u)
 typedef struct {
     char line[RC_RESPONSE_LIMIT + 1], event[RC_RESPONSE_LIMIT + 1];
     char text[RC_RESPONSE_LIMIT + 1];
     /* NUL-separated compact delta arrays; bounded by wire ingress. No owned
      * allocations survive feed, including aborted/incomplete transports. */
-    char tool_deltas[RC_RESPONSE_LIMIT + 1];
+    char tool_deltas[RC_RESPONSE_TOOL_DELTA_LIMIT + 1];
     size_t tool_used;
     bool tool_finish;
     size_t total, line_used, event_used, text_used;

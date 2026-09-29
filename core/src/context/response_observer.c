@@ -101,9 +101,11 @@ static bool chunk(rc_response_observer *o,json_t *root) {
        (stop&&(!json_is_integer(stop)||json_integer_value(stop)<0)))return false;
     json_t *delta=json_object_get(c,"delta"),*finish=json_object_get(c,"finish_reason");
     json_t *native=json_object_get(c,"native_finish_reason");
-    /* Match terminal native metadata to its exact supported finish mode. */
+    /* Match terminal native metadata to its exact supported finish mode.
+     * Live OpenRouter openai/gpt-4.1 (pilot-1) reports "completed" for a
+     * tool_calls finish; the finish/tail consistency check below still binds. */
     if(native&&!json_is_null(native)&&
-       !((string_is(native,"completed")&&string_is(finish,"stop"))||
+       !((string_is(native,"completed")&&(string_is(finish,"stop")||string_is(finish,"tool_calls")))||
          (string_is(native,"tool_calls")&&string_is(finish,"tool_calls"))))return false;
     if(!keys(delta,"|role||content||tool_calls|","|refusal||annotations||audio||function_call|"))return false;
     json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
@@ -132,7 +134,7 @@ static bool chunk(rc_response_observer *o,json_t *root) {
             char *encoded=json_dumps(calls,JSON_COMPACT);
             if(!encoded)return false;
             size_t n=strlen(encoded)+1;
-            if(n>RC_RESPONSE_LIMIT-o->tool_used){free(encoded);return false;}
+            if(n>RC_RESPONSE_TOOL_DELTA_LIMIT-o->tool_used){free(encoded);return false;}
             memcpy(o->tool_deltas+o->tool_used,encoded,n);o->tool_used+=n;
             free(encoded);
         }
@@ -187,13 +189,14 @@ static void line(rc_response_observer *o) {
 }
 void rc_response_observer_feed(rc_response_observer *o,const char *data,size_t n) {
     if(o->failed)return;
-    if(n>RC_RESPONSE_LIMIT-o->total){o->failed=true;return;}
+    if(n>RC_RESPONSE_WIRE_LIMIT-o->total){o->failed=true;return;}
     o->total+=n;
     for(size_t i=0;i<n&&!o->failed;i++){
         unsigned char c=(unsigned char)data[i];
         if(!c){o->failed=true;break;}
         if(o->cr){o->cr=false;if(c=='\n')continue;}
         if(c=='\r'||c=='\n'){line(o);o->cr=c=='\r';}
+        else if(o->line_used==RC_RESPONSE_LIMIT){o->failed=true;break;} /* per-line bound, independent of wire bound */
         else o->line[o->line_used++]=(char)c;
     }
 }
