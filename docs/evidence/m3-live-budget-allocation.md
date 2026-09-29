@@ -18,3 +18,9 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 
 - Pilot-1 actual spend US$0.2418 (9 episodes; invalid as evidence: runner byte-bound refusals + router observer bound). Fixes: router observer (main), runner prefix bound (fix/m3-r4-usage-details).
 - Pilot-2: same 3 tasks x 3 arms, fresh allocation journal, cap US$6.00 / 40 requests, within remaining B.
+
+## B-pilot-2 result (2026-09-29)
+
+- Actual spend US$0.343344 (40 requests = request cap; reserved US$2.7941). Cumulative B public spend: US$0.585144.
+- 5/9 episodes ran; the remaining 4 got zero calls after the 40-request cap (8-turn episodes need up to 72). Not a routing defect.
+- Matched completed pairs (ledger, intervals; structured arm): baseline US$0.1781 2/2 pass vs routed US$0.1165 2/2 pass (-35%). n=2, descriptive only.
