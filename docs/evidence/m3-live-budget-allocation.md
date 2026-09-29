@@ -13,3 +13,8 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - User decision (Anders, 2026-09-29): option A. Paid cap US$6.00, request cap 40, subset of allocation B (188 local / US$9.99). 3 frozen tasks x 3 arms (baseline-direct, routed-structured, routed-full), repeats 1, seed 7321.
 - Reservation is worst-case up front (~US$0.13 per gpt-4.1 call); actual spend is recorded from provider usage.cost. Remaining allocation B after the pilot = 188 local / US$9.99 minus the pilot's full reserved allocation until journals are reconciled.
 - Compliance content_scanning=false for this pilot (Anders, 2026-09-29): synthetic/public tasks only.
+
+## B-pilot-2 (2026-09-29)
+
+- Pilot-1 actual spend US$0.2418 (9 episodes; invalid as evidence: runner byte-bound refusals + router observer bound). Fixes: router observer (main), runner prefix bound (fix/m3-r4-usage-details).
+- Pilot-2: same 3 tasks x 3 arms, fresh allocation journal, cap US$6.00 / 40 requests, within remaining B.
