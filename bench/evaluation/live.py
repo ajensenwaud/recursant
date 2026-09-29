@@ -188,14 +188,34 @@ def classify_role(arm, endpoint, body):
     return 'main','private_not_interpreter_signature'
 
 
+# Parent-approved allocations: (public US$ ceiling, physical request ceiling).
+# B: original M3 allowance (exhausted). D: Anders 2026-09-29, US$20 final comparison.
+ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200)}
+
+
 def validate_allocation_limits(config):
     # Allocation A's 12 local requests and US$0.01 are NOT available to this runner.
+    name=config.get('allocation_id','B')
+    if name not in ALLOCATIONS: raise ValueError('unknown parent allocation')
+    ceiling,requests=ALLOCATIONS[name]
     cap=config.get('paid_cap_usd')
     if (type(cap) not in (int,float) or not math.isfinite(cap) or
-            not Decimal('0')<Decimal(str(cap))<=Decimal('9.99')):
-        raise ValueError('allocation B public cap must be positive and at most US$9.99')
-    if type(config.get('request_cap')) is not int or not 1<=config['request_cap']<=188:
-        raise ValueError('allocation B total physical request cap must be 1..188 (conservatively includes public)')
+            not Decimal('0')<Decimal(str(cap))<=ceiling):
+        raise ValueError('allocation %s public cap must be positive and at most US$%s'%(name,ceiling))
+    if type(config.get('request_cap')) is not int or not 1<=config['request_cap']<=requests:
+        raise ValueError('allocation %s total physical request cap must be 1..%d (conservatively includes public)'%(name,requests))
+
+
+def settle(budget, call):
+    """Replace a completed call's worst-case reservation with its provider-billed
+    cost. Unknown/unbilled cost keeps the full reservation (never under-counts)."""
+    cost=call.get('cost_usd')
+    if call.get('endpoint')!='public' or type(cost) not in (int,float) or not math.isfinite(cost) or cost<0: return
+    reserved=Decimal(call['liability_reserved_usd']); actual=Decimal(str(cost))
+    if actual>=reserved: return
+    with budget['lock']:
+        budget['reserved']-=reserved-actual
+    call['liability_settled_usd']=str(actual)
 
 
 def create_allocation(config):
@@ -425,7 +445,7 @@ class Egress:
             call['error']=type(exc).__name__
             return 502,b'{"error":"ambiguous_upstream_attempt"}','application/json'
         finally:
-            conn.close(); call['finished_at']=time.time(); self.journal(call)
+            conn.close(); call['finished_at']=time.time(); settle(self.budget,call); self.journal(call)
 
     def forward(self, endpoint, body, headers, upstream=None):
         from contextlib import nullcontext
@@ -521,4 +541,4 @@ class Egress:
             return 502,b'{"error":"ambiguous_upstream_attempt"}','application/json'
         finally:
             if timer: timer.cancel()
-            conn.close(); call['finished_at']=time.time(); self.journal(call)
+            conn.close(); call['finished_at']=time.time(); settle(self.budget,call); self.journal(call)

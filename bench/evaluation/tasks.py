@@ -75,6 +75,11 @@ FIXTURE_SOLUTIONS = {
  return {'finish':finish,'makespan':max(finish.values(),default=0),'order':order}
 '''
 }
+# v3 (2026-09-29): 7 additional synthetic tasks for the allocation-D comparison.
+from .tasks_v3 import TASKS_V3, CASES_V3, SOLUTIONS_V3
+TASKS.extend(dict(t) for t in TASKS_V3)
+CASES.update(CASES_V3)
+FIXTURE_SOLUTIONS.update(SOLUTIONS_V3)
 FIXTURE_SOLUTIONS = {k:v+CLI for k,v in FIXTURE_SOLUTIONS.items()}
 
 
@@ -90,7 +95,7 @@ del _task
 
 
 def fingerprint():
-    return hashlib.sha256(json.dumps({'version':2,'tasks':TASKS,'cases':CASES},
+    return hashlib.sha256(json.dumps({'version':3,'tasks':TASKS,'cases':CASES},
                                     sort_keys=True).encode()).hexdigest()
 
 

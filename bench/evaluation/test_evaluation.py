@@ -10,7 +10,7 @@ class TaskTests(unittest.TestCase):
     def test_frozen_tasks_have_independent_negative_and_positive_cases(self):
         self.assertIsNotNone(importlib.util.find_spec('bench.evaluation.tasks'), 'task pack absent')
         from bench.evaluation.tasks import TASKS, grade, FIXTURE_SOLUTIONS, fingerprint
-        self.assertEqual(len(TASKS), 3)
+        self.assertEqual(len(TASKS), 10)  # pack v3: v1 three + seven v3 tasks
         self.assertEqual(len(fingerprint()), 64)
         for task in TASKS:
             with self.subTest(task=task['id']):
@@ -106,6 +106,23 @@ class LiveProtocolTests(unittest.TestCase):
                 self.assertEqual(state['maximum'],1)
         finally:
             server.shutdown(); server.server_close(); thread.join()
+
+    def test_settle_replaces_reservation_only_with_known_public_cost(self):
+        import threading
+        from decimal import Decimal
+        from bench.evaluation.live import settle, validate_allocation_limits
+        b={'reserved':Decimal('1.0'),'lock':threading.Lock()}
+        call={'endpoint':'public','liability_reserved_usd':'0.3','cost_usd':0.01}
+        settle(b,call); self.assertEqual(b['reserved'],Decimal('0.71')); self.assertEqual(call['liability_settled_usd'],'0.01')
+        for c in ({'endpoint':'public','liability_reserved_usd':'0.3','cost_usd':None},
+                  {'endpoint':'public','liability_reserved_usd':'0.3','cost_usd':float('nan')},
+                  {'endpoint':'public','liability_reserved_usd':'0.3','cost_usd':0.5},
+                  {'endpoint':'private','liability_reserved_usd':'0','cost_usd':0.0}):
+            before=b['reserved']; settle(b,c); self.assertEqual(b['reserved'],before)
+        validate_allocation_limits({'allocation_id':'D','paid_cap_usd':20.0,'request_cap':1200})
+        for bad in ({'allocation_id':'D','paid_cap_usd':20.01,'request_cap':1},{'allocation_id':'D','paid_cap_usd':1,'request_cap':1201},
+                    {'allocation_id':'X','paid_cap_usd':1,'request_cap':1},{'paid_cap_usd':10,'request_cap':1}):
+            with self.assertRaises(ValueError): validate_allocation_limits(bad)
 
     def test_task_pack_v2_requires_file_artifact_identically(self):
         from bench.evaluation.tasks import TASKS, ARTIFACT_INSTRUCTION, CASES
@@ -215,8 +232,8 @@ class PlanTests(unittest.TestCase):
         self.assertTrue(hasattr(run,'plan'),'assignment planner absent')
         first=run.plan(2,7321)
         self.assertEqual(first,run.plan(2,7321))
-        self.assertEqual(len(first),18)
-        self.assertEqual(len({a['episode_id'] for a in first}),18)
+        self.assertEqual(len(first),60)  # 10 tasks x 3 arms x 2 repeats
+        self.assertEqual(len({a['episode_id'] for a in first}),60)
         self.assertEqual({a['arm'] for a in first},set(run.ARMS))
         with tempfile.TemporaryDirectory() as temp:
             config=Path(temp)/'no-approval.json'; config.write_text('{}')
