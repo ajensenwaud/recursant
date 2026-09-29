@@ -5,6 +5,7 @@
 #include "recursant/interpreter.h"
 #include "recursant/cost.h"
 #include "recursant/signals.h"
+#include "recursant/judge.h"
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
@@ -72,6 +73,8 @@ struct rc_gateway_context {
     rc_attempt_ledger *ledger;size_t rows_used;
     struct physical rows[RC_ATTEMPT_MAX_ROWS];
     rc_context_registry *contexts;rc_interpreter *worker;
+    /* Optional synchronous per-turn judge (context.judge). Advisory only. */
+    rc_judge_config judge;
 };
 static bool keys(json_t *o,const char *allowed) {
     if(!json_is_object(o))return false;
@@ -97,7 +100,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||judge||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -112,6 +115,24 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     /* Default off: existing configurations behave exactly as before S4. */
     if(json_object_get(o,"signals")&&!eq(o,"signals","on")&&!eq(o,"signals","off"))return false;
     g->signals=eq(o,"signals","on");
+    /* context.judge: {provider, model, url, timeout_ms, routine_min,
+     * difficulty_max}. Public-trust provider (its resolved key is borrowed);
+     * requires signals on. Absent = off. */
+    json_t *judge=json_object_get(o,"judge");
+    if(judge){
+        const char *provider=token(judge,"provider",63),*jmodel=token(judge,"model",128);
+        json_t *url=json_object_get(judge,"url"),*t=json_object_get(judge,"timeout_ms"),*rm=json_object_get(judge,"routine_min"),*dm=json_object_get(judge,"difficulty_max");
+        if(!keys(judge,"|provider||model||url||timeout_ms||routine_min||difficulty_max|")||!provider||!jmodel||!g->signals||
+           !json_is_string(url)||json_string_length(url)>2048||strncmp(json_string_value(url),rt->test_mode?"http":"https://",rt->test_mode?4:8)||
+           !json_is_integer(t)||json_integer_value(t)<50||json_integer_value(t)>2000||
+           !json_is_number(rm)||json_number_value(rm)<0.5||json_number_value(rm)>1||
+           !json_is_number(dm)||json_number_value(dm)<0||json_number_value(dm)>2)return false;
+        size_t p=0;for(;p<rt->config.provider_count&&strcmp(rt->config.providers[p].name,provider);p++);
+        if(p==rt->config.provider_count||rt->config.providers[p].trust!=RC_ENDPOINT_PUBLIC||!rt->provider_keys[p])return false;
+        g->judge=(rc_judge_config){.enabled=true,.key=rt->provider_keys[p],.timeout_ms=(unsigned)json_integer_value(t),
+            .routine_min=json_number_value(rm),.difficulty_max=json_number_value(dm)};
+        strcpy(g->judge.url,json_string_value(url));strcpy(g->judge.model,jmodel);
+    }
     if(!strcmp(automatic,rt->config.private_model)||(rt->config.public_model&&!strcmp(automatic,rt->config.public_model)))return false;
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(automatic,rt->config.aliases[i].from)||!strcmp(automatic,rt->config.aliases[i].model))return false;
     json_t *list=json_object_get(o,"candidates");g->count=json_array_size(list);
@@ -550,6 +571,21 @@ static bool replayable(struct scope *s,json_t *body) {
 unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket) {
     struct rc_gateway_context *g=rt->gateway;ticket->scope=-1;ticket->row=-1;
     if(!g)return rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)?403:0;
+    /* Optional judge, asked BEFORE the gateway lock (it blocks up to its
+     * timeout). Only for automatic turns the deterministic signals leave
+     * unclassified, and only when final M2 already permits public placement
+     * of this exact request (the judge provider is public egress). */
+    rc_judge_result judged={.ok=false};bool asked=false;
+    if(g->judge.enabled&&automatic&&g->active){
+        rc_signal_scope one={1};
+        if(!rc_signals_classify(body,&one)&&!rc_signals_recent_failure(body)){
+            json_t *probe=json_deep_copy(body);rc_alias *b=&rt->config.aliases[g->baseline];rc_endpoint ep=b->endpoint;
+            bool pub=probe&&!json_object_set_new(probe,"model",json_string(b->model))&&
+                (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==RC_ENDPOINT_PUBLIC;
+            json_decref(probe);
+            if(pub){judged=rc_judge_ask(&g->judge,body);asked=judged.attempted;}
+        }
+    }
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
     /* Capacity fence BEFORE selection: an unrecordable next request is a
@@ -625,6 +661,11 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             rc_signal_scope facts={.completed_turns=s->turns};
             uint64_t signal=structural?rc_signals_classify(body,&facts):0;
             uint64_t escalation=signal==RC_TASK_RECOVERY?RC_TASK_RECOVERY:0;if(escalation)signal=0;
+            /* Judge advice only fills an unclassified structural turn; never
+             * a pinned/private-only scope, recovery, or the first turn. */
+            const char *judge_verdict=asked?(judged.ok?(rc_judge_routine(&g->judge,&judged)?"routine":"hard"):"unavailable"):NULL;
+            if(asked&&structural&&!signal&&!escalation&&s->turns&&!s->private_only&&rc_judge_routine(&g->judge,&judged))signal=RC_TASK_TOOL_FOLLOWUP_OK;
+            if(asked)fprintf(stderr,"judge scope=%d verdict=%s routine=%.3f difficulty=%.3f ms=%u\n",ticket->scope,judge_verdict,judged.routine,judged.difficulty,judged.latency_ms);
             rc_selection_request req={.registry_version=1,.baseline_alias=g->baseline,.continuity=RC_CONTINUITY_REPLAYABLE,.context_usable=usable&&!s->pinned,.now=now,.context_observed_at=s->observed,.context_expires_at=usable?snapshot.expires_at:0,.task_class=task,.context_tokens=tokens?tokens:1,
                 .signal_class=signal,.escalation_class=escalation};
             rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];bool baseline_permitted=false;

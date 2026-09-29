@@ -49,6 +49,9 @@ typedef struct {
     uint64_t completed_turns; /* physical turns completed in this scope */
 } rc_signal_scope;
 uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope);
+/* True when an EXECUTED failed tool result is inside the inspected window
+ * (rejections excluded). Optional advisors must not downshift such a turn. */
+bool rc_signals_recent_failure(json_t *body);
 /* Error-marker test for one tool result's text (see signals.c). */
 bool rc_signals_failed_text(const char *text, size_t length);
 /* Strict config name <-> bit. Only format_simple, tool_followup_ok and

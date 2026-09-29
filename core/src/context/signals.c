@@ -116,7 +116,8 @@ static bool rejected_call(const char *text, size_t length) {
     for (size_t k=j+1; k+1<length; ++k) if (text[k]=='\n'||text[k]=='['||text[k]==']') return false;
     return true;
 }
-uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {
+static uint64_t classify(json_t *body, const rc_signal_scope *scope, bool *executed_failure) {
+    *executed_failure=false;
     if (!json_is_object(body) || !scope || !scope->completed_turns) return 0;
     json_t *messages=json_object_get(body,"messages");
     size_t n=json_array_size(messages);
@@ -147,10 +148,17 @@ uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {
         if (failed) { failed_any=true; if (running) ++run; }
         else running=false;
     }
+    *executed_failure=failed_any;
     if (!seen || rejected>RC_SIGNALS_MAX_REJECTIONS) return 0;
     if (run>=2) return RC_TASK_RECOVERY;
     if (failed_any) return 0;
     return offered ? RC_TASK_TOOL_FOLLOWUP_OK : RC_TASK_FINAL_ANSWER;
+}
+uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {
+    bool failed; return classify(body,scope,&failed);
+}
+bool rc_signals_recent_failure(json_t *body) {
+    rc_signal_scope one={1}; bool failed; (void)classify(body,&one,&failed); return failed;
 }
 bool rc_task_qualifiable(const char *name, uint64_t *bit) {
     if (!name || !bit) return false;

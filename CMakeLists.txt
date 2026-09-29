@@ -88,7 +88,7 @@ if(ROUTER_DEPS_FOUND)
     target_compile_options(recursant_tools PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(recursant_tools PUBLIC -fsanitize=address,undefined)
   endif()
-  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/providers/adapters.c)
+  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c)
   target_link_libraries(recursant PRIVATE recursant_signals recursant_cost recursant_stream_tools recursant_tools recursant_config recursant_selector recursant_context recursant_attempts recursant_interpreter Threads::Threads PkgConfig::ROUTER_DEPS)
   target_compile_options(recursant PRIVATE -Wall -Wextra -Wpedantic -Werror)
 else()
@@ -227,6 +227,10 @@ if(BUILD_TESTING)
       add_test(NAME gateway_signals_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_signals.py -v)
       set_tests_properties(gateway_signals_integration PROPERTIES TIMEOUT 120
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      add_test(NAME gateway_judge_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_judge.py -v)
+      set_tests_properties(gateway_judge_integration PROPERTIES TIMEOUT 120
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME native_profile_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_native_profile.py -v)
