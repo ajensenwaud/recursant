@@ -28,3 +28,10 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 ## B-pilot-3 (2026-09-29)
 
 - Anders approved US$9.00 / 150 requests. B had 188-15-40=133 physical requests left, so request cap is 133 (never exceeds B). US$9.00 <= B remainder US$9.40. 3 tasks x 3 arms x 2 repeats, seed 7321, fresh journal.
+
+## B-pilot-3 result (2026-09-29)
+
+- Actual spend US$0.944078, 102 requests. Cumulative B: US$1.529222 public, 157/188 requests. Remaining: US$8.46, 31 requests.
+- Arms (6 episodes each): baseline 3/6 pass US$0.4251; routed-structured 3/6 US$0.2628 (-38%); routed-full 4/6 US$0.2561 (-40%).
+- 6 of 18 failures were turn-1 gpt-4.1 text answers without a tool call (2 per arm, before any routing). 1 possible routed quality loss: ledger r1 routed-structured failed after mini turns.
+- Interpreter: zero non-main calls recorded in routed-full; interpreter contribution unverified.
