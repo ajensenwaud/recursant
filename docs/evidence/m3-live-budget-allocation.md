@@ -24,3 +24,7 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - Actual spend US$0.343344 (40 requests = request cap; reserved US$2.7941). Cumulative B public spend: US$0.585144.
 - 5/9 episodes ran; the remaining 4 got zero calls after the 40-request cap (8-turn episodes need up to 72). Not a routing defect.
 - Matched completed pairs (ledger, intervals; structured arm): baseline US$0.1781 2/2 pass vs routed US$0.1165 2/2 pass (-35%). n=2, descriptive only.
+
+## B-pilot-3 (2026-09-29)
+
+- Anders approved US$9.00 / 150 requests. B had 188-15-40=133 physical requests left, so request cap is 133 (never exceeds B). US$9.00 <= B remainder US$9.40. 3 tasks x 3 arms x 2 repeats, seed 7321, fresh journal.
