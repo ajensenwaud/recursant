@@ -7,6 +7,7 @@ that bound. Unknown provider or private-resource cost remains unknown.
 from decimal import Decimal
 import hashlib
 import http.client
+import copy
 import json
 import math
 import os
@@ -117,7 +118,12 @@ def provider_records(raw, content_type):
     if data: raise ValueError('unterminated SSE event')
 
 
-def admission(config, endpoint, body, upstream=None):
+def admission(config, endpoint, body, upstream=None, known=None):
+    """known: optional (messages, prompt_tokens) from this episode's previous
+    provider-reported usage on the SAME upstream/model/tools. When the current
+    messages extend that exact prefix, the context bound is reported prefix
+    tokens + a byte bound of only the NEW messages (bytes >= tokens), instead
+    of bytes of the whole request (Hermes tool schemas are ~5 bytes/token)."""
     allowed={'model','messages','max_tokens','max_completion_tokens','temperature','top_p',
              'stream','stream_options','tools','tool_choice','parallel_tool_calls','response_format',
              'reasoning','reasoning_effort','stop','seed','frequency_penalty','presence_penalty','provider'}
@@ -141,6 +147,13 @@ def admission(config, endpoint, body, upstream=None):
     # Byte-fallback tokenizer upper bound, not actual usage. Allow generous
     # per-message/tool framing plus 4096 fixed tokens. No images/server tools.
     upper=len(json.dumps(body).encode('utf-8'))+4096+128*(len(messages)+len(tools))
+    if known is not None:
+        prior,prompt_tokens=known
+        if (type(prompt_tokens) is int and prompt_tokens>0 and len(messages)>len(prior)
+                and messages[:len(prior)]==prior):
+            fresh=messages[len(prior):]
+            tighter=prompt_tokens+len(json.dumps(fresh).encode('utf-8'))+4096+128*len(fresh)
+            upper=min(upper,tighter)
     if upper+output>config['context_limit']: raise ValueError('conservative context bound exceeded')
     model=body.get('model')
     if endpoint=='private':
@@ -355,6 +368,9 @@ class Egress:
         self.config,self.out,self.task_id,self.arm=config,out,task_id,canonical_arm(arm)
         self.fixture=fixture
         self.calls=[]; self.traces=[]
+        # Reported prompt tokens per (upstream, model, tools), for the tighter
+        # prefix-extension context bound. Only provider-reported, successful calls.
+        self.known={}
         self.budget=budget if budget is not None else {'count':0,'reserved':Decimal('0'),'lock':threading.Lock()}
         self.budget.setdefault('private_lock',threading.Lock())
 
@@ -379,7 +395,8 @@ class Egress:
             if self.fixture:
                 liability=Decimal(str(self.config['liability_usd_per_dispatch']))
             else:
-                try: liability,input_bound=admission(self.config,endpoint,body,upstream_name)
+                key=(upstream_name,body.get('model'),json.dumps(body.get('tools'),sort_keys=True))
+                try: liability,input_bound=admission(self.config,endpoint,body,upstream_name,known=self.known.get(key))
                 except (ValueError,TypeError,KeyError):
                     return 400,b'{"error":"unqualified_model_or_context_or_tool_budget"}','application/json'
             if (self.budget['count']>=self.config['request_cap'] or
@@ -448,6 +465,10 @@ class Egress:
                                 reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
                                 cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
                                 cost_usd=usage.get('cost'))
+            if (not self.fixture and response.status==200 and 'error' not in call
+                    and type(call.get('input_tokens')) is int and call['input_tokens']>0):
+                key=(upstream_name,body.get('model'),json.dumps(body.get('tools'),sort_keys=True))
+                self.known[key]=(copy.deepcopy(body.get('messages') or []),call['input_tokens'])
             return response.status,raw,mime or 'application/json'
         except (OSError,ValueError,http.client.HTTPException) as exc:
             call['error']=type(exc).__name__

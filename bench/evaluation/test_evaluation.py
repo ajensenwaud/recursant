@@ -107,6 +107,26 @@ class LiveProtocolTests(unittest.TestCase):
         finally:
             server.shutdown(); server.server_close(); thread.join()
 
+    def test_admission_prefix_extension_uses_reported_tokens(self):
+        """Pilot-1: ~50KB Hermes requests (~9.3k real tokens) were refused by the
+        byte-only bound after two turns. Reported prefix tokens + new-message bytes."""
+        from bench.evaluation import live
+        config={'context_limit':65536,'upstreams':{}}
+        tools=[{'type':'function','function':{'name':'t%d'%i,'description':'d'*2000,
+                'parameters':{'type':'object','properties':{}}}} for i in range(19)]
+        first=[{'role':'system','content':'s'*6000},{'role':'user','content':'task'}]
+        grown=first+[{'role':'assistant','content':'','tool_calls':[{'id':'c1','type':'function',
+                'function':{'name':'t0','arguments':'{"content":"'+'x'*9000+'"}'}}]},
+                {'role':'tool','tool_call_id':'c1','content':'{"output": "", "exit_code": 0, "error": null}'}]
+        body={'model':'openai/gpt-4.1','max_completion_tokens':4096,'tools':tools,'messages':grown}
+        with self.assertRaises(ValueError): live.admission(config,'public',body)
+        _,bound=live.admission(config,'public',body,known=(first,9300))
+        self.assertLess(bound,9300+len(json.dumps(grown[2:]).encode())+4096+128*2+1)
+        # Not a prefix extension (history rewritten), or unreported usage: byte bound.
+        for known in ((grown[:1]+[{'role':'user','content':'other'}],9300),(first,None),(first,0),(grown,9300)):
+            with self.subTest(known=str(known)[:40]), self.assertRaises(ValueError):
+                live.admission(config,'public',body,known=known)
+
     def test_live_bounds_whitelist_context_and_nonreusable_allocation(self):
         from bench.evaluation import live
         self.assertTrue(hasattr(live,'admission'),'per-model admission absent')
