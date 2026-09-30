@@ -25,7 +25,7 @@ from bench.longhorizon.check import grade, materialise
 
 HERE = Path(__file__).resolve().parent
 TASKS_DIR = HERE / 'tasks'
-SETTINGS = dict(base.SETTINGS, turns=80, output=8192, deadline_s=1500, context=131072, request_cap=120)
+SETTINGS = dict(base.SETTINGS, turns=80, output=4096, deadline_s=1500, context=131072, request_cap=120)
 
 
 def load_tasks():
