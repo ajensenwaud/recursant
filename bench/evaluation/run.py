@@ -77,10 +77,12 @@ def verify(task_id, workspace, out):
                 artifact_sha256=hashlib.sha256(solution.read_bytes()).hexdigest())
 
 
-def run_episode(task, arm, out, settings, *, live_config=None, protocol_fixture=False, budget=None):
+def run_episode(task, arm, out, settings, *, live_config=None, protocol_fixture=False, budget=None,
+                seed_workspace=None, verifier=None, fixture_meter=None):
     out=out.resolve(); out.mkdir(parents=True,exist_ok=False)
     os.chmod(out,0o700)
     workspace=out/'workspace'; workspace.mkdir()
+    if seed_workspace: seed_workspace(workspace)
     trace=out/'trace'; trace.mkdir()
     inputs=out/'input'; inputs.mkdir()
     (workspace/'TASK.md').write_text(task['prompt'])
@@ -93,7 +95,7 @@ def run_episode(task, arm, out, settings, *, live_config=None, protocol_fixture=
         meter=RouteSession(live_config,out,task['id'],arm,fixture=protocol_fixture,budget=budget)
         lifecycle=meter
     else:
-        meter=Meter(mode='fixture',request_cap=settings['request_cap'])
+        meter=fixture_meter() if fixture_meter else Meter(mode='fixture',request_cap=settings['request_cap'])
         lifecycle=nullcontext()
     start=time.monotonic()
     # Short socket pathname avoids AF_UNIX path-length issues; no sibling mount.
@@ -108,6 +110,7 @@ def run_episode(task, arm, out, settings, *, live_config=None, protocol_fixture=
             '--mount',f'type=bind,src={bridge},dst=/bridge,readonly',
             '--mount',f'type=bind,src={HERE / "worker.py"},dst=/runner.py,readonly',
             '--mount',f'type=bind,src={HERE.parents[1] / "deploy/hermes/context_adapter"},dst=/integration/context_adapter,readonly',
+            '--mount',f'type=bind,src={HERE.parents[1] / "deploy/hermes/observer"},dst=/opt/observer,readonly',
             '-e','HERMES_OBSERVER_PATH=/trace/events.jsonl',
             '-e','TERMINAL_ENV=local','-e','TERMINAL_CWD=/workspace',
             '--entrypoint','python',IMAGE,'/runner.py']
@@ -125,7 +128,7 @@ def run_episode(task, arm, out, settings, *, live_config=None, protocol_fixture=
         for line in (trace/'events.jsonl').read_text().splitlines():
             try: events.append(json.loads(line))
             except ValueError: pass
-    verdict=verify(task['id'],workspace,out)
+    verdict=verifier(workspace,out) if verifier else verify(task['id'],workspace,out)
     row=dict(task_id=task['id'],arm=arm,evidence_kind='actual' if live_config and not protocol_fixture else 'fixture',success=verdict['success'],
              verifier=verdict,exit_code=code,harness_completed=result.get('completed'),
              elapsed_seconds=time.monotonic()-start,source=source,
