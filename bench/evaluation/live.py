@@ -190,7 +190,9 @@ def classify_role(arm, endpoint, body):
 
 # Parent-approved allocations: (public US$ ceiling, physical request ceiling).
 # B: original M3 allowance (exhausted). D: Anders 2026-09-29, US$20 final comparison.
-ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200)}
+ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200),
+             # D-lh1: sub-allocation of D's remainder (US$15.79 after the final comparison).
+             'D-lh1':(Decimal('3'),400)}
 
 
 def validate_allocation_limits(config):
