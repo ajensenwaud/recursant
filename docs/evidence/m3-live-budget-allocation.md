@@ -54,3 +54,4 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 
 ## D-lh1 (2026-09-30): long-horizon live timing run
 - Sub-allocation of D remainder (US$15.79): cap US$3.00 / 400 requests, Hermes direct only, 6 synthetic long-horizon tasks x 1. Approved by Anders ("JUST GO").
+- Attempt 1 refused all 6 first requests before egress (runner output bound 8192 > 4096 admission ceiling): 0 requests, US$0. Fixed; rerun under ledger lh1b with the same caps.
