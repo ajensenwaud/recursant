@@ -51,3 +51,6 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 
 - Anders approved US$20 (asked US$25). Cap US$20 public settled to billed cost, 1200 requests. 10 tasks (pack v3) x 3 arms (baseline / signals / signals+Jev 700 ms) x 3 repeats, seed 7321, router 003181c, runner fbc7ae3+. No local GLM. Quality bar frozen before run: routed passes >= baseline passes - 1 over 30.
 - Result: 754 requests, actual US$4.205044. See docs/evidence/m3-final-comparison-d.md. Remaining D: US$15.79.
+
+## D-lh1 (2026-09-30): long-horizon live timing run
+- Sub-allocation of D remainder (US$15.79): cap US$3.00 / 400 requests, Hermes direct only, 6 synthetic long-horizon tasks x 1. Approved by Anders ("JUST GO").
