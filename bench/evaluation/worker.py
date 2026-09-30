@@ -54,6 +54,13 @@ def main():
     shutil.copytree('/opt/observer',home/'plugins/recursant-observer')
     (home/'config.yaml').write_text('plugins:\n  enabled: [recursant-observer]\n  stream_reasoning_deltas: true\n')
     sys.path.insert(0,'/opt/hermes')
+    # One-shot runner: nothing drains Hermes' async completion queue, so background
+    # subagent results would be discarded when the turn ends. Declare the channel
+    # stateless (as `hermes -z` does) so delegate_task runs children synchronously.
+    # Deliberately NOT HERMES_SINGLE_QUERY_SESSION: that also enables no-user command
+    # blocking, which would change harness behaviour versus the recorded baseline.
+    from gateway.session_context import declare_stateless_channel
+    declare_stateless_channel()
     from run_agent import AIAgent
     from agent.plugin_stream_hooks import shutdown_plugin_stream_hook_dispatcher
     server=ThreadingHTTPServer(('127.0.0.1',0),Relay)
