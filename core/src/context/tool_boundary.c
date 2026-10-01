@@ -35,8 +35,8 @@ static bool calls_valid(json_t *v) {
     return true;
 }
 static rc_tool_status history_valid(rc_tool_boundary *b) {
-    json_t *ids[RC_TOOL_MAX_CALLS];
-    bool done[RC_TOOL_MAX_CALLS]={false};
+    json_t *ids[RC_TOOL_MAX_HISTORY_CALLS];
+    bool done[RC_TOOL_MAX_HISTORY_CALLS]={false};
     size_t used=0, start=0, pending=0, n=json_array_size(b->history);
     for (size_t i=0;i<=n;++i) {
         json_t *m=i==n?b->assistant:json_array_get(b->history,i);
@@ -55,7 +55,7 @@ static rc_tool_status history_valid(rc_tool_boundary *b) {
         size_t count=json_array_size(cs);
         b->requirements |= RC_TOOL_CAP_HISTORY | RC_TOOL_CAP_FUNCTIONS;
         if (count>1) b->requirements |= RC_TOOL_CAP_PARALLEL;
-        if (count>RC_TOOL_MAX_CALLS-used) return RC_TOOL_LIMIT;
+        if (count>RC_TOOL_MAX_HISTORY_CALLS-used) return RC_TOOL_LIMIT;
         start=used;
         for (size_t j=0;j<count;++j) {
             json_t *id=json_object_get(json_array_get(cs,j),"id");

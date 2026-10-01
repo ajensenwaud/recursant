@@ -4,9 +4,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define RC_TOOL_MAX_BYTES 32768u
-#define RC_TOOL_MAX_MESSAGES 128u
+/* Sized for real agent sessions (raised 2026-09-30, Anders): the earlier
+ * 32 KiB / 128 messages / 32 tool calls per history pinned a Hermes session
+ * within a few turns (its system prompt alone is ~10 KiB). Still bounded:
+ * every input is parsed and compared once per turn. */
+#define RC_TOOL_MAX_BYTES 4194304u
+#define RC_TOOL_MAX_MESSAGES 4096u
+/* Tool calls in ONE assistant message. */
 #define RC_TOOL_MAX_CALLS 32u
+/* Distinct tool call IDs across the whole history. */
+#define RC_TOOL_MAX_HISTORY_CALLS 1024u
 #define RC_TOOL_MAX_ID_BYTES 128u
 #define RC_TOOL_CAP_HISTORY UINT32_C(1)
 #define RC_TOOL_CAP_FUNCTIONS UINT32_C(2)
@@ -35,7 +42,8 @@ typedef enum {
  * replay them re-serialized); otherwise as exact strings. Never repaired or
  * rewritten; the forwarded request is unchanged. Embedded NULs rejected by parser. IDs are nonempty
  * opaque strings <=128 bytes, not normalized. Bounds apply per input, plus at
- * most 128 messages and 32 distinct tool IDs across the entire history.
+ * most RC_TOOL_MAX_MESSAGES messages, RC_TOOL_MAX_CALLS calls per assistant
+ * message and RC_TOOL_MAX_HISTORY_CALLS distinct tool IDs across the history.
  *
  * capture owns deep parsed snapshots, never borrows input; *out=NULL on failure.
  * RC_TOOL_COMPLETE from capture means snapshot validation succeeded ONLY; it

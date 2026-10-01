@@ -165,6 +165,7 @@ bool rc_task_qualifiable(const char *name, uint64_t *bit) {
     if (!strcmp(name,"format_simple")) { *bit=RC_TASK_FORMAT_SIMPLE; return true; }
     if (!strcmp(name,"tool_followup_ok")) { *bit=RC_TASK_TOOL_FOLLOWUP_OK; return true; }
     if (!strcmp(name,"final_answer")) { *bit=RC_TASK_FINAL_ANSWER; return true; }
+    if (!strcmp(name,"delegated_start")) { *bit=RC_TASK_DELEGATED_START; return true; }
     return false;
 }
 const char *rc_task_name(uint64_t bit) {
@@ -174,6 +175,7 @@ const char *rc_task_name(uint64_t bit) {
     case RC_TASK_TOOL_FOLLOWUP_OK: return "tool_followup_ok";
     case RC_TASK_FINAL_ANSWER: return "final_answer";
     case RC_TASK_RECOVERY: return "recovery";
+    case RC_TASK_DELEGATED_START: return "delegated_start";
     default: return "invalid";
     }
 }

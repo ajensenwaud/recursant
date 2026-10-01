@@ -40,9 +40,13 @@
 #define RC_TASK_TOOL_FOLLOWUP_OK UINT64_C(2)
 #define RC_TASK_FINAL_ANSWER     UINT64_C(4)
 #define RC_TASK_RECOVERY         UINT64_C(8)
+/* First turn of a session another session delegated (a subagent). Never
+ * produced by rc_signals_classify: the gateway sets it from session lineage
+ * (request-stream match or a harness hint). Qualifiable as "delegated_start". */
+#define RC_TASK_DELEGATED_START  UINT64_C(16)
 /* Bounds: requests with more messages return 0; at most WINDOW tool results
  * are inspected, each scanned over its first and last SCAN_BYTES bytes. */
-#define RC_SIGNALS_MAX_MESSAGES 256u
+#define RC_SIGNALS_MAX_MESSAGES 4096u
 #define RC_SIGNALS_WINDOW 3u
 #define RC_SIGNALS_SCAN_BYTES 4096u
 typedef struct {

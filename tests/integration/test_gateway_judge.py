@@ -115,8 +115,12 @@ class GatewayJudgeTests(unittest.TestCase):
             for i, text in enumerate([REJ, REJ, 'alice@example.com ' + REJ], start=1):
                 history.append({'role': 'tool', 'tool_call_id': 'call-%d' % i, 'content': text})
                 sink.envelope = {'message': {'tool_calls': [sig.call(i + 1)]}}
-                self.step(p, sink, scope, i + 1, history, expect_status=403 if '@' in text else 200)
+                # PII turn: the capable private candidate continues the session
+                # (compliance placement, 2026-09-30) instead of a 403.
+                _, model = self.step(p, sink, scope, i + 1, history)
+                if '@' in text: self.assertEqual(model, 'physical')
         self.assertFalse([b for _, b in sink.judge_seen if 'alice@example.com' in json.dumps(b)])
+        self.assertFalse([x for x in sink.seen if 'alice@example.com' in json.dumps(x[2]) and x[2]['model'] != 'physical'])
 
     def test_j6_config_is_strict_and_requires_signals(self):
         bad = [lambda c: c['context']['judge'].update(timeout_ms=10),

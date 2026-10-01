@@ -216,14 +216,14 @@ class NativeProfileTests(unittest.TestCase):
         tools = nested_tools()
         with self.router(lambda c, s: self.setup(c, s, compliance=True)) as (p, sink):
             _, _, models = self.loop(p, sink, tools, 'tool_3', ['ok'], first_user='mail alice@example.com')
-            # Turn 1: final M2 places PII privately. Turn 2: existing M2
-            # owner-conflict rule (automatic baseline vetoed, tool scope may
-            # not be silently retargeted) rejects before egress. Unchanged.
-            self.assertEqual(models, ['physical', None])
+            # Turn 1: M2 places PII privately. Turn 2: the private candidate
+            # declares the profile, so it continues the session (compliance
+            # placement, 2026-09-30; previously an owner-conflict 403).
+            self.assertEqual(models, ['physical', 'physical'])
         with self.router(lambda c, s: self.setup(c, s, compliance=True)) as (p, sink):
             _, _, models = self.loop(p, sink, tools, 'tool_3', ['contact alice@example.com'])
             self.assertEqual(models[0], 'frontier')
-            self.assertEqual(models[1], None)  # public owner conflict: rejected before egress
+            self.assertEqual(models[1], 'physical')  # moved to the capable private candidate
         self.assertFalse([x for x in sink.seen if 'alice@example.com' in json.dumps(x[2]) and x[2]['model'] == 'frontier'])
 
     # Regression: the ACTUAL sanitized Hermes profile (19 tools, ~36.6 KB).

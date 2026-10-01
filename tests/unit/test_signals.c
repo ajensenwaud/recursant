@@ -35,7 +35,11 @@ static void taxonomy(void) {
     CHECK(!strcmp(rc_task_name(RC_TASK_FINAL_ANSWER),"final_answer"));
     CHECK(!strcmp(rc_task_name(RC_TASK_RECOVERY),"recovery"));
     CHECK(!strcmp(rc_task_name(3),"invalid"));
-    CHECK(!strcmp(rc_task_name(16),"invalid"));
+    CHECK(RC_TASK_DELEGATED_START==16);
+    CHECK(rc_task_qualifiable("delegated_start",&bit) && bit==RC_TASK_DELEGATED_START);
+    CHECK(!strcmp(rc_task_name(RC_TASK_DELEGATED_START),"delegated_start"));
+    CHECK(!strcmp(rc_task_name(32),"invalid"));
+    CHECK(!strcmp(rc_task_name(17),"invalid"));
 }
 static void followup_and_final(void) {
     const char *ok="{\"messages\":[" USER("start") "," CALL("c1") "," RESULT("c1","wrote 3 files") "]," TOOLS "}";

@@ -38,6 +38,7 @@ typedef struct {
     pcre2_match_data *md;
     pcre2_match_context *mc;
     size_t nodes,bytes,matches;
+    bool agent;
 } scanner;
 
 bool rc_compliance_init(rc_runtime *r) {
@@ -45,6 +46,7 @@ bool rc_compliance_init(rc_runtime *r) {
     if(r->compliance_policy)return false;
     if(!r->content_scanning)
         fprintf(stderr,"compliance_content_scanning=disabled WARNING: regex/PII text scanning is OFF (temporary operator switch); structural M2 checks remain\n");
+    if(r->agent_text)fprintf(stderr,"compliance_text_mode=agent\n");
     size_t count=json_array_size(r->patterns);
     if(count>MAX_RULES)return false;
     struct rc_compliance_policy *p=calloc(1,sizeof *p);
@@ -74,24 +76,68 @@ void rc_compliance_free(rc_runtime *r) {
 }
 
 static verdict scan(scanner *,json_t *,unsigned);
-static verdict text_scan(scanner *s,const char *text,size_t n,unsigned depth) {
-    if(depth>MAX_DEPTH || n>MAX_SCAN_BYTES-s->bytes || memchr(text,0,n))return UNKNOWN;
-    s->bytes+=n;
+static verdict rules(scanner *s,const char *text,size_t n) {
     for(size_t i=0;i<s->policy->count;i++) {
         if(++s->matches>MAX_MATCHES)return UNKNOWN;
         int rc=pcre2_match(s->policy->rules[i],(PCRE2_SPTR)text,n,0,0,s->md,s->mc);
         if(rc>=0)return PATTERN;
         if(rc!=PCRE2_ERROR_NOMATCH)return REGEX_ERROR;
     }
+    return CLEAN;
+}
+/* "data:" <up to 128 non-space, non-comma bytes> ";base64," is embedded encoded
+ * media no text rule can inspect. A bare "data:" (prose, type annotations) is
+ * ordinary text. */
+static bool base64_data_uri(const char *text) {
+    for(const char *p=text;(p=strstr(p,"data:"));p+=5) {
+        const char *q=p+5;
+        for(size_t k=0;k<128 && *q && *q!=',' && !isspace((unsigned char)*q);k++,q++)
+            if(!strncmp(q,";base64,",8))return true;
+    }
+    return false;
+}
+static int hex(unsigned char c){return c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:c>='A'&&c<='F'?c-'A'+10:-1;}
+/* Agent mode: text that looks like JSON but does not parse (truncated tool
+ * output) was already matched raw. Decode its JSON string escapes once and
+ * match again so an escaped value cannot hide from a rule. Output never grows. */
+static verdict escaped_rules(scanner *s,const char *text,size_t n) {
+    if(!memchr(text,'\\',n))return CLEAN;
+    if(n>MAX_SCAN_BYTES-s->bytes)return UNKNOWN;
+    char *out=malloc(n+1);if(!out)return UNKNOWN;
+    s->bytes+=n;size_t o=0;
+    for(size_t i=0;i<n;i++) {
+        unsigned char c=(unsigned char)text[i];
+        if(c!='\\' || i+1==n){out[o++]=(char)c;continue;}
+        unsigned char e=(unsigned char)text[++i];
+        int a,b,d,f;
+        if(e=='u' && i+4<n && (a=hex((unsigned char)text[i+1]))>=0 && (b=hex((unsigned char)text[i+2]))>=0 &&
+           (d=hex((unsigned char)text[i+3]))>=0 && (f=hex((unsigned char)text[i+4]))>=0) {
+            unsigned cp=(unsigned)(a<<12|b<<8|d<<4|f);i+=4;
+            /* Rules are byte patterns; surrogates and NUL become a separator. */
+            if(!cp || (cp>=0xD800&&cp<=0xDFFF))out[o++]=' ';
+            else if(cp<0x80)out[o++]=(char)cp;
+            else if(cp<0x800){out[o++]=(char)(0xC0|cp>>6);out[o++]=(char)(0x80|(cp&0x3F));}
+            else {out[o++]=(char)(0xE0|cp>>12);out[o++]=(char)(0x80|((cp>>6)&0x3F));out[o++]=(char)(0x80|(cp&0x3F));}
+        }
+        else out[o++]=e=='n'||e=='r'||e=='t'||e=='b'||e=='f'?' ':(char)e;
+    }
+    verdict result=rules(s,out,o);free(out);return result;
+}
+static verdict text_scan(scanner *s,const char *text,size_t n,unsigned depth) {
+    if(depth>MAX_DEPTH || n>MAX_SCAN_BYTES-s->bytes || memchr(text,0,n))return UNKNOWN;
+    s->bytes+=n;
+    verdict matched=rules(s,text,n);if(matched!=CLEAN)return matched;
     /* Unsupported remote/encoded media: never fetch or classify remotely. */
-    if(strstr(text,"http://") || strstr(text,"https://") || strstr(text,"data:") || strstr(text,"file://"))return UNKNOWN;
+    if(s->agent){if(base64_data_uri(text))return UNKNOWN;}
+    else if(strstr(text,"http://") || strstr(text,"https://") || strstr(text,"data:") || strstr(text,"file://"))return UNKNOWN;
     size_t i=0;while(i<n && isspace((unsigned char)text[i]))i++;
     if(i<n && (text[i]=='{' || text[i]=='[' || text[i]=='\"')) {
         json_error_t error;json_t *nested=json_loadb(text,n,JSON_REJECT_DUPLICATES|JSON_DECODE_ANY,&error);
-        if(!nested)return UNKNOWN;
+        if(!nested)return s->agent?escaped_rules(s,text,n):UNKNOWN;
         verdict result=scan(s,nested,depth+1);json_decref(nested);return result;
     }
-    return CLEAN;
+    /* Escaped text outside JSON (logs, source code) gets the same second pass. */
+    return s->agent?escaped_rules(s,text,n):CLEAN;
 }
 static verdict scan(scanner *s,json_t *v,unsigned depth) {
     if(depth>MAX_DEPTH || ++s->nodes>MAX_NODES)return UNKNOWN;
@@ -192,7 +238,7 @@ static verdict classify(const rc_runtime *r,json_t *body,const char *controls) {
     if(!r->content_scanning)return inspectable(body,controls)?UNSCANNED:UNKNOWN;
     budget memory={.limit=PCRE_BUDGET};
     pcre2_general_context *gc=pcre2_general_context_create(bounded_alloc,bounded_free,&memory);
-    scanner s={.policy=r->compliance_policy};
+    scanner s={.policy=r->compliance_policy,.agent=r->agent_text};
     s.md=gc?pcre2_match_data_create(1,gc):NULL;
     s.mc=gc?pcre2_match_context_create(gc):NULL;
     verdict result=REGEX_ERROR;

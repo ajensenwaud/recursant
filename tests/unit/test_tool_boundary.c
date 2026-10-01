@@ -147,10 +147,35 @@ static void edge_tests(void) {
     assert(replay_json(b,h)==RC_TOOL_COMPLETE);
     assert(rc_tool_boundary_replay(b,"[]",RC_TOOL_MAX_BYTES+1)==RC_TOOL_LIMIT);
     assert(rc_tool_boundary_replay(b,NULL,0)==RC_TOOL_INVALID);
+    /* A full assistant message of calls no longer exhausts the history: the
+     * per-history bound is RC_TOOL_MAX_HISTORY_CALLS distinct IDs. */
     char *hs=json_dumps(h,JSON_COMPACT);
     rc_tool_boundary *next=NULL;
+    assert(rc_tool_boundary_capture(hs,strlen(hs),assistant,strlen(assistant),&next)==RC_TOOL_COMPLETE);
+    rc_tool_boundary_free(next); next=NULL; free(hs);
+    json_t *long_history=json_deep_copy(h); size_t ids=RC_TOOL_MAX_CALLS;
+    for (size_t block=1; ids<RC_TOOL_MAX_HISTORY_CALLS; ++block) {
+        json_t *more=json_deep_copy(a), *calls=json_object_get(more,"tool_calls");
+        for (size_t i=0;i<RC_TOOL_MAX_CALLS;++i) {
+            char num[32]; snprintf(num,sizeof num,"b%zu-%zu",block,i);
+            json_object_set_new(json_array_get(calls,i),"id",json_string(num));
+        }
+        if (ids+RC_TOOL_MAX_CALLS==RC_TOOL_MAX_HISTORY_CALLS) {
+            /* One block short of the bound is still accepted. */
+            hs=json_dumps(long_history,JSON_COMPACT);
+            assert(rc_tool_boundary_capture(hs,strlen(hs),assistant,strlen(assistant),&next)==RC_TOOL_COMPLETE);
+            rc_tool_boundary_free(next); next=NULL; free(hs);
+        }
+        json_array_append_new(long_history,more);
+        for (size_t i=0;i<RC_TOOL_MAX_CALLS;++i) {
+            char num[32]; snprintf(num,sizeof num,"b%zu-%zu",block,i);
+            json_array_append_new(long_history,json_pack("{s:s,s:s,s:s}","role","tool","tool_call_id",num,"content",""));
+        }
+        ids+=RC_TOOL_MAX_CALLS;
+    }
+    hs=json_dumps(long_history,JSON_COMPACT);
     assert(rc_tool_boundary_capture(hs,strlen(hs),assistant,strlen(assistant),&next)==RC_TOOL_LIMIT);
-    assert(!next); free(hs); free(as); rc_tool_boundary_free(b);
+    assert(!next); free(hs); json_decref(long_history); free(as); rc_tool_boundary_free(b);
     json_array_append(cs,first); rejected(h,a);
     json_decref(a); json_decref(h);
 

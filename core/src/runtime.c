@@ -195,10 +195,13 @@ bool rc_runtime_load(const char *path,bool test,rc_runtime *r,char *err,size_t n
     r->request_timeout_seconds=(unsigned)num;
     o=json_object_get(root,"compliance");
     r->content_scanning=true;
-    if(o){if(!keys(o,"|enabled||public_allowed||patterns||content_scanning|"))goto bad;
+    if(o){if(!keys(o,"|enabled||public_allowed||patterns||content_scanning||text_mode|"))goto bad;
         v=json_object_get(o,"enabled");if(v&&!json_is_boolean(v))goto bad;r->compliance_enabled=json_is_true(v);
         v=json_object_get(o,"public_allowed");if(v&&!json_is_boolean(v))goto bad;r->public_allowed=json_is_true(v);
         v=json_object_get(o,"content_scanning");if(v&&!json_is_boolean(v))goto bad;if(v)r->content_scanning=json_is_true(v);
+        v=json_object_get(o,"text_mode");
+        if(v&&!eq_text(o,"text_mode","strict")&&!eq_text(o,"text_mode","agent"))goto bad;
+        r->agent_text=v&&eq_text(o,"text_mode","agent");
         v=json_object_get(o,"patterns");if(v&&!json_is_array(v))goto bad;
         if(v){for(size_t i=0;i<json_array_size(v);i++)if(!json_is_string(json_array_get(v,i)))goto bad;r->patterns=json_incref(v);}
     }

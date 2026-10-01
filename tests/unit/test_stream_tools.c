@@ -114,8 +114,9 @@ static void limits(void) {
     assert(!rc_stream_tools_feed(s, v)); assert(rc_stream_tools_failed(s));
     assert(!rc_stream_tools_complete(s)); rc_stream_tools_free(s); json_decref(v);
     /* Escaping expansion must count against the compact snapshot limit. */
-    memset(text, '\n', 17000);
-    big = json_stringn(text, 17000); assert(big);
+    size_t newlines = RC_STREAM_TOOLS_MAX_BYTES / 2 + 1000;   /* two bytes each once escaped */
+    memset(text, '\n', newlines);
+    big = json_stringn(text, newlines); assert(big);
     v = full_call(0, "i", "n", big); json_decref(big);
     s = rc_stream_tools_new(); assert(s);
     assert(rc_stream_tools_feed(s, v)); assert(!rc_stream_tools_complete(s));

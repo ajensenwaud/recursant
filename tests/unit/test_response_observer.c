@@ -1,4 +1,5 @@
 #include "recursant/response_observer.h"
+#include "recursant/stream_tools.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,7 +20,7 @@ static void reject_metadata(void) {
         feed(o,data);feed(o,last);
         json_t *m=rc_response_observer_message(o);
         if(m)fprintf(stderr,"accepted malformed/opaque metadata: %s\n",bad[i]);
-        assert(!m);free(o);
+        assert(!m);rc_response_observer_release(o);free(o);
     }
 }
 static void every_split(void) {
@@ -28,14 +29,14 @@ static void every_split(void) {
         rc_response_observer *o=calloc(1,sizeof *o);assert(o);
         rc_response_observer_feed(o,wire,split);rc_response_observer_feed(o,wire+split,strlen(wire)-split);
         json_t *m=rc_response_observer_message(o);assert(m);
-        assert(!strcmp(json_string_value(json_object_get(m,"content")),"café 🦀"));json_decref(m);free(o);
+        assert(!strcmp(json_string_value(json_object_get(m,"content")),"café 🦀"));json_decref(m);rc_response_observer_release(o);free(o);
     }
     rc_response_observer *o=calloc(1,sizeof *o);assert(o);
     for(size_t i=0;i<strlen(wire);i++){
         rc_response_observer_feed(o,wire+i,1);
         if(i+1<strlen(wire))assert(!rc_response_observer_message(o));
     }
-    json_t *m=rc_response_observer_message(o);assert(m);json_decref(m);free(o);
+    json_t *m=rc_response_observer_message(o);assert(m);json_decref(m);rc_response_observer_release(o);free(o);
 }
 static void mixed_identity(void) {
     const char *names[]={"id","model","created"};
@@ -46,7 +47,7 @@ static void mixed_identity(void) {
         snprintf(data,sizeof data,"data: {\"%s\":%s,\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",names[i],i==2?"2":"\"two\"");feed(o,data);
         json_t *m=rc_response_observer_message(o);
         if(m)fprintf(stderr,"accepted mixed generation %s\n",names[i]);
-        assert(!m);free(o);
+        assert(!m);rc_response_observer_release(o);free(o);
     }
 }
 static void line_bound(void) {
@@ -54,7 +55,7 @@ static void line_bound(void) {
      * whole-stream wire bound is larger. */
     rc_response_observer *o=calloc(1,sizeof *o);assert(o);
     char *big=malloc(RC_RESPONSE_LIMIT+2);assert(big);memset(big,'x',RC_RESPONSE_LIMIT+1);big[0]=':';big[RC_RESPONSE_LIMIT+1]='\n';
-    rc_response_observer_feed(o,big,RC_RESPONSE_LIMIT+2);assert(o->failed);free(big);free(o);
+    rc_response_observer_feed(o,big,RC_RESPONSE_LIMIT+2);assert(o->failed);free(big);rc_response_observer_release(o);free(o);
 }
 static void framing_and_bounds(void) {
     const char *wire=": keepalive\r\ndata: {\"choices\":\r\ndata: [{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"café 🦀\"},\"finish_reason\":\"stop\"}]}\r\n\r\ndata: [DONE]\r\n\r\n";
@@ -62,7 +63,7 @@ static void framing_and_bounds(void) {
     for(size_t i=0;i<strlen(wire);i++)rc_response_observer_feed(o,wire+i,1);
     json_t *m=rc_response_observer_message(o);assert(m);
     assert(!strcmp(json_string_value(json_object_get(m,"content")),"café 🦀"));json_decref(m);
-    memset(o,0,sizeof *o);
+    rc_response_observer_release(o);memset(o,0,sizeof *o);
     char *full=malloc(RC_RESPONSE_WIRE_LIMIT);assert(full);
     size_t pad=RC_RESPONSE_WIRE_LIMIT-strlen(first)-strlen(last);
     /* Wire bound filled with many bounded comment lines (each line <=64KiB). */
@@ -72,12 +73,12 @@ static void framing_and_bounds(void) {
     rc_response_observer_feed(o,full,RC_RESPONSE_WIRE_LIMIT);
     m=rc_response_observer_message(o);assert(m);json_decref(m);
     feed(o,"\n");assert(!rc_response_observer_message(o));feed(o,first);feed(o,last);assert(!rc_response_observer_message(o));
-    free(full);free(o);
+    free(full);rc_response_observer_release(o);free(o);
 }
 static void invalid_comment_utf8(void) {
     rc_response_observer *o=calloc(1,sizeof *o);assert(o);
     feed(o,": invalid \xff\n\n");feed(o,first);feed(o,last);
-    assert(!rc_response_observer_message(o));free(o);
+    assert(!rc_response_observer_message(o));rc_response_observer_release(o);free(o);
 }
 /* Synthetic values, observed OpenRouter shape; not a captured wire fixture. */
 static const char *or_first=
@@ -95,7 +96,7 @@ static void openrouter_metadata(void) {
     feed(o,or_first);feed(o,or_stop);feed(o,"data: [DONE]\n\n");
     json_t *m=rc_response_observer_message(o);assert(m);
     assert(!strcmp(json_string_value(json_object_get(m,"content")),"fixture café"));
-    json_decref(m);free(o);
+    json_decref(m);rc_response_observer_release(o);free(o);
 }
 static const char *or_usage=
     "{\"prompt_tokens\":7,\"completion_tokens\":3,\"total_tokens\":10,"
@@ -124,7 +125,7 @@ static void openrouter_usage_tail(void) {
         rc_response_observer_feed(o,wire,split);rc_response_observer_feed(o,wire+split,(size_t)n-split);
         json_t *m=rc_response_observer_message(o);assert(m);
         assert(!strcmp(json_string_value(json_object_get(m,"content")),"fixture café"));
-        json_decref(m);free(o);
+        json_decref(m);rc_response_observer_release(o);free(o);
     }
     free(s);json_decref(tail);
 }
@@ -174,7 +175,7 @@ static void reject_openrouter_metadata(void) {
         feed(o,or_first);feed(o,or_stop);feed_json(o,tail);feed(o,"data: [DONE]\n\n");
         json_t *m=rc_response_observer_message(o);
         if(m)fprintf(stderr,"accepted %s.%s=%s\n",bad[i].where,bad[i].key,bad[i].value);
-        assert(!m);free(o);json_decref(tail);
+        assert(!m);rc_response_observer_release(o);free(o);json_decref(tail);
     }
 }
 static void terminal_guards(void) {
@@ -192,7 +193,7 @@ static void terminal_guards(void) {
         case 6: json_object_del(tail,"usage");feed_json(o,tail);feed(o,"data: [DONE]\n\n");break;
         case 7: json_object_set_new(tail,"usage",json_null());feed_json(o,tail);feed(o,"data: [DONE]\n\n");break;
         case 8: { /* native completion cannot precede normalized completion */
-            memset(o,0,sizeof *o);
+            rc_response_observer_release(o);memset(o,0,sizeof *o);
             json_t *choice=json_array_get(json_object_get(tail,"choices"),0);
             json_object_set_new(choice,"finish_reason",json_null());
             feed_json(o,tail);feed(o,or_stop);feed(o,"data: [DONE]\n\n");break;
@@ -209,7 +210,7 @@ static void terminal_guards(void) {
             json_object_set_new(tail,"choices",json_array());feed_json(o,tail);
             feed(o,or_stop);feed(o,"data: [DONE]\n\n");break;
         }
-        assert(!rc_response_observer_message(o));free(o);json_decref(tail);
+        assert(!rc_response_observer_message(o));rc_response_observer_release(o);free(o);json_decref(tail);
     }
     const char *bad_numbers[]={"1e9999","-1e9999","NaN","Infinity"};
     for(size_t i=0;i<sizeof bad_numbers/sizeof *bad_numbers;i++){
@@ -222,7 +223,7 @@ static void terminal_guards(void) {
             snprintf(b,sizeof b,"data: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3,\"total_tokens\":10,%s\"%s\":%s%s}}\n\n",
                      j?"\"cost_details\":{":"",cost_names[j],bad_numbers[i],j?"}":"");
             feed(o,or_first);feed(o,or_stop);feed(o,b);feed(o,"data: [DONE]\n\n");
-            assert(!rc_response_observer_message(o));free(o);
+            assert(!rc_response_observer_message(o));rc_response_observer_release(o);free(o);
         }
     }
 }
@@ -247,7 +248,7 @@ static void optional_metadata(void) {
             json_object_set_new(json_object_get(u,"completion_tokens_details"),"image_tokens",json_integer(2));
         }
         feed(o,or_first);feed(o,or_stop);feed_json(o,tail);feed(o,"data: [DONE]\n\n");
-        json_t *m=rc_response_observer_message(o);assert(m);json_decref(m);free(o);json_decref(tail);
+        json_t *m=rc_response_observer_message(o);assert(m);json_decref(m);rc_response_observer_release(o);free(o);json_decref(tail);
     }
 }
 /* Optional private-wire replay: expected-text file.sse [file.sse ...].
@@ -262,7 +263,7 @@ static void replay(const char *path,const char *expected) {
         rc_response_observer_feed(o,wire,split);rc_response_observer_feed(o,wire+split,n-split);
         json_t *m=rc_response_observer_message(o);assert(m&&!o->failed);
         assert(!strcmp(json_string_value(json_object_get(m,"content")),expected));
-        json_decref(m);free(o);
+        json_decref(m);rc_response_observer_release(o);free(o);
     }
     for(size_t fragment=1;fragment<=37;fragment+=36){
         rc_response_observer *o=calloc(1,sizeof *o);assert(o);
@@ -272,7 +273,7 @@ static void replay(const char *path,const char *expected) {
         }
         json_t *m=rc_response_observer_message(o);assert(m&&!o->failed);
         assert(!strcmp(json_string_value(json_object_get(m,"content")),expected));
-        json_decref(m);free(o);
+        json_decref(m);rc_response_observer_release(o);free(o);
     }
     free(wire);printf("private wire replay passed (%zu bytes; every split, 1/37-byte fragments)\n",n);
 }
@@ -299,7 +300,7 @@ static void tool_terminal_contract(void) {
         feed(o,"data: [DONE]\n\n");
         json_t *m=rc_response_observer_message(o);assert(m);
         assert(!strcmp(json_string_value(json_object_get(m,"content")),mode==2||mode==4?"café 🦀":""));
-        json_decref(m);json_decref(v);free(o);
+        json_decref(m);json_decref(v);rc_response_observer_release(o);free(o);
     }
 }
 /* Exact shape recorded from live OpenRouter openai/gpt-4.1 (pilot-1, 2026-09-29):
@@ -321,7 +322,7 @@ static void openrouter_real_tool_finish(void) {
         json_t *m=rc_response_observer_message(o);assert(m);
         const char *args=json_string_value(json_object_get(json_object_get(json_array_get(json_object_get(m,"tool_calls"),0),"function"),"arguments"));
         assert(strlen(args)==strlen("{\"content\":\"\"}")+3000);
-        json_decref(m);free(o);
+        json_decref(m);rc_response_observer_release(o);free(o);
     }
     const char *base="{\"id\":\"gen-1\",\"object\":\"chat.completion.chunk\",\"created\":7,\"model\":\"openai/gpt-4.1\",\"provider\":\"OpenAI\",";
     char buf[1024];
@@ -335,13 +336,13 @@ static void openrouter_real_tool_finish(void) {
     json_t *call=json_array_get(json_object_get(m,"tool_calls"),0);
     assert(!strcmp(json_string_value(json_object_get(json_object_get(call,"function"),"arguments")),"{\"path\": \"a\"}"));
     assert(!strcmp(json_string_value(json_object_get(m,"content")),""));
-    json_decref(m);free(o);
+    json_decref(m);rc_response_observer_release(o);free(o);
     /* Terminal/tail native mismatch still fails closed. */
     o=calloc(1,sizeof *o);assert(o);
     snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"completed\"}]}\n\n",base);feed(o,buf);
     snprintf(buf,sizeof buf,"data: %s\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"tool_calls\"}],\"usage\":%s}\n\n",base,or_usage);feed(o,buf);
     feed(o,"data: [DONE]\n\n");
-    assert(!rc_response_observer_message(o));free(o);
+    assert(!rc_response_observer_message(o));rc_response_observer_release(o);free(o);
 }
 static void tool_guards(void) {
     for(int mode=0;mode<24;mode++){
@@ -382,7 +383,7 @@ static void tool_guards(void) {
         if(mode!=21)feed(o,"data: [DONE]\n\n");
         if(mode==22)feed(o,"data: [DONE]\n\n");
         if(mode==23)feed_json(o,v);
-        assert(!rc_response_observer_message(o));json_decref(v);free(o);
+        assert(!rc_response_observer_message(o));json_decref(v);rc_response_observer_release(o);free(o);
     }
 }
 static void tool_message_and_wire_bounds(void) {
@@ -393,10 +394,22 @@ static void tool_message_and_wire_bounds(void) {
         feed_json(o,v);feed(o,"data: [DONE]\n\n");
         json_t *m=rc_response_observer_message(o);assert(m);
         char *encoded=json_dumps(m,JSON_COMPACT);assert(encoded);
-        size_t n=32768-strlen(encoded)+2+(size_t)overflow;
-        char *args=malloc(n+1);assert(args);memset(args,'x',n);args[n]=0;
-        json_object_set_new(fn,"arguments",json_string(args));free(args);free(encoded);json_decref(m);
-        memset(o,0,sizeof *o);feed_json(o,v);feed(o,"data: [DONE]\n\n");
+        /* Arguments arrive as many deltas (one SSE event stays <=64KiB): the
+         * opening event, fragments, then the finishing event. */
+        size_t n=RC_STREAM_TOOLS_MAX_BYTES-strlen(encoded)+(size_t)overflow;
+        free(encoded);json_decref(m);(void)fn;
+        rc_response_observer_release(o);memset(o,0,sizeof *o);
+        json_object_set_new(c,"finish_reason",json_null());json_object_del(c,"native_finish_reason");
+        feed_json(o,v);
+        char piece[16385];memset(piece,'x',sizeof piece-1);
+        for(size_t sent=0;sent<n;){
+            size_t take=n-sent<sizeof piece-1?n-sent:sizeof piece-1;
+            json_t *d=json_pack("{s:[{s:i,s:{s:[{s:i,s:{s:s#}}]},s:n}]}","choices","index",0,"delta","tool_calls",
+                                "index",0,"function","arguments",piece,(int)take,"finish_reason");
+            assert(d);feed_json(o,d);json_decref(d);sent+=take;
+        }
+        feed(o,"data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"tool_calls\"}]}\n\n");
+        feed(o,"data: [DONE]\n\n");
         assert(o->total<RC_RESPONSE_WIRE_LIMIT);
         m=rc_response_observer_message(o);assert((m!=NULL)==!overflow);json_decref(m);
         if(!overflow){
@@ -408,7 +421,7 @@ static void tool_message_and_wire_bounds(void) {
             m=rc_response_observer_message(o);assert(m);json_decref(m);
             feed(o,"\n");assert(!rc_response_observer_message(o));
         }
-        json_decref(v);free(o);
+        json_decref(v);rc_response_observer_release(o);free(o);
     }
 }
 static void streamed_tools(void) {
@@ -424,7 +437,7 @@ static void streamed_tools(void) {
         assert(!json_object_get(call,"index"));
         assert(!strcmp(json_string_value(json_object_get(call,"id")),"call-1"));
         assert(!strcmp(json_string_value(json_object_get(json_object_get(call,"function"),"arguments")),"{}"));
-        json_decref(m);free(o);
+        json_decref(m);rc_response_observer_release(o);free(o);
     }
 }
 /* S2b: the observer knows which provider adapter produced the stream. Plain
@@ -433,7 +446,7 @@ static void streamed_tools(void) {
 static json_t *observe(bool strict,const char *wire){
     rc_response_observer *o=calloc(1,sizeof *o);assert(o);
     o->strict_openai=strict;feed(o,wire);
-    json_t *m=rc_response_observer_message(o);free(o);return m;
+    json_t *m=rc_response_observer_message(o);rc_response_observer_release(o);free(o);return m;
 }
 static void adapter_dialects(void) {
     const char *plain_usage="data: {\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":4,\"total_tokens\":7,"
@@ -505,7 +518,7 @@ static void usage_capture(void) {
         if(mode==0){assert(m&&o->usage_known&&o->usage_prompt==100&&o->usage_completion==7&&o->usage_cached==90);}
         if(mode==1){assert(m&&!o->usage_known);}
         if(mode>=2){assert(!m);}
-        json_decref(m);free(o);
+        json_decref(m);rc_response_observer_release(o);free(o);
     }
 }
 int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}

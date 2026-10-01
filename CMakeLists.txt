@@ -228,6 +228,10 @@ if(BUILD_TESTING)
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_signals.py -v)
       set_tests_properties(gateway_signals_integration PROPERTIES TIMEOUT 120
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      add_test(NAME gateway_sessions_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_sessions.py -v)
+      set_tests_properties(gateway_sessions_integration PROPERTIES TIMEOUT 180
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME gateway_judge_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_judge.py -v)
       set_tests_properties(gateway_judge_integration PROPERTIES TIMEOUT 120

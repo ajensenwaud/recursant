@@ -156,6 +156,65 @@ class ComplianceTests(unittest.TestCase):
                                        env={**os.environ, 'RC_TEST_AUTH': 'k'}, capture_output=True)
                     self.assertNotEqual(r.returncode, 0)
 
+    def test_text_mode_agent_keeps_patterns_and_drops_marker_heuristics(self):
+        """compliance.text_mode "agent" (Anders, 2026-09-30): agent prompts and tool
+        results routinely hold URLs, the substring "data:" and truncated JSON.
+        Those stop forcing private placement; every pattern rule still runs."""
+        agent = lambda c, *_: c['compliance'].update(text_mode='agent', patterns=['ACCOUNT-[0-9]{4,}'])
+        public_text = ['see https://example.test/docs and http://example.test', 'def decode(data: bytes) -> list',
+                       'open file:///workspace/notes.txt', '{"error": "notify only applies to backgrou',
+                       '[1, 2, truncated', 'path C:\\temp\\new and tab\\t', 'a data:text/plain,hello literal']
+        private_text = ['synthetic@example.test', 'ACCOUNT-12345',
+                        'img data:image/png;base64,iVBORw0KGgo=', 'data:;base64,QUJD',
+                        '{"email": "synthetic\\u0040example.test", "truncated',
+                        'log line user=synthetic\\u0040example.test done',
+                        '{"id": "ACCOUNT\\u002d12345"', '{"nested": "{\\"e\\": \\"synthetic@example.test\\"}"}']
+        with self.router(agent) as (p, private, public):
+            for content in public_text:
+                with self.subTest(public=content):
+                    before = len(public.seen)
+                    for body in ({'model': 'alias', 'messages': [{'role': 'user', 'content': content}]},
+                                 {'model': 'alias', 'messages': [{'role': 'tool', 'tool_call_id': 'c', 'content': content}]},
+                                 {'model': 'alias', 'messages': [], 'tools': [{'type': 'function', 'function': {'name': 'f', 'description': content}}]}):
+                        self.assertEqual(self.request(p, body=body)[0], 200)
+                        self.assertEqual(public.seen[-1]['model'], 'public-model')
+                    self.assertEqual(len(public.seen), before + 3)
+            self.assertEqual(private.seen, [])
+            for content in private_text:
+                with self.subTest(private=content):
+                    public_before = len(public.seen)
+                    self.assertEqual(self.request(p, body={'model': 'alias', 'messages': [{'role': 'tool', 'tool_call_id': 'c', 'content': content}]})[0], 200)
+                    self.assertEqual(private.seen[-1]['model'], 'private-model')
+                    self.assertEqual(len(public.seen), public_before)
+            # Structure is unchanged: non-text parts and unknown fields stay private.
+            for extra in ({'messages': [{'role': 'user', 'content': [{'type': 'image_url', 'image_url': {'url': 'https://x.test/i'}}]}]},
+                          {'messages': [], 'unrecognized_extension': 'clean'}):
+                public_before = len(public.seen)
+                self.assertEqual(self.request(p, body={'model': 'alias', **extra})[0], 200)
+                self.assertEqual(len(public.seen), public_before)
+        self.assertIn(b'compliance_text_mode=agent', self.last_stderr)
+        self.assertNotIn(b'synthetic', self.last_stderr)
+        # Default and explicit strict are unchanged.
+        for edit in (None, lambda c, *_: c['compliance'].update(text_mode='strict')):
+            with self.router(edit) as (p, private, public):
+                for content in ('see https://example.test', 'def decode(data: bytes)', '{malformed json'):
+                    self.private_only(p, private, public, {'model': 'alias', 'messages': [{'role': 'user', 'content': content}]})
+            self.assertNotIn(b'compliance_text_mode=agent', self.last_stderr)
+
+    def test_text_mode_is_a_strict_enum(self):
+        for value in ('Agent', 'relaxed', '', True, None, 1, ['agent']):
+            with self.subTest(value=value):
+                with tempfile.TemporaryDirectory() as tmp:
+                    cfg = {'listen': {'host': '127.0.0.1', 'port': 12345},
+                           'private': {'url': 'http://127.0.0.1:1/v1', 'model': 'private-model'},
+                           'auth': {'api_key_env': 'RC_TEST_AUTH'},
+                           'aliases': [{'from': 'alias', 'endpoint': 'private', 'model': 'private-model'}],
+                           'compliance': {'enabled': True, 'text_mode': value}}
+                    path = pathlib.Path(tmp) / 'c.json'; path.write_text(json.dumps(cfg))
+                    r = subprocess.run([str(BIN), 'validate', str(path), '--test-mode'],
+                                       env={**os.environ, 'RC_TEST_AUTH': 'k'}, capture_output=True)
+                    self.assertNotEqual(r.returncode, 0)
+
     def test_01_email_public_alias_is_private_only(self):
         with self.router() as (p, private, public):
             self.private_only(p, private, public, {'model': 'alias', 'messages': [{'role': 'user', 'content': 'synthetic@example.test'}]})

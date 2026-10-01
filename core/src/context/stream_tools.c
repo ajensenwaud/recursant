@@ -1,14 +1,19 @@
 #include "recursant/stream_tools.h"
 #include <string.h>
 
+/* Names and arguments arrive as many small fragments: they accumulate in a
+ * doubling buffer (amortised linear), not by rebuilding a JSON string each time. */
+struct fragment { char *data; size_t used, capacity; bool present; };
 struct stream_call {
-    json_t *id, *name, *arguments;
+    json_t *id;
+    struct fragment name, arguments;
     bool present, type;
 };
 struct rc_stream_tools {
     struct stream_call calls[RC_STREAM_TOOLS_MAX_CALLS];
     size_t count, bytes;
     bool failed, finalized;
+    json_malloc_t alloc;
     json_free_t release;
 };
 static bool fail(rc_stream_tools *s) {
@@ -22,6 +27,7 @@ rc_stream_tools *rc_stream_tools_new(void) {
     rc_stream_tools *s = alloc(sizeof(*s));
     if (s) {
         memset(s, 0, sizeof(*s));
+        s->alloc = alloc;
         s->release = release;
     }
     return s;
@@ -30,26 +36,36 @@ void rc_stream_tools_free(rc_stream_tools *s) {
     if (!s) return;
     for (size_t i = 0; i < RC_STREAM_TOOLS_MAX_CALLS; ++i) {
         json_decref(s->calls[i].id);
-        json_decref(s->calls[i].name);
-        json_decref(s->calls[i].arguments);
+        if (s->calls[i].name.data) s->release(s->calls[i].name.data);
+        if (s->calls[i].arguments.data) s->release(s->calls[i].arguments.data);
     }
     s->release(s);
 }
 bool rc_stream_tools_failed(const rc_stream_tools *s) {
     return !s || s->failed;
 }
-static bool append(rc_stream_tools *s, json_t **dest, json_t *fragment) {
+static bool append(rc_stream_tools *s, struct fragment *dest, json_t *fragment) {
     if (!json_is_string(fragment)) return fail(s);
-    size_t n = json_string_length(fragment), old = json_string_length(*dest);
+    size_t n = json_string_length(fragment);
     if (n > RC_STREAM_TOOLS_MAX_BYTES - s->bytes) return fail(s);
-    /* Fixed bounded scratch space; json_stringn validates decoded UTF-8. */
-    char text[RC_STREAM_TOOLS_MAX_BYTES];
-    if (old) memcpy(text, json_string_value(*dest), old);
-    if (n) memcpy(text + old, json_string_value(fragment), n);
-    json_t *v = json_stringn(text, old + n);
-    if (!v) return fail(s);
-    json_decref(*dest);
-    *dest = v;
+    /* Programmatic callers can hand over unchecked strings: validate this
+     * fragment's UTF-8 (json_stringn refuses invalid input). */
+    json_t *checked = json_stringn(json_string_value(fragment), n);
+    if (!checked) return fail(s);
+    json_decref(checked);
+    if (n > dest->capacity - dest->used || !dest->data) {
+        /* used + n <= MAX_BYTES, so doubling cannot overflow. */
+        size_t capacity = dest->capacity ? dest->capacity : 256;
+        while (capacity - dest->used < n) capacity *= 2;
+        char *grown = s->alloc(capacity);
+        if (!grown) return fail(s);
+        if (dest->used) memcpy(grown, dest->data, dest->used);
+        if (dest->data) s->release(dest->data);
+        dest->data = grown; dest->capacity = capacity;
+    }
+    /* Each fragment is valid UTF-8, so is the join. */
+    if (n) memcpy(dest->data + dest->used, json_string_value(fragment), n);
+    dest->used += n; dest->present = true;
     s->bytes += n;
     return true;
 }
@@ -97,7 +113,13 @@ bool rc_stream_tools_feed(rc_stream_tools *s, json_t *array) {
                 json_string_length(v) > RC_STREAM_TOOLS_MAX_ID_BYTES) return fail(s);
             if (c->id) {
                 if (!json_equal(c->id, v)) return fail(s);
-            } else if (!append(s, &c->id, v)) return false;
+            } else {
+                if (json_string_length(v) > RC_STREAM_TOOLS_MAX_BYTES - s->bytes) return fail(s);
+                s->bytes += json_string_length(v);
+                /* Validated copy, never a borrowed reference. */
+                c->id = json_stringn(json_string_value(v), json_string_length(v));
+                if (!c->id) return fail(s);
+            }
         }
         v = json_object_get(entry, "type");
         if (v) {
@@ -125,33 +147,35 @@ static int count_bytes(const char *buffer, size_t size, void *data) {
     *n += size;
     return 0;
 }
+static json_t *build(const rc_stream_tools *s) {
+    if (!s->count) return NULL;
+    for (size_t i = 0; i < s->count; ++i) {
+        const struct stream_call *c = &s->calls[i];
+        if (!c->present || !c->id || !c->type || !c->name.present ||
+            !c->name.used || !c->arguments.present) return NULL;
+        for (size_t j = 0; j < i; ++j)
+            if (json_equal(c->id, s->calls[j].id)) return NULL;
+    }
+    json_t *out = json_array();
+    if (!out) return NULL;
+    for (size_t i = 0; i < s->count; ++i) {
+        const struct stream_call *c = &s->calls[i];
+        json_t *entry = json_pack("{s:O,s:s,s:{s:s#,s:s#}}", "id", c->id,
+                                  "type", "function", "function", "name", c->name.data, (int)c->name.used,
+                                  "arguments", c->arguments.data ? c->arguments.data : "", (int)c->arguments.used);
+        if (!entry || json_array_append_new(out, entry)) { json_decref(out); return NULL; }
+    }
+    size_t bytes = 0;
+    if (json_dump_callback(out, count_bytes, &bytes, JSON_COMPACT)) { json_decref(out); return NULL; }
+    return out;
+}
+json_t *rc_stream_tools_snapshot(const rc_stream_tools *s) {
+    return s && !s->failed && !s->finalized ? build(s) : NULL;
+}
 json_t *rc_stream_tools_complete(rc_stream_tools *s) {
     if (!s || s->failed || s->finalized) { fail(s); return NULL; }
     s->finalized = true;
-    if (!s->count) { fail(s); return NULL; }
-    for (size_t i = 0; i < s->count; ++i) {
-        struct stream_call *c = &s->calls[i];
-        if (!c->present || !c->id || !c->type || !c->name ||
-            !json_string_length(c->name) || !c->arguments) {
-            fail(s); return NULL;
-        }
-        for (size_t j = 0; j < i; ++j)
-            if (json_equal(c->id, s->calls[j].id)) { fail(s); return NULL; }
-    }
-    json_t *out = json_array();
-    if (!out) { fail(s); return NULL; }
-    for (size_t i = 0; i < s->count; ++i) {
-        struct stream_call *c = &s->calls[i];
-        json_t *entry = json_pack("{s:O,s:s,s:{s:O,s:O}}", "id", c->id,
-                                  "type", "function", "function", "name", c->name,
-                                  "arguments", c->arguments);
-        if (!entry || json_array_append_new(out, entry)) {
-            json_decref(out); fail(s); return NULL;
-        }
-    }
-    size_t bytes = 0;
-    if (json_dump_callback(out, count_bytes, &bytes, JSON_COMPACT)) {
-        json_decref(out); fail(s); return NULL;
-    }
+    json_t *out = build(s);
+    if (!out) fail(s);
     return out;
 }

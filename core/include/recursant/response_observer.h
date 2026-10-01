@@ -9,28 +9,31 @@
  * may ask for an owned normalized assistant message. NULL means fail closed.
  * Transport/downstream completion is independently required by gateway_finish.
  * Subset: one assistant, stop or tool_calls then delimited DONE, <=64KiB per SSE event,
- * <=4MiB total SSE including framing/comments. Tool fragments are kept in a bounded
- * inline log, then passed through stream_tools at snapshot time; no owned
- * allocations survive feed/abort. Tool snapshots are <=32KiB compact JSON,
- * with exact concatenated content (absent/null/empty fragments become "").
+ * <=RC_RESPONSE_WIRE_LIMIT total SSE including framing/comments. Tool fragments
+ * are assembled incrementally by one owned stream_tools object: the owner MUST
+ * call rc_response_observer_release before freeing or re-zeroing the observer
+ * (also after an aborted transport). Tool snapshots are <=RC_STREAM_TOOLS_MAX_BYTES
+ * compact JSON, with exact concatenated content (absent/null/empty fragments become "").
  * A tool snapshot is NOT plain replay history: gateway_finish must capture
  * the pending tool boundary and require exact results before switching. */
 #define RC_RESPONSE_LIMIT 65536
 /* Whole-stream wire bound (framing, envelopes, comments). Separate from the
  * per-line/event and retained-text bounds: OpenRouter emits ~300 envelope
  * bytes per streamed token, so a 1.5k-token tool call is ~450KB on the wire
- * while retaining only a few KB (live pilot-1, 2026-09-29). */
-#define RC_RESPONSE_WIRE_LIMIT (4u*1024u*1024u)
-/* NUL-separated compact delta arrays (per-token {"index":0,"function":...}
- * wrappers, ~45 bytes each). Retained snapshot remains <=32KiB. */
-#define RC_RESPONSE_TOOL_DELTA_LIMIT (256u*1024u)
+ * while retaining only a few KB (live pilot-1, 2026-09-29).
+ * Raised with the tool snapshot bound (2026-09-30): 4 MiB of wire carried only
+ * ~50 KiB of tool arguments. This is a counter, not a buffer. */
+#define RC_RESPONSE_WIRE_LIMIT (64u*1024u*1024u)
+struct rc_stream_tools;
 typedef struct {
     char line[RC_RESPONSE_LIMIT + 1], event[RC_RESPONSE_LIMIT + 1];
     char text[RC_RESPONSE_LIMIT + 1];
-    /* NUL-separated compact delta arrays; bounded by wire ingress. No owned
-     * allocations survive feed, including aborted/incomplete transports. */
-    char tool_deltas[RC_RESPONSE_TOOL_DELTA_LIMIT + 1];
+    /* Owned incremental assembler (NULL until the first tool delta) and the
+     * number of tool delta arrays seen. tools_failed is sticky and only makes
+     * the message unavailable; usage evidence is unaffected. */
+    struct rc_stream_tools *tools;
     size_t tool_used;
+    bool tools_failed;
     bool tool_finish;
     size_t total, line_used, event_used, text_used;
     char id[129], model[129], provider[129];
@@ -50,4 +53,6 @@ typedef struct {
 } rc_response_observer;
 void rc_response_observer_feed(rc_response_observer *, const char *, size_t);
 json_t *rc_response_observer_message(const rc_response_observer *);
+/* Frees the owned assembler. Idempotent; the observer stays zeroable. */
+void rc_response_observer_release(rc_response_observer *);
 #endif

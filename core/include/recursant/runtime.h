@@ -23,6 +23,13 @@ typedef struct rc_runtime {
      * only. Structural uninspectability, public_allowed and provider controls
      * still apply. Intended to be replaced by a judgement model, not removed. */
     bool content_scanning;
+    /* compliance.text_mode: "strict" (default) treats any URL, data: or file://
+     * marker and any JSON-looking text that does not parse as uninspectable
+     * (private). "agent" keeps every pattern rule but treats those as ordinary
+     * text: agent prompts and tool results routinely contain them. Only an
+     * embedded base64 data: URI stays uninspectable, and JSON escapes in
+     * unparseable text are decoded and re-scanned. */
+    bool agent_text;
     json_t *patterns;
     struct rc_compliance_policy *compliance_policy;
 } rc_runtime;

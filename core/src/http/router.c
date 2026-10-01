@@ -137,7 +137,7 @@ static void completed(void *ctx,struct MHD_Connection *c,void **con_cls,enum MHD
     pthread_mutex_lock(&r->lock);r->cancel=true;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);
     if(r->started)pthread_join(r->worker,NULL);
     rc_gateway_finish(r->runtime,&r->ticket,complete,r->sse,r->observation_overflow?NULL:r->observation,r->observed,r->stream_observation);
-    free(r->stream_observation);
+    rc_response_observer_release(r->stream_observation);free(r->stream_observation);
     if(r->downstream_fd>=0)close(r->downstream_fd);
     pthread_mutex_destroy(&r->lock);pthread_cond_destroy(&r->changed);free(r->body);free(r->payload);free(r);*con_cls=NULL;
 }
@@ -158,7 +158,7 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(now.tv_sec>r->deadline.tv_sec || (now.tv_sec==r->deadline.tv_sec && now.tv_nsec>=r->deadline.tv_nsec))return MHD_NO;
     const char *auth=MHD_lookup_connection_value(c,MHD_HEADER_KIND,"Authorization");
     bool health=!strcmp(url,"/healthz")&&!strcmp(method,"GET");
-    bool context_path=rt->gateway&&(!strcmp(url,"/v1/context")||!strcmp(url,"/v1/context/open")||!strcmp(url,"/v1/context/close"));
+    bool context_path=rt->gateway&&(!strcmp(url,"/v1/context")||!strcmp(url,"/v1/context/open")||!strcmp(url,"/v1/context/close")||!strcmp(url,"/v1/context/hint"));
     const char *expected=context_path?rt->source_key:rt->auth_key;
     if(!health && (!auth||!expected||strncmp(auth,"Bearer ",7)||strcmp(auth+7,expected)))r->rejection=401;
     if(*upload_size){

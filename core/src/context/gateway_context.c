@@ -15,7 +15,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SCOPES 32
+/* Registered (header) scopes keep their original cap; the rest of the table
+ * holds request-stream sessions, which are never registered or closed. */
+#define EXPLICIT_SCOPES 32
+#define SCOPES 160
+#define HINTS 64
+#define HINT_TTL_MS 600000u
 /* Native request-profile requirements (operator-declared destination
  * capabilities; bit positions continue RC_TOOL_CAP_*). */
 #define RC_REQ_STREAM_TOOLS UINT32_C(8)
@@ -50,7 +55,16 @@ struct scope {
      * (tools, tool_choice, parallel_tool_calls, reasoning_effort and, for
      * profile scopes, stream_options). Any later difference pins. */
     json_t *contract;bool profile;char effort[RC_EFFORT_BYTES+1];
+    /* Request-stream session (context.sessions "request"): created from an
+     * unregistered automatic request, found again by its conversation opening
+     * (anchor) and, when the harness sends it, X-Recursant-session-id (ident).
+     * Never addressable by generation/branch. delegated = another session
+     * handed this conversation out (subagent). */
+    bool implicit,delegated;uint64_t anchor;char ident[RC_ATTEMPT_TOKEN_SIZE];size_t seen_messages;
 };
+/* Advisory harness telemetry: session -> role. Bounded, expiring, never
+ * continuity or placement authority. */
+struct hint {char session[RC_ATTEMPT_TOKEN_SIZE];uint64_t at;bool delegated,set;};
 /* Mirror row slots never move: scopes and tickets hold indices. A slot is only
  * freed when settled, expired, not referenced by any open scope, and no live
  * row shares its full key (same tombstone horizon as the ledger). */
@@ -65,6 +79,8 @@ struct rc_gateway_context {
     rc_candidate_quote quotes[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_cost costs[RC_SELECTOR_MAX_CANDIDATES];bool priced;uint64_t expected_output;
     bool signals; /* S4 context.signals: "on" enables the structured-signal class */
+    bool implicit; /* context.sessions "request": sessions from the request stream */
+    struct hint hints[HINTS];
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
@@ -100,7 +116,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||judge||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||judge||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -115,6 +131,9 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     /* Default off: existing configurations behave exactly as before S4. */
     if(json_object_get(o,"signals")&&!eq(o,"signals","on")&&!eq(o,"signals","off"))return false;
     g->signals=eq(o,"signals","on");
+    /* Default "headers": only registered scopes are routed, as before. */
+    if(json_object_get(o,"sessions")&&!eq(o,"sessions","request")&&!eq(o,"sessions","headers"))return false;
+    g->implicit=eq(o,"sessions","request");
     /* context.judge: {provider, model, url, timeout_ms, routine_min,
      * difficulty_max}. Public-trust provider (its resolved key is borrowed);
      * requires signals on. Absent = off. */
@@ -166,7 +185,7 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
             }
         }
         /* Strict frozen names, no duplicates, unknown rejected. */
-        json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>3)return false;
+        json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>4)return false;
         for(size_t t=0;t<json_array_size(tasks);t++){
             json_t *name=json_array_get(tasks,t);uint64_t bit;
             if(!json_is_string(name)||json_string_length(name)!=strlen(json_string_value(name))||
@@ -226,7 +245,7 @@ static int scope_find(struct rc_gateway_context *,const char *,const char *);
  * guarantees !inflight so no ticket references the slot. */
 static void scope_reclaim(struct rc_gateway_context *g,int slot,uint64_t now) {
     struct scope *s=&g->scopes[slot];
-    rc_context_close(g->contexts,&s->key,now);
+    if(!s->implicit)rc_context_close(g->contexts,&s->key,now);
     json_decref(s->history);json_decref(s->pending);json_decref(s->pending_choice);
     json_decref(s->pending_tools);json_decref(s->observed_calls);rc_tool_boundary_free(s->boundary);json_decref(s->contract);
     for(size_t i=0;i<RC_ATTEMPT_MAX_ROWS;i++)if(g->rows[i].in_use&&g->rows[i].scope==slot)g->rows[i].scope=-1;
@@ -236,11 +255,16 @@ static void scope_reclaim(struct rc_gateway_context *g,int slot,uint64_t now) {
  * have no captured tool boundary awaiting replay, and be idle past the context
  * TTL. M2-derived private_only authority is never timed out; only an explicit
  * authenticated close releases it. */
-static int scope_idle(struct rc_gateway_context *g,uint64_t now) {
+static int scope_idle(struct rc_gateway_context *g,uint64_t now,bool implicit) {
     int best=-1;
     for(int i=0;i<SCOPES;i++){
         struct scope *s=&g->scopes[i];
-        if(!s->open||s->inflight||s->boundary||s->private_only||now<s->active||now-s->active<=g->ttl)continue;
+        /* A request-stream session is never closed by its harness: an idle one
+         * may be abandoned at a tool boundary. It holds no placement authority
+         * (M2 re-scans every request), so reclaiming it is always safe: its
+         * next request starts a new session at the baseline. */
+        if(!s->open||s->implicit!=implicit||s->inflight||now<s->active||now-s->active<=g->ttl)continue;
+        if(!implicit&&(s->boundary||s->private_only))continue;
         if(best<0||s->active<g->scopes[best].active)best=i;
     }
     return best;
@@ -262,13 +286,36 @@ unsigned rc_gateway_event(rc_runtime *rt,const char *path,json_t *body,json_t **
         if(status==200){*out=json_pack("{s:s}","status","closed");if(!*out)return 500;}
         return status;
     }
+    if(!strcmp(path,"/v1/context/hint")){
+        /* Advisory only: the harness names a session and its role. "leaf" marks
+         * a delegated subagent. It can make a first turn eligible for a class
+         * the operator qualified; it never moves data or overrides M2. */
+        const char *session=token(body,"session_id",RC_ATTEMPT_TOKEN_SIZE-1);
+        bool leaf=eq(body,"role","leaf");
+        if(!g->implicit)return 404;
+        if(!keys(body,"|session_id||role||parent_session_id|")||!session||(!leaf&&!eq(body,"role","orchestrator"))||
+           (json_object_get(body,"parent_session_id")&&!token(body,"parent_session_id",RC_ATTEMPT_TOKEN_SIZE-1)))return 400;
+        pthread_mutex_lock(&g->lock);uint64_t now=now_ms();size_t slot=HINTS,oldest=0;
+        for(size_t i=0;i<HINTS;i++){
+            if(g->hints[i].set&&!strcmp(g->hints[i].session,session)){slot=i;break;}
+            if(!g->hints[i].set){if(slot==HINTS)slot=i;}
+            else if(g->hints[i].at<g->hints[oldest].at)oldest=i;
+        }
+        if(slot==HINTS)slot=oldest;
+        g->hints[slot]=(struct hint){.at=now,.delegated=leaf,.set=true};strcpy(g->hints[slot].session,session);
+        pthread_mutex_unlock(&g->lock);
+        fprintf(stderr,"session_hint role=%s\n",leaf?"leaf":"orchestrator");
+        *out=json_pack("{s:s}","status","accepted");return *out?202:500;
+    }
     if(strcmp(path,"/v1/context/open"))return 404;
     const char *task=token(body,"task_id",63),*session=token(body,"session_id",63),*branch=token(body,"branch",63);
     if(!keys(body,"|task_id||session_id||branch|")||!task||!session||!branch)return 400;
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();int slot=-1;
     for(int i=0;i<SCOPES;i++)if(g->scopes[i].open&&!strcmp(g->scopes[i].task,task)&&!strcmp(g->scopes[i].session,session)&&!strcmp(g->scopes[i].branch,branch)){pthread_mutex_unlock(&g->lock);return 409;}
-    for(int i=0;i<SCOPES&&slot<0;i++)if(!g->scopes[i].open)slot=i;
-    if(slot<0&&(slot=scope_idle(g,now))>=0)scope_reclaim(g,slot,now);
+    size_t registered=0;
+    for(int i=0;i<SCOPES;i++)if(g->scopes[i].open&&!g->scopes[i].implicit)registered++;
+    for(int i=0;registered<EXPLICIT_SCOPES&&i<SCOPES&&slot<0;i++)if(!g->scopes[i].open)slot=i;
+    if(slot<0&&(slot=scope_idle(g,now,false))>=0)scope_reclaim(g,slot,now);
     if(slot<0||g->generations==UINT64_MAX){pthread_mutex_unlock(&g->lock);return 503;}
     struct scope *s=&g->scopes[slot];s->open=true;s->active=now;strcpy(s->task,task);strcpy(s->session,session);strcpy(s->branch,branch);
     snprintf(s->generation,sizeof s->generation,"%016llx%016llx",(unsigned long long)g->boot,(unsigned long long)++g->generations);
@@ -295,7 +342,7 @@ void rc_gateway_header(rc_gateway_headers *h,const char *name,const char *value)
     strcpy(out,value);
 }
 static int scope_find(struct rc_gateway_context *g,const char *generation,const char *branch) {
-    for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&!strcmp(g->scopes[i].generation,generation)&&!strcmp(g->scopes[i].branch,branch))return (int)i;
+    for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&!g->scopes[i].implicit&&!strcmp(g->scopes[i].generation,generation)&&!strcmp(g->scopes[i].branch,branch))return (int)i;
     return -1;
 }
 static bool same_headers(const rc_attempt_headers *a,const rc_attempt_headers *b) {
@@ -551,7 +598,7 @@ static bool candidate_effort(const struct rc_gateway_context *g,size_t i,const c
 }
 static bool replayable(struct scope *s,json_t *body) {
     json_t *messages=json_object_get(body,"messages");size_t n=json_array_size(messages),prior=json_array_size(s->history);
-    if(!json_is_array(messages)||!n||n>256||n<=prior)return false;
+    if(!json_is_array(messages)||!n||n>RC_TOOL_MAX_MESSAGES||n<=prior)return false;
     for(size_t i=0;i<n;i++){
         json_t *m=json_array_get(messages,i);
         if(i<prior&&(s->requirements&RC_TOOL_CAP_HISTORY)){
@@ -566,7 +613,119 @@ static bool replayable(struct scope *s,json_t *body) {
         else if(!eq(m,"role","user") && !(i==0&&!s->owner&&eq(m,"role","system")))return false;
     }
     char *serialized=json_dumps(messages,JSON_COMPACT);if(!serialized)return false;
-    bool bounded=strlen(serialized)<=32768;free(serialized);return bounded;
+    bool bounded=strlen(serialized)<=RC_TOOL_MAX_BYTES;free(serialized);return bounded;
+}
+/* Conversation opening: every message up to and including the first user
+ * message, hashed (FNV-1a) over its compact sorted serialization. start = no
+ * assistant or tool message yet; first = that user message's text or NULL. */
+static bool opening(json_t *messages,uint64_t *anchor,bool *start,const char **first) {
+    size_t n=json_array_size(messages);
+    if(!json_is_array(messages)||!n)return false;
+    uint64_t hash=UINT64_C(14695981039346656037);bool user=false;*start=true;*first=NULL;
+    for(size_t i=0;i<n;i++){
+        json_t *m=json_array_get(messages,i);
+        if(eq(m,"role","assistant")||eq(m,"role","tool"))*start=false;
+        if(user)continue;
+        char *wire=json_is_object(m)?json_dumps(m,JSON_COMPACT|JSON_SORT_KEYS):NULL;
+        if(!wire)return false;
+        for(const char *c=wire;*c;c++){hash^=(unsigned char)*c;hash*=UINT64_C(1099511628211);}
+        free(wire);
+        if(eq(m,"role","user")){user=true;*first=json_string_value(json_object_get(m,"content"));}
+    }
+    *anchor=hash;return true;
+}
+/* Does this request continue the session's last completed exchange? Exact for
+ * live sessions (tool-boundary replay or history prefix); a pinned session
+ * has no history left and only needs the conversation to have grown. */
+static bool continues(const struct scope *s,json_t *messages,const char *wire,size_t length) {
+    size_t n=json_array_size(messages),prior=json_array_size(s->history);
+    if(s->pinned)return n>s->seen_messages;
+    if(s->boundary)return rc_tool_boundary_replay(s->boundary,wire,length)==RC_TOOL_COMPLETE;
+    if(!s->history||n<=prior)return false;
+    for(size_t i=0;i<prior;i++)if(!json_equal(json_array_get(messages,i),json_array_get(s->history,i)))return false;
+    return true;
+}
+static bool holds(json_t *v,const char *text,unsigned depth,size_t *nodes) {
+    if(depth>8||++*nodes>512)return false;
+    if(json_is_string(v))return !strcmp(json_string_value(v),text);
+    if(json_is_object(v)){const char *k;json_t *c;json_object_foreach(v,k,c){(void)k;if(holds(c,text,depth+1,nodes))return true;}}
+    else if(json_is_array(v)){size_t i;json_t *c;json_array_foreach(v,i,c)if(holds(c,text,depth+1,nodes))return true;}
+    return false;
+}
+/* Request-stream lineage: a new conversation whose first user message equals
+ * a string argument of a tool call that another open session is still waiting
+ * on was handed out by that session (e.g. a delegate/task tool's goal).
+ * Exact equality on a nontrivial string only; advisory like a harness hint. */
+static bool handed_out(struct rc_gateway_context *g,const char *first) {
+    if(!first||strlen(first)<16)return false;
+    for(int i=0;i<SCOPES;i++){
+        struct scope *s=&g->scopes[i];
+        if(!s->open||!s->boundary)continue;
+        for(size_t c=0;c<json_array_size(s->observed_calls);c++){
+            json_t *a=json_object_get(json_object_get(json_array_get(s->observed_calls,c),"function"),"arguments");
+            json_t *parsed=json_is_string(a)?json_loadb(json_string_value(a),json_string_length(a),JSON_REJECT_DUPLICATES,NULL):NULL;
+            size_t nodes=0;bool found=parsed&&holds(parsed,first,0,&nodes);
+            json_decref(parsed);if(found)return true;
+        }
+    }
+    return false;
+}
+/* Session for an unregistered automatic request. -1 = leave it unscoped (the
+ * baseline, as before): nothing usable, the matching session is busy, or the
+ * table is full of live sessions. Never rejects a request. */
+static int implicit_scope(struct rc_gateway_context *g,json_t *body,const rc_gateway_headers *h,uint64_t now) {
+    json_t *messages=json_object_get(body,"messages");uint64_t anchor;bool start;const char *first;
+    if(!opening(messages,&anchor,&start,&first))return -1;
+    const char *ident=(h->invocation.mask&2u)&&!h->invocation.invalid?h->invocation.values[1]:"";
+    if(!start){
+        char *wire=json_dumps(messages,JSON_COMPACT);if(!wire)return -1;
+        size_t length=strlen(wire);int found=-1;
+        for(int i=0;i<SCOPES;i++){
+            struct scope *s=&g->scopes[i];
+            if(!s->open||!s->implicit||s->anchor!=anchor||strcmp(s->ident,ident)||!continues(s,messages,wire,length))continue;
+            /* Prefer an exact (unpinned) continuation, then the most recent. */
+            if(found<0||(g->scopes[found].pinned&&!s->pinned)||(g->scopes[found].pinned==s->pinned&&s->active>g->scopes[found].active))found=i;
+        }
+        free(wire);
+        if(found>=0)return g->scopes[found].inflight?-1:found;
+    }
+    int slot=-1;size_t used=0;
+    for(int i=0;i<SCOPES;i++){
+        if(!g->scopes[i].open){if(slot<0)slot=i;}
+        else if(g->scopes[i].implicit)used++;
+    }
+    if(slot<0||used>=SCOPES-EXPLICIT_SCOPES){
+        if((slot=scope_idle(g,now,true))<0)return -1;
+        scope_reclaim(g,slot,now);
+    }
+    struct scope *s=&g->scopes[slot];
+    s->open=s->implicit=true;s->active=now;s->anchor=anchor;strcpy(s->ident,ident);s->last_row=-1;s->evidence_row=-1;
+    const char *lineage="none";
+    if(start){
+        for(size_t i=0;ident[0]&&i<HINTS;i++)
+            if(g->hints[i].set&&!strcmp(g->hints[i].session,ident)&&now-g->hints[i].at<=HINT_TTL_MS&&g->hints[i].delegated){s->delegated=true;lineage="hint";}
+        if(!s->delegated&&handed_out(g,first)){s->delegated=true;lineage="request";}
+    }
+    fprintf(stderr,"session scope=%d kind=request start=%d delegated=%d lineage=%s\n",slot,start,s->delegated,lineage);
+    return slot;
+}
+/* M2 vetoed the destination this session would otherwise use. Cheapest
+ * candidate that M2 permits for this exact request and that declares every
+ * requirement of the session (in practice a private model); count = none. */
+static size_t compliant_candidate(rc_runtime *rt,struct rc_gateway_context *g,const struct scope *s,json_t *body,uint32_t required,const char *effort,uint64_t tokens) {
+    size_t best=g->count;double best_cost=0;
+    for(size_t i=0;i<g->count;i++){
+        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];rc_endpoint ep=a->endpoint;
+        if((g->cap_known[i]&required)!=required||(g->cap_supported[i]&required)!=required||!candidate_effort(g,i,effort)||
+           g->candidates[i].context_limit<tokens||(s->private_only&&ep!=RC_ENDPOINT_PRIVATE))continue;
+        json_t *probe=json_deep_copy(body);
+        bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
+            (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
+        json_decref(probe);
+        double cost=g->costs[i].priced?g->costs[i].price.input_per_mtok:g->costs[i].fixed;
+        if(ok&&(best==g->count||cost<best_cost)){best=i;best_cost=cost;}
+    }
+    return best;
 }
 unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket) {
     struct rc_gateway_context *g=rt->gateway;ticket->scope=-1;ticket->row=-1;
@@ -595,17 +754,23 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     if(!h->generation[0]&&!h->branch[0]){
         /* Diagnostic identity is only a loss fence, never a fallback join.
          * Even a partial match may denote a registered workflow/branch. */
-        for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&(!strcmp(g->scopes[i].task,h->invocation.values[0])||!strcmp(g->scopes[i].session,h->invocation.values[1]))){status=403;goto done;}
+        for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&!g->scopes[i].implicit&&(!strcmp(g->scopes[i].task,h->invocation.values[0])||!strcmp(g->scopes[i].session,h->invocation.values[1]))){status=403;goto done;}
     }
+    int slot=-1;
     if(h->generation[0]||h->branch[0]||h->invalid) {
-        int slot=scope_find(g,h->generation,h->branch);
+        slot=scope_find(g,h->generation,h->branch);
         if(h->invalid||slot<0){status=403;goto done;}
         s=&g->scopes[slot];
         if(strcmp(s->task,h->invocation.values[0])||strcmp(s->session,h->invocation.values[1])){status=403;goto done;}
         if(s->inflight){status=409;goto done;}
+    }
+    else if(g->implicit&&automatic&&(slot=implicit_scope(g,body,h,now))>=0)s=&g->scopes[slot];
+    if(s) {
         ticket->scope=slot;
         uint32_t required=s->requirements,own=0;char effort[RC_EFFORT_BYTES+1];
-        if(!request_options(body,&own,effort))s->pinned=true;
+        bool options=request_options(body,&own,effort);
+        if(s->implicit)s->seen_messages=json_array_size(json_object_get(body,"messages"));
+        if(!options)s->pinned=true;
         else if(!s->pinned){
             /* Sticky contract: the first request fixes the projection. Once
              * the scope or this request carries a native profile feature
@@ -625,13 +790,15 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(!s->pinned&&s->boundary){
             char *wire=json_dumps(json_object_get(body,"messages"),JSON_COMPACT);
             rc_tool_status replay=wire?rc_tool_boundary_replay(s->boundary,wire,strlen(wire)):RC_TOOL_NOMEM;free(wire);
-            if(replay==RC_TOOL_INCOMPLETE){status=409;goto done;}
+            if(replay==RC_TOOL_INCOMPLETE&&!s->implicit){status=409;goto done;}
             if(replay!=RC_TOOL_COMPLETE)s->pinned=true;
             required|=rc_tool_boundary_requirements(s->boundary);
         }else if(!s->pinned&&!replayable(s,body))s->pinned=true;
         s->requirements=required;
         if(automatic&&s->pinned&&s->owner){
             *endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}
+            /* A pinned session is never moved, by M3 or by M2: if M2 vetoes
+             * its owner for this request, the final gate below rejects. */
             if(g->signals)fprintf(stderr,"route_decision scope=%d mode=%s class=none reason=pin\n",ticket->scope,g->active?"active":"shadow");
         }
         else if(automatic) {
@@ -665,6 +832,9 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
              * a pinned/private-only scope, recovery, or the first turn. */
             const char *judge_verdict=asked?(judged.ok?(rc_judge_routine(&g->judge,&judged)?"routine":"hard"):"unavailable"):NULL;
             if(asked&&structural&&!signal&&!escalation&&s->turns&&!s->private_only&&rc_judge_routine(&g->judge,&judged))signal=RC_TASK_TOOL_FOLLOWUP_OK;
+            /* First turn of a delegated session (subagent): its own class,
+             * used only by candidates the operator qualified for it. */
+            if(structural&&!signal&&!escalation&&!s->turns&&s->delegated)signal=RC_TASK_DELEGATED_START;
             if(asked)fprintf(stderr,"judge scope=%d verdict=%s routine=%.3f difficulty=%.3f ms=%u\n",ticket->scope,judge_verdict,judged.routine,judged.difficulty,judged.latency_ms);
             rc_selection_request req={.registry_version=1,.baseline_alias=g->baseline,.continuity=RC_CONTINUITY_REPLAYABLE,.context_usable=usable&&!s->pinned,.now=now,.context_observed_at=s->observed,.context_expires_at=usable?snapshot.expires_at:0,.task_class=task,.context_tokens=tokens?tokens:1,
                 .signal_class=signal,.escalation_class=escalation};
@@ -698,17 +868,25 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             rc_selection selected={.alias_index=g->baseline,.reason=RC_SELECT_BASELINE};
             /* Shadow proposal failure has no dispatch authority. Mandatory
              * scope continuity and final M2 below apply in either mode. */
-            if(baseline_permitted&&rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}
+            bool placed=false;
+            if(baseline_permitted){if(rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}}
+            else {
+                /* M2 vetoes the baseline for this exact request: place it on a
+                 * permitted candidate that can continue the session instead of
+                 * leaving the final gate to reject a mid-session redirect. */
+                size_t to=compliant_candidate(rt,g,s,body,s->requirements,s->effort,tokens);
+                if(to<g->count){selected.alias_index=g->candidates[to].alias_index;placed=true;}
+            }
             if(g->priced||g->signals){
                 /* Evidence only: class names, aliases, estimated tokens and
                  * USD. No content. Classes offered: interpreter [+signal]. */
                 static const char *reasons[]={"baseline","cheapest","pin","escalate"};
                 uint64_t offered=(req.context_usable?task:0)|signal|escalation;char classes[96]="";
-                for(uint64_t bit=1;bit<=RC_TASK_RECOVERY;bit<<=1)if(offered&bit){
+                for(uint64_t bit=1;bit<=RC_TASK_DELEGATED_START;bit<<=1)if(offered&bit){
                     size_t n=strlen(classes);snprintf(classes+n,sizeof classes-n,"%s%s",n?"+":"",rc_task_name(bit));
                 }
                 char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s class=%s reason=%s chosen=%s est_prompt=%llu est_out=%llu costs=",
-                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
+                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",placed?"compliance":reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
                 for(size_t i=0;i<g->count&&used>0&&(size_t)used<sizeof line;i++)
                     used+=snprintf(line+used,sizeof line-(size_t)used,"%s%s:%.9g%s",i?",":"",rt->config.aliases[g->candidates[i].alias_index].from,quotes[i].expected_task_cost,quotes[i].permitted?"":"(denied)");
                 fprintf(stderr,"%s\n",line);

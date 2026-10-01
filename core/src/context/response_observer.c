@@ -131,12 +131,9 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     if(calls){
         if(!json_is_array(calls))return false;
         if(json_array_size(calls)){
-            char *encoded=json_dumps(calls,JSON_COMPACT);
-            if(!encoded)return false;
-            size_t n=strlen(encoded)+1;
-            if(n>RC_RESPONSE_TOOL_DELTA_LIMIT-o->tool_used){free(encoded);return false;}
-            memcpy(o->tool_deltas+o->tool_used,encoded,n);o->tool_used+=n;
-            free(encoded);
+            if(!o->tools&&!o->tools_failed&&!(o->tools=rc_stream_tools_new()))o->tools_failed=true;
+            if(!o->tools_failed&&!rc_stream_tools_feed(o->tools,calls))o->tools_failed=true;
+            o->tool_used++;
         }
     }
     if(!finish)return false;
@@ -204,18 +201,8 @@ json_t *rc_response_observer_message(const rc_response_observer *o) {
     if(!o||o->failed||!o->done||!o->finished||!o->role||o->line_used||o->event_used)return NULL;
     json_t *m=json_pack("{s:s,s:s#}","role","assistant","content",o->text,(int)o->text_used);
     if(!m||!o->tool_finish)return m;
-    rc_stream_tools *tools=rc_stream_tools_new();
-    if(!tools){json_decref(m);return NULL;}
-    bool valid=true;
-    for(size_t offset=0;valid&&offset<o->tool_used;){
-        size_t n=strlen(o->tool_deltas+offset);
-        json_error_t error;
-        json_t *delta=json_loadb(o->tool_deltas+offset,n,JSON_REJECT_DUPLICATES,&error);
-        valid=delta&&rc_stream_tools_feed(tools,delta);
-        json_decref(delta);offset+=n+1;
-    }
-    json_t *calls=valid?rc_stream_tools_complete(tools):NULL;
-    rc_stream_tools_free(tools);
+    bool valid=o->tools&&!o->tools_failed;
+    json_t *calls=valid?rc_stream_tools_snapshot(o->tools):NULL;
     if(!calls||json_object_set_new(m,"tool_calls",calls)){
         json_decref(m);return NULL;
     }
@@ -226,4 +213,8 @@ json_t *rc_response_observer_message(const rc_response_observer *o) {
     free(encoded);
     if(!valid){json_decref(m);return NULL;}
     return m;
+}
+void rc_response_observer_release(rc_response_observer *o) {
+    if(!o)return;
+    rc_stream_tools_free(o->tools);o->tools=NULL;
 }

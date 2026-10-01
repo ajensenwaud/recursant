@@ -5,7 +5,9 @@
 #include <stdbool.h>
 
 #define RC_STREAM_TOOLS_MAX_CALLS 32u
-#define RC_STREAM_TOOLS_MAX_BYTES 32768u
+/* One streamed assistant tool-call message, e.g. a whole file in one write call
+ * (raised from 32 KiB on 2026-09-30, Anders). */
+#define RC_STREAM_TOOLS_MAX_BYTES 1048576u
 #define RC_STREAM_TOOLS_MAX_ID_BYTES 128u
 
 typedef struct rc_stream_tools rc_stream_tools;
@@ -22,8 +24,8 @@ typedef struct rc_stream_tools rc_stream_tools;
  * IDs/names disallow NUL; arguments preserve NUL and all other JSON string data.
  * Unknown keys (including empty, delimiter and embedded-NUL keys) are invalid.
  * Empty arrays are no-ops; index-only entries and empty function objects fail.
- * Limits: <=32 indices, <=128 bytes per ID, <=32768 retained string bytes AND
- * <=32768 compact UTF-8 JSON bytes in the completed tool_calls array.
+ * Limits: <=32 indices, <=128 bytes per ID, <=RC_STREAM_TOOLS_MAX_BYTES retained
+ * string bytes AND as many compact UTF-8 JSON bytes in the completed tool_calls array.
  * Each call must explicitly supply id, type="function", nonempty final name,
  * and arguments (an explicitly supplied empty arguments string is valid).
  * Allocation/validation/limit failure is sticky; no partial output escapes.
@@ -37,6 +39,9 @@ bool rc_stream_tools_feed(rc_stream_tools *tools, json_t *array);
  * feed/complete after it fail, without changing a previously returned snapshot.
  */
 json_t *rc_stream_tools_complete(rc_stream_tools *tools);
+/* Same validation and output as complete, without finalizing: repeatable and
+ * does not change the assembler. NULL when invalid, incomplete or failed. */
+json_t *rc_stream_tools_snapshot(const rc_stream_tools *tools);
 bool rc_stream_tools_failed(const rc_stream_tools *tools);
 void rc_stream_tools_free(rc_stream_tools *tools);
 
