@@ -1,0 +1,3 @@
+key env unset REJECT public upstream openrouter needs a set, non-empty credential env OPENROUTER_API_KEY
+key env dummy PASS (approved flipped in memory)
+as written REJECT fresh explicit live approval required; original allowance consumed

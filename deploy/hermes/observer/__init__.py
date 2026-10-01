@@ -7,7 +7,8 @@ import time
 
 HOOKS = (
     'pre_api_request', 'post_api_request', 'api_request_error',
-    'pre_auxiliary_call', 'post_auxiliary_call', 'post_tool_call',
+    'pre_auxiliary_call', 'post_auxiliary_call', 'pre_tool_call', 'post_tool_call',
+    'subagent_start', 'subagent_stop',
     'on_stream_start', 'on_stream_delta', 'on_stream_end',
     'on_session_start', 'on_session_end', 'agent_loop_stopped',
 )

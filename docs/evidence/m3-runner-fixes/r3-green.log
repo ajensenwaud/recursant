@@ -1,0 +1,7 @@
+test_allocation_b_exact_preflight_boundaries (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_b_exact_preflight_boundaries) ... ok
+test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.003s
+
+OK

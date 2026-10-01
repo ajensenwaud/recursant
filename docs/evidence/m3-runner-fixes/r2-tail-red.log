@@ -1,0 +1,48 @@
+test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) ... 
+  test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) (tail=b'event: error\ndata: {"error":{"message":"provider failure"}}\n\n') ... ERROR
+  test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) (tail=b'data: not-json\n\n') ... FAIL
+  test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) (tail=b'data: []\n\n') ... ERROR
+
+======================================================================
+ERROR: test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) (tail=b'event: error\ndata: {"error":{"message":"provider failure"}}\n\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 54, in test_error_tails_retain_prior_usage_and_raw_evidence
+    self.assertEqual(call['error'], error)
+                     ~~~~^^^^^^^^^
+KeyError: 'error'
+
+======================================================================
+ERROR: test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) (tail=b'data: []\n\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 53, in test_error_tails_retain_prior_usage_and_raw_evidence
+    call = self.check_wire(FRAME+tail, status=status)
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 26, in check_wire
+    actual, raw, content_type = meter.forward('public', BODY, {})
+                                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 256, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 319, in _forward
+    usage=next((r['usage'] for r in reversed(records) if isinstance(r.get('usage'),dict)),{})
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 319, in <genexpr>
+    usage=next((r['usage'] for r in reversed(records) if isinstance(r.get('usage'),dict)),{})
+                                                                    ^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+======================================================================
+FAIL: test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) (tail=b'data: not-json\n\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 53, in test_error_tails_retain_prior_usage_and_raw_evidence
+    call = self.check_wire(FRAME+tail, status=status)
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 30, in check_wire
+    self.assertEqual(call['input_tokens'], usage.get('prompt_tokens'))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != 11
+
+----------------------------------------------------------------------
+Ran 1 test in 1.511s
+
+FAILED (failures=1, errors=2)

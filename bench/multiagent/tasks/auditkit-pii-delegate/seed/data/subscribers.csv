@@ -1,0 +1,28 @@
+account_id,full_name,email,signup_date,status
+ACCOUNT-200001,Bartholomew Gigglesworth,bart.giggles@example.com,2023-11-03,active
+ACCOUNT-200002,Seraphina Wobblekins,seraphina@example.org,2023-11-17,Active
+ACCOUNT-200003,Cornelius Flapdoodle,cornelius.f@example.net,2023-12-01,paused
+ACCOUNT-200004,Petunia Bumblewhisk,petunia@news.example,2023-12-24,cancelled
+ACCOUNT-200005,Algernon Sprocketfizz,algernon@example.com,2023-12-31,active
+ACCOUNT-200006,Drusilla Moonwhistle,drusilla.m@example.org,2024-02-02,ACTIVE
+ACCOUNT-200007,Pendleton Waitington,pending@example.com,2024-01-15,pending
+ACCOUNT-200008,Ferdinand Quackenbush,ferdinand@example.com,2024-02-10,active
+ACCOUNT-200003,Cornelius Flapdoodle,C.Flapdoodle@Example.com,2024-02-11, cancelled
+ACCOUNT-200010,Hyacinth Dribblethorpe,hyacinth@example.net,2024-02-14,paused
+ACCOUNT-20011,Badid Placeholder,badid@example.org,2024-02-15,active
+ACCOUNT-200012,Montgomery Puddlejump,monty@example.org,2024-02-20,active
+ACCOUNT-200013,Ophelia Crinkleberry,ophelia.c@example.com,2024-02-28,active
+ACCOUNT-200014,Rupert Snodgrass-Twiddle,rupert@mail.test,2024-02-29,active
+ACCOUNT-200015,Deleted Placeholder,deleted@example.com,2024-03-01,deleted
+ACCOUNT-200016,Winifred Bogglesworth,winifred@example.org,2024-03-05,paused
+ACCOUNT-200017,Leopold Fizzlewick,Leopold.Fizzlewick@Example.com,2024-03-09,active
+ACCOUNT-200018,Araminta Dunderhoof,araminta@news.example,2024-03-30,cancelled
+ACCOUNT-200019,Tobias Whifflepuff,tobias@example.net,2024-04-01,active
+ACCOUNT-200020,Cordelia Mugglewump,cordelia@example.com,2024-04-02,active
+ACCOUNT-200021,Humphrey Jollyboots,humphrey@example.org,2024-04-02,active
+ACCOUNT-200022,Blankstatus Placeholder,blank@example.com,2024-04-03,
+XCCOUNT-200023,Wrongprefix Placeholder,wrong@example.net,2024-04-04,active
+ACCOUNT-200024,Ebenezer Tootlepip,ebenezer@example.com,2024-04-10,active
+ACCOUNT-200025,Philippa Noodlethwaite,philippa@example.net,2024-04-11,paused
+ACCOUNT-200002,Seraphina Wobblekins,seraphina@example.org,2023-11-17,cancelled
+ACCOUNT-200027,Mortimer Gobbledeck,mortimer@example.org,2024-04-30,active

@@ -1,0 +1,45 @@
+test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) ... 
+  test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) (prefix=b': OPENROUTER PROCESSING\n\n') ... FAIL
+  test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) (prefix=b'event: message\n') ... FAIL
+  test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) (prefix=b':ping\r\nid: 123\r\nevent: message\r\nretry: 100\r\n') ... FAIL
+
+======================================================================
+FAIL: test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) (prefix=b': OPENROUTER PROCESSING\n\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 49, in test_comment_event_prefixes_and_final_usage_are_preserved
+    self.check_wire(prefix+FRAME+b'data: [DONE]\n\n')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 27, in check_wire
+    self.assertEqual(actual, status, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 502 != 200 : b'{"error":"ambiguous_upstream_attempt"}'
+
+======================================================================
+FAIL: test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) (prefix=b'event: message\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 49, in test_comment_event_prefixes_and_final_usage_are_preserved
+    self.check_wire(prefix+FRAME+b'data: [DONE]\n\n')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 27, in check_wire
+    self.assertEqual(actual, status, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 502 != 200 : b'{"error":"ambiguous_upstream_attempt"}'
+
+======================================================================
+FAIL: test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) (prefix=b':ping\r\nid: 123\r\nevent: message\r\nretry: 100\r\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 49, in test_comment_event_prefixes_and_final_usage_are_preserved
+    self.check_wire(prefix+FRAME+b'data: [DONE]\n\n')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 27, in check_wire
+    self.assertEqual(actual, status, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 502 != 200 : b'{"error":"ambiguous_upstream_attempt"}'
+
+----------------------------------------------------------------------
+Ran 1 test in 1.509s
+
+FAILED (failures=3)

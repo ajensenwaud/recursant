@@ -1,0 +1,14 @@
+[router_config as written] exit=0 stdout='configuration valid' stderr=''
+[episode rewrite routed-structured] exit=0 stdout='configuration valid' stderr=''
+   signals= on provider urls= ['http://127.0.0.1:9/token/gx10/v1', 'http://127.0.0.1:9/token/openrouter/v1'] trust= {'gx10': 'private', 'openrouter': 'public'}
+[episode rewrite routed-full] exit=0 stdout='configuration valid' stderr=''
+   signals= on provider urls= ['http://127.0.0.1:9/token/gx10/v1', 'http://127.0.0.1:9/token/openrouter/v1'] trust= {'gx10': 'private', 'openrouter': 'public'}
+[validate_live as written (approved=false)] REJECT ValueError: fresh explicit live approval required; original allowance consumed
+[validate_live approved flipped in memory only] REJECT ValueError: dedicated gateway/egress isolation review required
+[validate_allocation_limits] PASS
+allocation_path exists: False
+baseline upstream: openrouter
+[admission openai/gpt-4.1] body_bytes=41237 upper=48021 liability=$0.1288 max_calls_at_cap=23
+[admission openai/gpt-4.1-mini] body_bytes=41237 upper=48026 liability=$0.0258 max_calls_at_cap=116
+[context headroom] 13414 bytes of conversation growth before admission rejects (common to all arms)
+[admission interpreter] (Decimal('0'), 4662) ('interpreter', 'router_interpreter_request_signature')

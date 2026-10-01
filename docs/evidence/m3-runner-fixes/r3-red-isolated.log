@@ -1,0 +1,67 @@
+test_allocation_b_exact_preflight_boundaries (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_b_exact_preflight_boundaries) ... 
+  test_allocation_b_exact_preflight_boundaries (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_b_exact_preflight_boundaries) (paid_cap=9.9900001) ... FAIL
+  test_allocation_b_exact_preflight_boundaries (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_b_exact_preflight_boundaries) (paid_cap=10) ... FAIL
+test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) ... 
+  test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='create', changes={'paid_cap_usd': 10}) ... FAIL
+  test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='egress', changes={'paid_cap_usd': 10}) ... FAIL
+  test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='create', changes={'request_cap': 189}) ... FAIL
+  test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='egress', changes={'request_cap': 189}) ... FAIL
+
+======================================================================
+FAIL: test_allocation_b_exact_preflight_boundaries (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_b_exact_preflight_boundaries) (paid_cap=9.9900001)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 72, in test_allocation_b_exact_preflight_boundaries
+    with self.subTest(paid_cap=value), self.assertRaises(ValueError):
+                                       ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_allocation_b_exact_preflight_boundaries (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_b_exact_preflight_boundaries) (paid_cap=10)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 72, in test_allocation_b_exact_preflight_boundaries
+    with self.subTest(paid_cap=value), self.assertRaises(ValueError):
+                                       ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='create', changes={'paid_cap_usd': 10})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 92, in test_allocation_creation_and_egress_cannot_bypass_maxima
+    with self.subTest(boundary='create'), self.assertRaises(ValueError):
+                                          ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='egress', changes={'paid_cap_usd': 10})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 94, in test_allocation_creation_and_egress_cannot_bypass_maxima
+    with self.subTest(boundary='egress'), self.assertRaises(ValueError):
+                                          ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='create', changes={'request_cap': 189})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 92, in test_allocation_creation_and_egress_cannot_bypass_maxima
+    with self.subTest(boundary='create'), self.assertRaises(ValueError):
+                                          ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_allocation_creation_and_egress_cannot_bypass_maxima (bench.evaluation.test_runner_regressions.AllocationRegressionTests.test_allocation_creation_and_egress_cannot_bypass_maxima) (boundary='egress', changes={'request_cap': 189})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_regressions.py", line 94, in test_allocation_creation_and_egress_cannot_bypass_maxima
+    with self.subTest(boundary='egress'), self.assertRaises(ValueError):
+                                          ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.004s
+
+FAILED (failures=6)

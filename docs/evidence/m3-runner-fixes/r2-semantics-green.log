@@ -1,0 +1,9 @@
+test_comment_event_prefixes_and_final_usage_are_preserved (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_comment_event_prefixes_and_final_usage_are_preserved) ... ok
+test_error_tails_retain_prior_usage_and_raw_evidence (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_error_tails_retain_prior_usage_and_raw_evidence) ... ok
+test_malformed_tail_keeps_usage_semantics (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_tail_keeps_usage_semantics) ... ok
+test_null_optional_details_do_not_discard_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_null_optional_details_do_not_discard_usage) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 4.019s
+
+OK

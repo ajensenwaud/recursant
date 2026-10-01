@@ -1,0 +1,29 @@
+account_id,name,email,plan,spend_cents
+ACCOUNT-100001,Zelda Quillfeather,zelda.quillfeather@example.com,pro,12900
+ACCOUNT-100002,Barnaby Thistlewick,barnaby@example.org,free,0
+ACCOUNT-100003,Ottoline Mumblecrust,ottoline.m@example.net,team,45000
+ACCOUNT-100004,Fizzwick Dunderbloom,fizz@mail.example,pro,12900
+ACCOUNT-100005,Zelda Q. Feather,Zelda.Quillfeather@Example.COM,free,0
+ACCOUNT-100006,Percival Wobblestone,percy.w@example.com,team,45000
+ACCOUNT-10007,Shortid Placeholder,shortid@example.com,pro,12900
+ACCOUNT-100008,Marigold Snickerby,marigold_s@example.org,pro,15950
+ACCOUNT-100009,Noemail Placeholder,,free,0
+ACCOUNT-100010,Thaddeus Crumpetworth,  thaddeus@corp.test ,enterprise,250000
+ACCOUNT-100011,Wilhelmina Fuddlesnap,w.fuddlesnap@example.net,free,0
+ACCOUNT-100012,Ignatius Bramblewood,iggy@example.com,pro,12900
+account-100013,Lowercase Prefixson,lower@example.org,pro,12900
+ACCOUNT-100014,Clementine Pufflewhisk,clem@shop.example,team,45000
+ACCOUNT-100015,Barnaby T.,BARNABY@example.org,pro,12900
+ACCOUNT-100016,Horatio Nettlebank,horatio.nettlebank@example.com,enterprise,1234567
+ACCOUNT-100017,Nodot Placeholder,nodot@localhost,free,0
+ACCOUNT-100018,Euphemia Tanglewort,effie@example.org,free,0
+ACCOUNT-100019,Doubleat Placeholder,double@@example.com,pro,12900
+ACCOUNT-100020,Lysander Picklethorn,lysander@example.net,team,45005
+ACCOUNT-100021,Gwendolyn Fernsby-Oddfellow,g@example.com,pro,12900
+ACCOUNT-1000222,Sevendigit Placeholder,seven@example.com,pro,12900
+ACCOUNT-100023,Archibald Quibblesworth,archie@example.org,enterprise,250000
+ACCOUNT-100024,Tabitha Wimbleduff,tabitha.w@example.com,free,0
+ACCOUNT-100025,Refundo Creditsworth,refund@example.net,pro,-550
+ACCOUNT-100026,Badspend Placeholder,badspend@example.org,pro,12.5
+ACCOUNT-100027,Ottoline Again, ottoline.m@example.net,free,0
+ACCOUNT-100028,Validia Laterby,SHORTID@example.com,free,0

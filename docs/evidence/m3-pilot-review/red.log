@@ -1,0 +1,15 @@
+test_sink_maps_provider_trust_to_egress_and_real_upstream (bench.evaluation.test_runner_v2.ProviderConfigTests.test_sink_maps_provider_trust_to_egress_and_real_upstream) ... ok
+
+======================================================================
+FAIL: test_preflight_requires_public_credential_env_present_without_reading_it_out (bench.evaluation.test_runner_v2.ProviderConfigTests.test_preflight_requires_public_credential_env_present_without_reading_it_out)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 153, in test_preflight_requires_public_credential_env_present_without_reading_it_out
+    with self.assertRaises(ValueError): live.validate_live(nokey)
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.521s
+
+FAILED (failures=1)

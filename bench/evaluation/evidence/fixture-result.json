@@ -1,0 +1,634 @@
+{
+  "evidence_kind": "scripted_fixture_NOT_inference",
+  "summary": {
+    "assigned": 18,
+    "successes": 18,
+    "missing_outcomes": 0,
+    "physical_attempts": 72,
+    "release_gate": false,
+    "blockers": [
+      "development_pack_not_sufficient_holdout",
+      "incomplete_usage_or_dispatch_inventory",
+      "independent_source_and_metrics_review_required",
+      "mechanism_and_safety_evidence_required",
+      "non_actual_evidence",
+      "private_and_collector_economics_unknown",
+      "unknown_provider_cost"
+    ]
+  },
+  "task_pack_sha256": "e9ca8527005ea64daef2791af4c0fa4b75e9172509e6fd4c5c3733bd7e13a733",
+  "image": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b",
+  "execution_source_sha256": {
+    "adapter/__init__.py": "7033238e57af838169a9a4a109a948608d820b367906072a4457b8ced27bbbf2",
+    "adapter/gateway.py": "e4a9e2337f78460edd96406ee88466315544b98b47e56e833883326865dfc8bd",
+    "live.py": "b0d4e0f00f44c3a641047d394af23a278628d150d75b1ac531b60c8c7e100f1e",
+    "meter.py": "0ed9c79939c1c2840dbe5a513c49ac5f8fbf10b91f73107c9a098ab28a53979f",
+    "report.py": "f4add61f2edd2448294816619d7d05574a2c2d1a6a257d292f50a68b0218f1f1",
+    "run.py": "d58c3426df22cc5fca42a042c486c2f00b9a00ebf59e7bde003dd1053fc5057f",
+    "tasks.py": "c53c949ba8cabf71943bed388f80994f5c72d899c024bc0b94a9819f72548b5d",
+    "test_evaluation.py": "5a5edb663c38d3e0959f9ae5bd00046a133df9056b73dd160502953dd7666a74",
+    "worker.py": "c000ece8f67a000c1b8b7495cf2c415bb71c782bc15e28bc66399c71f865a5f5"
+  },
+  "settings": {
+    "context": 65536,
+    "cpus": 2,
+    "deadline_s": 180,
+    "memory": "2g",
+    "model": "fixture",
+    "output": 4096,
+    "pids": 128,
+    "reasoning": "pinned upstream defaults; not disabled",
+    "request_cap": 16,
+    "sampling": "pinned upstream defaults",
+    "toolsets": "pinned upstream default",
+    "turns": 8
+  },
+  "seed": 7321,
+  "repeats": 2,
+  "episodes": [
+    {
+      "episode_id": "ledger-v1-r0-baseline",
+      "pair_id": "ledger-v1-r0",
+      "task_id": "ledger-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "c2f0270884f31e888dcaa76aa5d4eb533bb2b818838cd24aa67f64747ef9072e",
+        "exit_code": 0,
+        "passed": 4,
+        "success": true,
+        "total": 4
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "ledger-v1-r0-text-aware",
+      "pair_id": "ledger-v1-r0",
+      "task_id": "ledger-v1",
+      "arm": "text-aware",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "c2f0270884f31e888dcaa76aa5d4eb533bb2b818838cd24aa67f64747ef9072e",
+        "exit_code": 0,
+        "passed": 4,
+        "success": true,
+        "total": 4
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "ledger-v1-r0-structured-only",
+      "pair_id": "ledger-v1-r0",
+      "task_id": "ledger-v1",
+      "arm": "structured-only",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "c2f0270884f31e888dcaa76aa5d4eb533bb2b818838cd24aa67f64747ef9072e",
+        "exit_code": 0,
+        "passed": 4,
+        "success": true,
+        "total": 4
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "intervals-v1-r0-baseline",
+      "pair_id": "intervals-v1-r0",
+      "task_id": "intervals-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "d30685a88a46da1b0a3caca25a2c0c5c7ccad246c0285d8e83632be704bdd7eb",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "intervals-v1-r0-structured-only",
+      "pair_id": "intervals-v1-r0",
+      "task_id": "intervals-v1",
+      "arm": "structured-only",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "d30685a88a46da1b0a3caca25a2c0c5c7ccad246c0285d8e83632be704bdd7eb",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "intervals-v1-r0-text-aware",
+      "pair_id": "intervals-v1-r0",
+      "task_id": "intervals-v1",
+      "arm": "text-aware",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "d30685a88a46da1b0a3caca25a2c0c5c7ccad246c0285d8e83632be704bdd7eb",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "dag-v1-r0-structured-only",
+      "pair_id": "dag-v1-r0",
+      "task_id": "dag-v1",
+      "arm": "structured-only",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "dag-v1-r0-text-aware",
+      "pair_id": "dag-v1-r0",
+      "task_id": "dag-v1",
+      "arm": "text-aware",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "dag-v1-r0-baseline",
+      "pair_id": "dag-v1-r0",
+      "task_id": "dag-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "ledger-v1-r1-text-aware",
+      "pair_id": "ledger-v1-r1",
+      "task_id": "ledger-v1",
+      "arm": "text-aware",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "c2f0270884f31e888dcaa76aa5d4eb533bb2b818838cd24aa67f64747ef9072e",
+        "exit_code": 0,
+        "passed": 4,
+        "success": true,
+        "total": 4
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "ledger-v1-r1-structured-only",
+      "pair_id": "ledger-v1-r1",
+      "task_id": "ledger-v1",
+      "arm": "structured-only",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "c2f0270884f31e888dcaa76aa5d4eb533bb2b818838cd24aa67f64747ef9072e",
+        "exit_code": 0,
+        "passed": 4,
+        "success": true,
+        "total": 4
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "ledger-v1-r1-baseline",
+      "pair_id": "ledger-v1-r1",
+      "task_id": "ledger-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "c2f0270884f31e888dcaa76aa5d4eb533bb2b818838cd24aa67f64747ef9072e",
+        "exit_code": 0,
+        "passed": 4,
+        "success": true,
+        "total": 4
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "intervals-v1-r1-structured-only",
+      "pair_id": "intervals-v1-r1",
+      "task_id": "intervals-v1",
+      "arm": "structured-only",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "d30685a88a46da1b0a3caca25a2c0c5c7ccad246c0285d8e83632be704bdd7eb",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "intervals-v1-r1-baseline",
+      "pair_id": "intervals-v1-r1",
+      "task_id": "intervals-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "d30685a88a46da1b0a3caca25a2c0c5c7ccad246c0285d8e83632be704bdd7eb",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "intervals-v1-r1-text-aware",
+      "pair_id": "intervals-v1-r1",
+      "task_id": "intervals-v1",
+      "arm": "text-aware",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "d30685a88a46da1b0a3caca25a2c0c5c7ccad246c0285d8e83632be704bdd7eb",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "dag-v1-r1-structured-only",
+      "pair_id": "dag-v1-r1",
+      "task_id": "dag-v1",
+      "arm": "structured-only",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "dag-v1-r1-baseline",
+      "pair_id": "dag-v1-r1",
+      "task_id": "dag-v1",
+      "arm": "baseline",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    },
+    {
+      "episode_id": "dag-v1-r1-text-aware",
+      "pair_id": "dag-v1-r1",
+      "task_id": "dag-v1",
+      "arm": "text-aware",
+      "success": true,
+      "verifier": {
+        "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520",
+        "exit_code": 0,
+        "passed": 5,
+        "success": true,
+        "total": 5
+      },
+      "exit_code": 0,
+      "harness_completed": true,
+      "physical_attempts": 4,
+      "hook_counts": {
+        "on_session_end": 1,
+        "on_session_start": 1,
+        "on_stream_delta": 4,
+        "on_stream_end": 4,
+        "on_stream_start": 4,
+        "post_api_request": 4,
+        "post_tool_call": 3,
+        "pre_api_request": 4
+      },
+      "readiness": {
+        "eligible_dispatches": null,
+        "reason": "not independently observed; context events retained, no readiness inferred",
+        "semantic_ready_dispatches": null
+      }
+    }
+  ],
+  "live_model_calls": 0,
+  "private_resource_cost_usd": null,
+  "provider_cost_usd": null,
+  "actual_usage_tokens": null,
+  "notes": [
+    "Scripted fixture solvers prove orchestration/grading, not model quality.",
+    "Later admission hardening is covered by final tests; historical execution source hashes are retained."
+  ]
+}

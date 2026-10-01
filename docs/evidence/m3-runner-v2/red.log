@@ -1,0 +1,214 @@
+FEEEEEEEEEEFEFFFFEEEEE
+======================================================================
+ERROR: test_interpreter_calls_classified_and_counted_in_treatment (bench.evaluation.test_runner_v2.ArmTests.test_interpreter_calls_classified_and_counted_in_treatment)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 162, in test_interpreter_calls_classified_and_counted_in_treatment
+    cfg = providers_config(root, url)
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 17, in providers_config
+    cfg['router_config']['private_default']['model'] = PRIVATE_MODEL
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'private_default'
+
+======================================================================
+ERROR: test_structured_arm_strips_text_full_arm_keeps_it (bench.evaluation.test_runner_v2.ArmTests.test_structured_arm_strips_text_full_arm_keeps_it) (arm='routed-structured')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 157, in test_structured_arm_strips_text_full_arm_keeps_it
+    self.assertEqual(route.context_body('/v1/context/event', {'event':{'text':'x','text_truncated':False,'kind':'k'}})['event'].get('text') is not None, kept)
+                     ^^^^^^^^^^^^^^^^^^
+AttributeError: 'RouteSession' object has no attribute 'context_body'
+
+======================================================================
+ERROR: test_structured_arm_strips_text_full_arm_keeps_it (bench.evaluation.test_runner_v2.ArmTests.test_structured_arm_strips_text_full_arm_keeps_it) (arm='structured-only')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 157, in test_structured_arm_strips_text_full_arm_keeps_it
+    self.assertEqual(route.context_body('/v1/context/event', {'event':{'text':'x','text_truncated':False,'kind':'k'}})['event'].get('text') is not None, kept)
+                     ^^^^^^^^^^^^^^^^^^
+AttributeError: 'RouteSession' object has no attribute 'context_body'
+
+======================================================================
+ERROR: test_structured_arm_strips_text_full_arm_keeps_it (bench.evaluation.test_runner_v2.ArmTests.test_structured_arm_strips_text_full_arm_keeps_it) (arm='routed-full')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 157, in test_structured_arm_strips_text_full_arm_keeps_it
+    self.assertEqual(route.context_body('/v1/context/event', {'event':{'text':'x','text_truncated':False,'kind':'k'}})['event'].get('text') is not None, kept)
+                     ^^^^^^^^^^^^^^^^^^
+AttributeError: 'RouteSession' object has no attribute 'context_body'
+
+======================================================================
+ERROR: test_identical_formula_across_arms_and_interpreter_reported_separately (bench.evaluation.test_runner_v2.FairCostTests.test_identical_formula_across_arms_and_interpreter_reported_separately)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 221, in test_identical_formula_across_arms_and_interpreter_reported_separately
+    self.assertTrue(math.isclose(arms['baseline-direct']['public_cost_usd'], listed))
+                                 ~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'baseline-direct'
+
+======================================================================
+ERROR: test_list_price_fallback_applies_cached_discount (bench.evaluation.test_runner_v2.FairCostTests.test_list_price_fallback_applies_cached_discount)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 181, in test_list_price_fallback_applies_cached_discount
+    from bench.evaluation.pricing import call_cost
+ModuleNotFoundError: No module named 'bench.evaluation.pricing'
+
+======================================================================
+ERROR: test_one_unknown_call_makes_arm_cost_unknown_with_known_lower_bound (bench.evaluation.test_runner_v2.FairCostTests.test_one_unknown_call_makes_arm_cost_unknown_with_known_lower_bound)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 242, in test_one_unknown_call_makes_arm_cost_unknown_with_known_lower_bound
+    arm = summarize(assignments, rows)['arms']['baseline-direct']
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'baseline-direct'
+
+======================================================================
+ERROR: test_private_calls_have_no_public_charge_but_private_economics_unknown (bench.evaluation.test_runner_v2.FairCostTests.test_private_calls_have_no_public_charge_but_private_economics_unknown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 200, in test_private_calls_have_no_public_charge_but_private_economics_unknown
+    from bench.evaluation.pricing import call_cost
+ModuleNotFoundError: No module named 'bench.evaluation.pricing'
+
+======================================================================
+ERROR: test_provider_reported_cost_wins_and_is_labelled (bench.evaluation.test_runner_v2.FairCostTests.test_provider_reported_cost_wins_and_is_labelled)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 177, in test_provider_reported_cost_wins_and_is_labelled
+    from bench.evaluation.pricing import call_cost
+ModuleNotFoundError: No module named 'bench.evaluation.pricing'
+
+======================================================================
+ERROR: test_unknown_stays_unknown (bench.evaluation.test_runner_v2.FairCostTests.test_unknown_stays_unknown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 192, in test_unknown_stays_unknown
+    from bench.evaluation.pricing import call_cost
+ModuleNotFoundError: No module named 'bench.evaluation.pricing'
+
+======================================================================
+ERROR: test_legacy_form_still_rewritten (bench.evaluation.test_runner_v2.ProviderConfigTests.test_legacy_form_still_rewritten)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 80, in test_legacy_form_still_rewritten
+    rewritten, routes = live.episode_router_config(cfg, 'http://h/t', 1, 'routed-full')
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'bench.evaluation.live' has no attribute 'episode_router_config'
+
+======================================================================
+ERROR: test_preflight_requires_upstream_for_every_provider_and_signals_choice (bench.evaluation.test_runner_v2.ProviderConfigTests.test_preflight_requires_upstream_for_every_provider_and_signals_choice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 137, in test_preflight_requires_upstream_for_every_provider_and_signals_choice
+    missing = json.loads(json.dumps(cfg)); del missing['upstreams']['gx10']
+                                               ~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+KeyError: 'gx10'
+
+======================================================================
+ERROR: test_private_provider_model_is_checked_against_its_own_upstream (bench.evaluation.test_runner_v2.ProviderConfigTests.test_private_provider_model_is_checked_against_its_own_upstream)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 124, in test_private_provider_model_is_checked_against_its_own_upstream
+    cfg = providers_config(Path(temp), 'http://127.0.0.1:1/v1')
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 17, in providers_config
+    cfg['router_config']['private_default']['model'] = PRIVATE_MODEL
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'private_default'
+
+======================================================================
+ERROR: test_providers_form_is_rewritten_to_per_provider_metering (bench.evaluation.test_runner_v2.ProviderConfigTests.test_providers_form_is_rewritten_to_per_provider_metering)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 61, in test_providers_form_is_rewritten_to_per_provider_metering
+    cfg = providers_config(Path(temp), 'http://127.0.0.1:1/v1')
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 17, in providers_config
+    cfg['router_config']['private_default']['model'] = PRIVATE_MODEL
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'private_default'
+
+======================================================================
+ERROR: test_signals_follow_config_identically_for_both_routed_arms (bench.evaluation.test_runner_v2.ProviderConfigTests.test_signals_follow_config_identically_for_both_routed_arms)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 94, in test_signals_follow_config_identically_for_both_routed_arms
+    self.assertEqual(live.episode_router_config(cfg, 'http://h/t', 1, arm)[0]['context']['signals'], 'on')
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'bench.evaluation.live' has no attribute 'episode_router_config'
+
+======================================================================
+ERROR: test_sink_maps_provider_trust_to_egress_and_real_upstream (bench.evaluation.test_runner_v2.ProviderConfigTests.test_sink_maps_provider_trust_to_egress_and_real_upstream)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 102, in test_sink_maps_provider_trust_to_egress_and_real_upstream
+    cfg = providers_config(root, private_url, public_url=public_url)
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 17, in providers_config
+    cfg['router_config']['private_default']['model'] = PRIVATE_MODEL
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'private_default'
+
+======================================================================
+FAIL: test_arm_names_and_legacy_mapping (bench.evaluation.test_runner_v2.ArmTests.test_arm_names_and_legacy_mapping)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 148, in test_arm_names_and_legacy_mapping
+    self.assertEqual(run.ARMS, ('baseline-direct', 'routed-structured', 'routed-full'))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('baseline', 'structured-only', 'text-aware') != ('baseline-direct', 'routed-structured', 'routed-full')
+
+First differing element 0:
+'baseline'
+'baseline-direct'
+
+- ('baseline', 'structured-only', 'text-aware')
++ ('baseline-direct', 'routed-structured', 'routed-full')
+
+======================================================================
+FAIL: test_example_uses_named_providers_and_priced_candidates (bench.evaluation.test_runner_v2.ProviderConfigTests.test_example_uses_named_providers_and_priced_candidates)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 47, in test_example_uses_named_providers_and_priced_candidates
+    self.assertNotIn('private', router); self.assertNotIn('public', router)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 'private' unexpectedly found in {'listen': {'host': '127.0.0.1', 'port': 1}, 'private': {'url': 'http://127.0.0.1/v1', 'model': 'GLM-5.3-Flash-EXL3'}, 'public': {'url': 'https://openrouter.ai/api/v1', 'model': 'openai/gpt-4.1', 'api_key_env': 'M3_EPISODE_API'}, 'auth': {'api_key_env': 'M3_EPISODE_API'}, 'aliases': [{'from': 'baseline', 'endpoint': 'public', 'model': 'openai/gpt-4.1'}, {'from': 'economy', 'endpoint': 'public', 'model': 'openai/gpt-4.1-mini'}, {'from': 'local', 'endpoint': 'private', 'model': 'GLM-5.3-Flash-EXL3'}], 'limits': {'max_body_bytes': 1048576, 'max_connections': 16, 'request_timeout_seconds': 180}, 'compliance': {'enabled': True, 'public_allowed': True, 'patterns': ['ACCOUNT-[0-9]{4,}']}, 'context': {'mode': 'active', 'tenant': 'local', 'project': 'evaluation', 'source_key_env': 'M3_EPISODE_SOURCE', 'auto_alias': 'auto', 'baseline_alias': 'baseline', 'ttl_ms': 180000, 'candidates': [{'alias': 'baseline', 'quality_evidence': 'REPLACE_WITH_INDEPENDENT_QUALIFICATION', 'qualified_tasks': [], 'context_limit': 65536, 'expected_task_cost': None}, {'alias': 'economy', 'quality_evidence': 'REPLACE_WITH_INDEPENDENT_QUALIFICATION', 'qualified_tasks': ['format_simple'], 'context_limit': 65536, 'expected_task_cost': None}]}}
+
+======================================================================
+FAIL: test_preflight_requires_upstream_for_every_provider_and_signals_choice (bench.evaluation.test_runner_v2.ProviderConfigTests.test_preflight_requires_upstream_for_every_provider_and_signals_choice) (signals=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 135, in test_preflight_requires_upstream_for_every_provider_and_signals_choice
+    with self.subTest(signals=value), self.assertRaises(ValueError):
+                                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_preflight_requires_upstream_for_every_provider_and_signals_choice (bench.evaluation.test_runner_v2.ProviderConfigTests.test_preflight_requires_upstream_for_every_provider_and_signals_choice) (signals='REPLACE')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 135, in test_preflight_requires_upstream_for_every_provider_and_signals_choice
+    with self.subTest(signals=value), self.assertRaises(ValueError):
+                                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_preflight_requires_upstream_for_every_provider_and_signals_choice (bench.evaluation.test_runner_v2.ProviderConfigTests.test_preflight_requires_upstream_for_every_provider_and_signals_choice) (signals='maybe')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 135, in test_preflight_requires_upstream_for_every_provider_and_signals_choice
+    with self.subTest(signals=value), self.assertRaises(ValueError):
+                                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_preflight_requires_upstream_for_every_provider_and_signals_choice (bench.evaluation.test_runner_v2.ProviderConfigTests.test_preflight_requires_upstream_for_every_provider_and_signals_choice) (signals=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_runner_v2.py", line 135, in test_preflight_requires_upstream_for_every_provider_and_signals_choice
+    with self.subTest(signals=value), self.assertRaises(ValueError):
+                                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 16 tests in 1.513s
+
+FAILED (failures=6, errors=16)

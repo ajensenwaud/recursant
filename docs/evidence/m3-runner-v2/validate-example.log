@@ -1,0 +1,2 @@
+signals=off routes={'gx10': 'private', 'openrouter': 'public'} exit=0 configuration valid
+signals=on routes={'gx10': 'private', 'openrouter': 'public'} exit=1 invalid runtime configuration

@@ -1,0 +1,422 @@
+test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) ... 
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[1], position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[1], position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='bad', position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='bad', position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=1, position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=1, position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[], position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[], position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='', position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='', position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=0, position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=0, position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=False, position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=False, position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=True, position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=True, position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[1], position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[1], position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='bad', position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='bad', position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=1, position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=1, position='terminal') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[], position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[], position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='', position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='', position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=0, position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=0, position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=False, position='interim') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=False, position='terminal') ... FAIL
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=True, position='interim') ... ERROR
+  test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=True, position='terminal') ... ERROR
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[1], position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[1], position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='bad', position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='bad', position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=1, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=1, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=True, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'bool' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=True, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 335, in _forward
+    reasoning_tokens=(usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'bool' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[1], position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[1], position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='bad', position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='bad', position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=1, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=1, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=True, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'bool' object has no attribute 'get'
+
+======================================================================
+ERROR: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=True, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 135, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    status, raw, mime = meter.forward('public', BODY, {})
+                        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 266, in forward
+    return self._forward(endpoint,body,headers)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/live.py", line 336, in _forward
+    cached_input_tokens=(usage.get('prompt_tokens_details') or {}).get('cached_tokens'),
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'bool' object has no attribute 'get'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[], position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": [], "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=[], position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": [], "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='', position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": "", "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid='', position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": "", "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=0, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": 0, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=0, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": 0, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=False, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": false, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='completion_tokens_details', invalid=False, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": false, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[], position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": []}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=[], position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": []}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='', position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": ""}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid='', position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": ""}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=0, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": 0}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=0, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": 0}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=False, position='interim')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": false}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": {"cached_tokens": 37}}}\n\ndata: [DONE]\n\n'
+
+======================================================================
+FAIL: test_malformed_optional_details_fail_atomically_with_prior_usage (bench.evaluation.test_stream_regressions.StreamRegressionTests.test_malformed_optional_details_fail_atomically_with_prior_usage) (field='prompt_tokens_details', invalid=False, position='terminal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/aj/projects/recursant-v4-m3-full-task-evaluation/bench/evaluation/test_stream_regressions.py", line 136, in test_malformed_optional_details_fail_atomically_with_prior_usage
+    self.assertEqual(status, 502, raw)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 502 : b'data: {"model": "openai/gpt-4.1", "usage": {"prompt_tokens": 11, "completion_tokens": 5, "cost": 0.02, "completion_tokens_details": {"reasoning_tokens": 3}, "prompt_tokens_details": {"cached_tokens": 7}}}\n\ndata: {"usage": {"prompt_tokens": 101, "completion_tokens": 50, "cost": 0.07, "completion_tokens_details": {"reasoning_tokens": 23}, "prompt_tokens_details": false}}\n\ndata: [DONE]\n\n'
+
+----------------------------------------------------------------------
+Ran 1 test in 16.097s
+
+FAILED (failures=16, errors=16)
