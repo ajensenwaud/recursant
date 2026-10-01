@@ -23,7 +23,6 @@ class ObserverTest(unittest.TestCase):
                 def register_hook(self, name, callback):
                     hooks[name] = callback
             mod.register(Context())
-            self.assertNotIn('pre_tool_call', hooks)
             self.assertNotIn('pre_llm_call', hooks)
             for _ in range(100):
                 self.assertIsNone(hooks['on_stream_delta'](delta='synthetic', kind='reasoning'))
@@ -32,6 +31,9 @@ class ObserverTest(unittest.TestCase):
             self.assertLessEqual(Path(os.environ['HERMES_OBSERVER_PATH']).stat().st_size, 2048)
             self.assertEqual(records[-1]['event'], 'observer_storage_limit')
             self.assertEqual(records[0]['payload']['delta'], 'synthetic')
+            # pre_tool_call can veto a tool in Hermes; the observer records it for
+            # lead-time analysis but must never return a decision.
+            self.assertIsNone(hooks['pre_tool_call'](tool_name='terminal', args={'command': 'pwd'}))
 
 if __name__ == '__main__':
     unittest.main()
