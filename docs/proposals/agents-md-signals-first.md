@@ -1,7 +1,9 @@
 # Proposed AGENTS.md change: signals-first, telemetry advisory (2026-09-29)
 
-Approved in chat by Anders. Not yet applied: AGENTS.md is a protected file and the
-write approval prompt timed out. Apply these three replacements to AGENTS.md.
+Approved in chat by Anders. Applied to AGENTS.md on 2026-10-01, with one change: the
+evidence pointer cites `docs/evidence/m3-multiagent.md` (the 2026-09-29 comparison it
+originally cited ran on a Hermes build that rejected every terminal command), and the
+telemetry bullet adds the multi-agent finding.
 
 ## 1. Architecture direction
 

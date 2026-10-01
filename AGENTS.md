@@ -14,7 +14,8 @@ Engineers want lower AI cost, predictable bills, and practical controls. Current
 
 - AI-native interface (CLI)
 - Built to be blazingly fast
-- Integration to agent harnesses via A2A protocol and OpenTelemetry (or equivalent) for obtaining agent decision traces
+- Signals-first (decided 2026-09-29; evidence `docs/evidence/m3-multiagent.md`): the default routing decisions come from the request stream the router already sees (messages, tool calls, tool results, usage). No harness integration is required to save money, and signals remain the fallback when any other context source is missing or late.
+- Integration to agent harnesses via A2A protocol and OpenTelemetry (or equivalent) for agent decision traces is an advisory layer, to be proven on long-horizon workflows (plans, subagents, slow tools, context compaction). On short tasks it arrived too late to matter (Hermes sent the next request ~10 ms after a tool result), and on multi-agent tasks subagent hints added nothing over what the request stream already showed.
 - One config file, single binary
 - Easy to set up and use (sane defaults)
 - C for the core routing engine and harness/agent integration for zero overhead
@@ -27,7 +28,11 @@ Engineers want lower AI cost, predictable bills, and practical controls. Current
 ## Core components to build
 1. Core inference router: the model router itself (across hybrid workloads)
 2. Compliance engine: rules engine for things like PII classification and enforcement
-3. Context engine: context layer for making the router agent/harness-aware using direct feedback as well as real-time feedback of the agent's intent by reading OpenTelemetry
+3. Context engine: makes the router agent/harness-aware. Layered, in precedence order below compliance:
+   a. Continuity: tool-boundary replay, sticky request contract, pins, prompt-cache switching cost.
+   b. Signals (default decision-maker): deterministic C rules over the request's tool results (clean steps downshift, executed failures escalate, harness rejections are neither).
+   c. Judge (optional, off by default): synchronous low-cost decision model (e.g. Jev) for turns signals leave unclassified; public egress only when M2 already permits public placement.
+   d. Telemetry and interpretation (advisory, to be proven on long-horizon workflows): OpenTelemetry or harness adapters and async interpretation of plans, subagents, tool durations and compaction. Never overrides a–c.
 4. Self-improvment engine (optional): SLM or Jev-like agentic layer that assesses past routing decisions and optimises the context engine
 
 Layer 2. is fully deterministic and can override any decisions made by layer 3 or 4. We need full compliance of workloads (think APRA CPS230).
@@ -40,7 +45,7 @@ Layer 2. is fully deterministic and can override any decisions made by layer 3 o
 ## Build sequence and scope
 - M1: Core inference router including hybrid routing. Definition of done: Can route across public and private workloads
 - M2: Compliance engine (supports regexes and pattern matching for now). Definition of done: Can filter out requests with PII and ship them to private inference
-- M3: Context engine: Intelligent, context-aware, and semantic routing decisions through live telemetry (agent decision traces) from agents and harnesses as per the product capabilities above. Definition of done: Routes to the cheapest model per turn and saves $s compared to what the harness itself would have done without compromising quality. This also applies to when public infrastructure models are used.
+- M3: Context engine: Intelligent, context-aware per-turn routing decisions from the agent's request stream (signals-first, optional judge), with live telemetry (agent decision traces) as an advisory layer to be proven on long-horizon workflows, as per the product capabilities above. Definition of done: Routes to the cheapest model per turn and saves $s compared to what the harness itself would have done without compromising quality. This also applies to when public infrastructure models are used.
 - M4: To be scoped out later
 
 ## Environments
