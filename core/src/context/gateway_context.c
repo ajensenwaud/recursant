@@ -61,6 +61,11 @@ struct scope {
      * Never addressable by generation/branch. delegated = another session
      * handed this conversation out (subagent). */
     bool implicit,delegated;uint64_t anchor;char ident[RC_ATTEMPT_TOKEN_SIZE];size_t seen_messages;
+    /* Orchestrator: one of this session's pending tool calls handed work to a
+     * subagent. Its next step integrates and reviews that work: no downshift
+     * class for that step (offline replay 2026-10-01: gpt-4.1-mini repeated
+     * gpt-4.1's move on 1 of 24 such steps). Cleared after that step. */
+    bool awaiting_delegates;
 };
 /* Advisory harness telemetry: session -> role. Bounded, expiring, never
  * continuity or placement authority. */
@@ -657,6 +662,7 @@ static bool holds(json_t *v,const char *text,unsigned depth,size_t *nodes) {
  * on was handed out by that session (e.g. a delegate/task tool's goal).
  * Exact equality on a nontrivial string only; advisory like a harness hint. */
 static bool handed_out(struct rc_gateway_context *g,const char *first) {
+    bool found_any=false;
     if(!first||strlen(first)<16)return false;
     for(int i=0;i<SCOPES;i++){
         struct scope *s=&g->scopes[i];
@@ -665,10 +671,10 @@ static bool handed_out(struct rc_gateway_context *g,const char *first) {
             json_t *a=json_object_get(json_object_get(json_array_get(s->observed_calls,c),"function"),"arguments");
             json_t *parsed=json_is_string(a)?json_loadb(json_string_value(a),json_string_length(a),JSON_REJECT_DUPLICATES,NULL):NULL;
             size_t nodes=0;bool found=parsed&&holds(parsed,first,0,&nodes);
-            json_decref(parsed);if(found)return true;
+            json_decref(parsed);if(found){s->awaiting_delegates=true;found_any=true;}
         }
     }
-    return false;
+    return found_any;
 }
 /* Session for an unregistered automatic request. -1 = leave it unscoped (the
  * baseline, as before): nothing usable, the matching session is busy, or the
@@ -704,7 +710,9 @@ static int implicit_scope(struct rc_gateway_context *g,json_t *body,const rc_gat
     if(start){
         for(size_t i=0;ident[0]&&i<HINTS;i++)
             if(g->hints[i].set&&!strcmp(g->hints[i].session,ident)&&now-g->hints[i].at<=HINT_TTL_MS&&g->hints[i].delegated){s->delegated=true;lineage="hint";}
-        if(!s->delegated&&handed_out(g,first)){s->delegated=true;lineage="request";}
+        /* Always matched (also marks the orchestrator awaiting its delegates),
+         * even when a hint already identified this session. */
+        if(handed_out(g,first)&&!s->delegated){s->delegated=true;lineage="request";}
     }
     fprintf(stderr,"session scope=%d kind=request start=%d delegated=%d lineage=%s\n",slot,start,s->delegated,lineage);
     return slot;
@@ -835,6 +843,10 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             /* First turn of a delegated session (subagent): its own class,
              * used only by candidates the operator qualified for it. */
             if(structural&&!signal&&!escalation&&!s->turns&&s->delegated)signal=RC_TASK_DELEGATED_START;
+            /* Integration/review step of an orchestrator: keep the baseline. */
+            if(s->awaiting_delegates&&signal&&signal!=RC_TASK_DELEGATED_START){
+                signal=0;fprintf(stderr,"route_hold scope=%d reason=delegate_results\n",ticket->scope);
+            }
             if(asked)fprintf(stderr,"judge scope=%d verdict=%s routine=%.3f difficulty=%.3f ms=%u\n",ticket->scope,judge_verdict,judged.routine,judged.difficulty,judged.latency_ms);
             rc_selection_request req={.registry_version=1,.baseline_alias=g->baseline,.continuity=RC_CONTINUITY_REPLAYABLE,.context_usable=usable&&!s->pinned,.now=now,.context_observed_at=s->observed,.context_expires_at=usable?snapshot.expires_at:0,.task_class=task,.context_tokens=tokens?tokens:1,
                 .signal_class=signal,.escalation_class=escalation};
@@ -916,7 +928,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if((!automatic||(s->requirements&&s->owner))&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
         if(!automatic&&s->requirements&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
         if(s->pinned&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
-        s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;s->active=now;
+        s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;s->active=now;s->awaiting_delegates=false;
         rc_tool_boundary_free(s->boundary);s->boundary=NULL;
         json_decref(s->observed_calls);s->observed_calls=NULL;memset(s->callback_seen,0,sizeof s->callback_seen);
         if(s->pinned){json_decref(s->history);s->history=NULL;}

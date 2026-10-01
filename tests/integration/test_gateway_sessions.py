@@ -144,7 +144,10 @@ class GatewaySessionTests(unittest.TestCase):
     def test_f_subagent_is_recognised_from_the_request_stream(self):
         goal = 'Implement textkit/slug.py with slugify(text, max_len=50).'
         first, second, after, sink = self.delegated(goal, goal)
-        self.assertEqual((first, second, after), ('physical', 'physical', 'physical'))
+        # The orchestrator's step after its delegate call returns integrates and
+        # reviews the subagent's work: it stays on the baseline.
+        self.assertEqual((first, second, after), ('physical', 'physical', 'frontier'))
+        self.assertEqual(len(self.lines(sink, 'route_hold ')), 1)
         self.assertIn(' delegated=1 lineage=request', self.lines(sink, 'session ')[1])
         self.assertIn(' class=delegated_start reason=cheapest', self.lines(sink, 'route_decision ')[1])
         self.assertNotIn(b'slugify', sink.router_stderr)

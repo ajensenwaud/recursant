@@ -153,6 +153,36 @@ static void structured_envelopes(void) {
     const char *follow="{\"messages\":[" USER("s") "," CALL("c1") ",{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"{\\\"output\\\": \\\"ok\\\", \\\"exit_code\\\": 0, \\\"error\\\": null}\"}]," TOOLS "}";
     CHECK(classify(follow,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
 }
+static void structured_payloads(void) {
+    /* Recorded pinned-Hermes shapes (D-ma2). Payload fields are data: a source
+     * file mentioning ValueError, a diff adding an exception, a delegate summary
+     * about error handling, or a passing test called test_error_* are clean. */
+    const char *clean[]={
+        "{\"content\": \"1|def f(x):\\n2|    raise ValueError('bad')  # error handling\", \"total_lines\": 2, \"file_size\": 40, \"truncated\": false, \"is_binary\": false, \"is_image\": false, \"not_found\": false}",
+        "{\"bytes_written\": 120, \"dirs_created\": true, \"verified\": true, \"lint\": {\"status\": \"ok\", \"output\": \"\"}, \"resolved_path\": \"/w/a.py\", \"files_modified\": [\"/w/a.py\"]}",
+        "{\"success\": true, \"diff\": \"+    except Exception as error:\\n+        raise\", \"files_modified\": [\"/w/a.py\"]}",
+        "{\"results\": [{\"task_index\": 0, \"status\": \"completed\", \"summary\": \"Added error handling; raises ValueError on bad input\"}], \"total_duration_seconds\": 3.2, \"note\": \"\"}",
+        "{\"total_count\": 2, \"matches_text\": \"a.py\\n  3: raise TypeError\", \"matches_format\": \"path-grouped\"}",
+        "{\"output\": \"test_error_handling (t.T.test_error_handling) ... ok\\n\\nOK\", \"exit_code\": 0, \"error\": null}",
+        "{\"status\": \"success\", \"output\": \"no exceptions raised\", \"exit_code\": 0}"};
+    for (size_t i=0; i<sizeof clean/sizeof *clean; ++i) CHECK(!rc_signals_failed_text(clean[i],strlen(clean[i])));
+    /* Outcome fields still decide failures, including after a harness note. */
+    const char *failed[]={
+        "{\"content\": \"\", \"total_lines\": 0, \"error\": \"File not found: /w/x.py\", \"not_found\": true}",
+        "{\"error\": \"Refusing to overwrite a.py\", \"path\": \"a.py\", \"resolved_path\": \"/w/a.py\", \"stale_write_blocked\": true}",
+        "{\"success\": false, \"error\": \"Could not find a match for old_string\"}",
+        "{\"results\": [{\"task_index\": 0, \"status\": \"failed\", \"summary\": \"ok\"}], \"note\": \"\"}",
+        "{\"total_count\": 0, \"error\": \"Path not found: x\"}",
+        "{\"output\": \"x\", \"exit_code\": 126, \"error\": null, \"hint\": \"Exit 126\"}\n\n[hermes note: 3rd identical call]",
+        "{\"output\": \"ERROR: test_x (t.T.test_x)\\nFAILED (errors=1)\", \"exit_code\": 0, \"error\": null}",
+        "{\"status\": \"error\", \"output\": \"\\n--- stderr ---\\nTraceback (most recent call last):\", \"exit_code\": 1}"};
+    for (size_t i=0; i<sizeof failed/sizeof *failed; ++i) CHECK(rc_signals_failed_text(failed[i],strlen(failed[i])));
+    /* Not a JSON object, or trailing text that is not one bracketed note:
+     * the broad word scan applies as before. */
+    CHECK(rc_signals_failed_text("raise ValueError",16));
+    const char *trailing="{\"exit_code\": 0} then an error";
+    CHECK(rc_signals_failed_text(trailing,strlen(trailing)));
+}
 static void rejected_invocations(void) {
     /* Pilot-2/3: Hermes rejects a malformed call before executing anything:
      * {"error":"notify/heartbeat only apply to background commands ..."}.
@@ -217,6 +247,7 @@ static void rejected_invocations(void) {
 int main(void) {
     rejected_invocations();
     structured_envelopes();
+    structured_payloads();
     taxonomy();
     followup_and_final();
     failures_and_recovery();

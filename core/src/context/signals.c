@@ -46,38 +46,71 @@ static bool scan_text(const char *text, size_t length) {
     if (length<=2*RC_SIGNALS_SCAN_BYTES) return scan(text,end);
     return scan(text,text+RC_SIGNALS_SCAN_BYTES) || scan(end-RC_SIGNALS_SCAN_BYTES,end);
 }
-/* Structured tool-result envelope (e.g. pinned Hermes terminal:
- * {"output":...,"exit_code":0,"error":null}). Field NAMES are protocol, not
- * failure text. Returns 1 failed, 0 clean, -1 not a recognized envelope. */
+/* Structured tool results. Most agent tools (pinned Hermes: terminal, read_file,
+ * write_file, patch, search_files, execute_code, delegate_task) return a JSON
+ * object whose outcome fields say whether the call worked. Those fields decide;
+ * payload fields (file content, diffs, search matches, summaries) are DATA and
+ * are never scanned for failure words: reading source that mentions ValueError
+ * is not a failed step. Only free command output is scanned, and only when no
+ * exit code was reported. A JSON object may be followed by one bracketed
+ * harness note. Returns 1 failed, 0 clean, -1 not a JSON object. */
+static bool contains(const char *t, size_t n, const char *needle) {
+    size_t m=strlen(needle);
+    for (size_t i=0;i+m<=n;++i) if (!memcmp(t+i,needle,m)) return true;
+    return false;
+}
+/* Case-sensitive markers that ordinary data and passing test names do not
+ * produce: unittest/pytest failure summaries and Python exceptions. */
+static bool strong_markers(const char *t, size_t n) {
+    static const char *markers[]={"Traceback (most recent call last)","FAILED","ERROR:","Error:","AssertionError"};
+    for (size_t k=0;k<sizeof markers/sizeof *markers;++k) if (contains(t,n,markers[k])) return true;
+    return false;
+}
+static bool ok_status(json_t *v) {
+    const char *s=json_string_value(v);
+    return s && (!strcmp(s,"ok") || !strcmp(s,"success") || !strcmp(s,"completed"));
+}
+static bool error_value(json_t *v) {
+    return v && !json_is_null(v) && !json_is_false(v) && !(json_is_string(v) && !json_string_length(v));
+}
 static int envelope_failed(const char *text, size_t length) {
     size_t i=0; while (i<length && (text[i]==' '||text[i]=='\n'||text[i]=='\t'||text[i]=='\r')) ++i;
-    if (i==length || text[i]!='{' || length>(size_t)4*RC_SIGNALS_SCAN_BYTES) return -1;
-    json_t *o=json_loadb(text,length,JSON_REJECT_DUPLICATES,NULL);
+    if (i==length || text[i]!='{' || length>(size_t)64*RC_SIGNALS_SCAN_BYTES) return -1;
+    json_error_t error;
+    json_t *o=json_loadb(text+i,length-i,JSON_REJECT_DUPLICATES|JSON_DISABLE_EOF_CHECK,&error);
     if (!json_is_object(o)) { json_decref(o); return -1; }
-    static const char *known="|output||exit_code||error||success||status||stdout||stderr|";
-    bool recognized=false; int failed=0; const char *k; json_t *v;
-    json_object_foreach(o,k,v) {
-        char token[40];
-        if (strlen(k)>30) { json_decref(o); return -1; }
-        token[0]='|'; strcpy(token+1,k); strcat(token,"|");
-        if (!strstr(known,token)) { json_decref(o); return -1; }
-        recognized=true;
-        if (!strcmp(k,"exit_code")) {
-            if (!json_is_integer(v)) { if (!json_is_null(v)) failed=1; }
-            else if (json_integer_value(v)!=0) failed=1;
-        } else if (!strcmp(k,"error")) {
-            if (!json_is_null(v) && !json_is_false(v) && !(json_is_string(v) && !json_string_length(v))) failed=1;
-        } else if (!strcmp(k,"success")) {
-            if (!json_is_true(v)) failed=1;
-        } else if (!strcmp(k,"status")) {
-            const char *s=json_string_value(v);
-            if (!s || (strcmp(s,"ok") && strcmp(s,"success") && strcmp(s,"completed"))) failed=1;
-        } else if (json_is_string(v)) {
-            if (scan_text(json_string_value(v),json_string_length(v))) failed=1;
-        } else if (!json_is_null(v)) failed=1;
+    size_t j=i+(size_t)error.position;
+    while (j<length && (text[j]==' '||text[j]=='\n'||text[j]=='\t'||text[j]=='\r')) ++j;
+    if (j<length && (text[j]!='[' || text[length-1]!=']')) { json_decref(o); return -1; }
+    int failed=0;
+    json_t *exit_code=json_object_get(o,"exit_code"), *status=json_object_get(o,"status");
+    json_t *success=json_object_get(o,"success"), *results=json_object_get(o,"results");
+    if (error_value(json_object_get(o,"error"))) failed=1;
+    if (exit_code && !(json_is_integer(exit_code) && json_integer_value(exit_code)==0) && !json_is_null(exit_code)) failed=1;
+    if (success && !json_is_true(success)) failed=1;
+    if (status && !ok_status(status)) failed=1;
+    if (json_is_true(json_object_get(o,"not_found"))) failed=1;
+    /* Delegated work (e.g. delegate_task): each child's own status. */
+    if (json_is_array(results)) {
+        size_t k; json_t *r;
+        json_array_foreach(results,k,r) {
+            json_t *st=json_object_get(r,"status");
+            if (json_is_object(r) && st && !ok_status(st)) failed=1;
+        }
+    }
+    /* Command output still counts: a pipeline such as "tests | tail" exits 0
+     * when the tests fail. With an exit code reported, only unambiguous
+     * failure markers count (a test named test_error_handling passing is not
+     * a failure); without one, the broad markers apply as before. */
+    static const char *outputs[]={"output","stdout","stderr"};
+    for (size_t k=0;!failed&&k<3;++k) {
+        json_t *v=json_object_get(o,outputs[k]);
+        if (!json_is_string(v)) continue;
+        const char *t=json_string_value(v); size_t n=json_string_length(v);
+        if (exit_code ? strong_markers(t,n) : scan_text(t,n)) failed=1;
     }
     json_decref(o);
-    return recognized ? failed : -1;
+    return failed;
 }
 bool rc_signals_failed_text(const char *text, size_t length) {
     if (!text) return false;
