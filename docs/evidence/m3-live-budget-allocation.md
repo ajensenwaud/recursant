@@ -56,3 +56,8 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - Sub-allocation of D remainder (US$15.79): cap US$3.00 / 400 requests, Hermes direct only, 6 synthetic long-horizon tasks x 1. Approved by Anders ("JUST GO").
 - Attempt 1 refused all 6 first requests before egress (runner output bound 8192 > 4096 admission ceiling): 0 requests, US$0. Fixed; rerun under ledger lh1b with the same caps.
 - Result (lh1b): 145 requests, actual US$1.402138. D remainder now US$14.39. See docs/evidence/m3-longhorizon-timing.md.
+
+## D-ma1 / D-ma2 (2026-09-30 / 2026-10-01): multi-agent benchmark
+- D-ma1: Anders approved up to US$12. Pilot US$2.127, stopped main US$0.552, main US$7.232, smoke on Hermes fb67154 US$0.591. Total US$10.501.
+- D-ma2: Anders approved up to US$14 (re-run on Hermes fb67154). Main US$8.443; offline Jev scoring US$0.087. Total US$8.530.
+- See docs/evidence/m3-multiagent.md and docs/evidence/m3-judge-offline.md.
