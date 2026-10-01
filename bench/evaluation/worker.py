@@ -10,13 +10,15 @@ import subprocess
 import sys
 import threading
 
-SHA='d0288be5b3330d2442e3907185b8e9d0958297bb'
+SHA='fb6715455877e0298674c3a46a2faa87cd27295b'
+# One model request end to end, including a queued private call behind siblings.
+RELAY_TIMEOUT=605
 
 
 class UnixConnection(http.client.HTTPConnection):
     def connect(self):
         self.sock=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        self.sock.settimeout(185)
+        self.sock.settimeout(RELAY_TIMEOUT)
         self.sock.connect('/bridge/api.sock')
 
 
@@ -26,7 +28,7 @@ class Relay(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body=self.rfile.read(int(self.headers.get('Content-Length','0')))
-        conn=UnixConnection('localhost',timeout=185)
+        conn=UnixConnection('localhost',timeout=RELAY_TIMEOUT)
         try:
             conn.request('POST',self.path,body,dict(self.headers))
             response=conn.getresponse()
@@ -67,36 +69,57 @@ def main():
     threading.Thread(target=server.serve_forever,daemon=True).start()
     endpoint=f'http://127.0.0.1:{server.server_port}/v1'
     sys.path.insert(0,'/integration')
-    from context_adapter.gateway import install_gateway
     from hermes_cli.plugins import PluginContext, PluginManifest, get_plugin_manager
     manager=get_plugin_manager(); manager.discover_and_load()
     ctx=PluginContext(PluginManifest(name='evaluation-context'),manager)
     os.environ['EVALUATION_SOURCE']='isolated-meter-only'
-    bridge=install_gateway(ctx,enabled=True,endpoint=endpoint,
-        task_id=settings['task_id'],session_id=settings['session_id'],branch='main',
-        source_key_env='EVALUATION_SOURCE',content_enabled=True)
-    (home/'config.yaml').write_text(json.dumps({
-        'plugins':{'enabled':['recursant-observer'],'stream_reasoning_deltas':True},
-        'model':{'default':settings['model'],'provider':'custom','base_url':endpoint,
-                 'context_length':settings['context']}}))
+    # Harness integration per arm. 'gateway' (default, earlier runs): registered
+    # scope + header bridge. 'none': plain Hermes, nothing but its base URL.
+    # 'lite': session-id header + subagent hints (advisory telemetry).
+    integration=settings.get('integration','gateway')
+    bridge=None
+    if integration=='gateway':
+        from context_adapter.gateway import install_gateway
+        bridge=install_gateway(ctx,enabled=True,endpoint=endpoint,
+            task_id=settings['task_id'],session_id=settings['session_id'],branch='main',
+            source_key_env='EVALUATION_SOURCE',content_enabled=True)
+    elif integration=='lite':
+        from context_adapter.lite import install_lite
+        bridge=install_lite(ctx,enabled=True,endpoint=endpoint,source_key_env='EVALUATION_SOURCE')
+    elif integration!='none':
+        raise RuntimeError('unknown integration')
+    config={'plugins':{'enabled':['recursant-observer'],'stream_reasoning_deltas':True},
+            'model':{'default':settings['model'],'provider':'custom','base_url':endpoint,
+                     'context_length':settings['context']}}
+    # Optional, identical in every arm of a run: child iteration cap/concurrency.
+    if settings.get('delegation'): config['delegation']=settings['delegation']
+    (home/'config.yaml').write_text(json.dumps(config))
+    extra={}
+    if settings.get('reasoning_effort'):
+        extra['reasoning_config']={'enabled':True,'effort':settings['reasoning_effort']}
     agent=AIAgent(model=settings['model'],base_url=endpoint,
                   api_key='isolated-meter-only',provider='custom',api_mode='chat_completions',
                   max_iterations=settings['turns'],max_tokens=settings['output'],
                   run_budget_seconds=settings['deadline_s'],quiet_mode=True,
                   skip_context_files=True,skip_memory=True,skip_background_review=True,
-                  cwd='/workspace',save_trajectories=False,session_id=settings['session_id'])
+                  cwd='/workspace',save_trajectories=False,session_id=settings['session_id'],**extra)
     Path('/trace/harness-settings.json').write_text(json.dumps({
         'context':agent._config_context_length,'model':agent.model,'output':settings['output'],
-        'turns':settings['turns'],'deadline_s':settings['deadline_s']}))
+        'turns':settings['turns'],'deadline_s':settings['deadline_s'],'integration':integration,
+        'reasoning_effort':settings.get('reasoning_effort'),'delegation':settings.get('delegation')}))
     try:
         result=agent.run_conversation(Path('/workspace/TASK.md').read_text(),task_id=settings['task_id'])
         shutdown_plugin_stream_hook_dispatcher(timeout=5)
         Path('/trace/result.json').write_text(json.dumps(result,default=str))
     finally:
-        bridge.close(timeout=5)
-        Path('/trace/scope.json').write_text(json.dumps(dict(bridge.scope,generation=bridge.generation,
-            middleware_invocations=len(bridge.attempts),source_sequence=bridge.sequence,dropped=bridge.dropped,
-            last_status=bridge.last_status)))
+        if integration=='gateway':
+            bridge.close(timeout=5)
+            Path('/trace/scope.json').write_text(json.dumps(dict(bridge.scope,generation=bridge.generation,
+                middleware_invocations=len(bridge.attempts),source_sequence=bridge.sequence,dropped=bridge.dropped,
+                last_status=bridge.last_status)))
+        elif integration=='lite':
+            Path('/trace/scope.json').write_text(json.dumps({'integration':'lite','annotated':bridge.annotated,
+                'hints':[{'role':r,'status':s} for _,r,s in bridge.hints]}))
         agent.close(); server.shutdown(); server.server_close()
 
 

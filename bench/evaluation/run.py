@@ -16,7 +16,7 @@ import uuid
 from .meter import Meter, handler
 from .tasks import TASKS, CASES, fingerprint
 
-IMAGE='sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b'
+IMAGE='sha256:7c6c6417032db7457460dd9d9bdf128ff004f4fec6bb66bc9f5eab5f48fead53'
 SETTINGS=dict(model='fixture',turns=8,output=4096,deadline_s=180,
               context=65536,
               reasoning='pinned upstream defaults; not disabled', sampling='pinned upstream defaults',

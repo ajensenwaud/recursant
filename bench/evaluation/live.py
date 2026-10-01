@@ -27,11 +27,16 @@ RESPONSE_LIMIT=16*1024*1024
 # Canonical arms. Legacy names (runner v1) map 1:1; see docs/evidence/m3-runner-v2.md.
 ARM_ALIASES={'baseline':'baseline-direct','structured-only':'routed-structured','text-aware':'routed-full'}
 CANONICAL_ARMS=('baseline-direct','routed-structured','routed-full')
+# Multi-agent arms (bench.multiagent): request-stream sessions, no registered scope.
+#   routed-request   plain Hermes, no integration at all
+#   routed-telemetry same router config + session-id header and subagent hints
+SESSION_ARMS=('routed-request','routed-telemetry')
+INTEGRATION={'baseline-direct':'none','routed-request':'none','routed-telemetry':'lite'}
 
 
 def canonical_arm(arm):
     arm=ARM_ALIASES.get(arm,arm)
-    if arm not in CANONICAL_ARMS: raise ValueError('unknown arm: '+str(arm))
+    if arm not in CANONICAL_ARMS+SESSION_ARMS: raise ValueError('unknown arm: '+str(arm))
     return arm
 
 
@@ -192,7 +197,13 @@ def classify_role(arm, endpoint, body):
 # B: original M3 allowance (exhausted). D: Anders 2026-09-29, US$20 final comparison.
 ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200),
              # D-lh1: sub-allocation of D's remainder (US$15.79 after the final comparison).
-             'D-lh1':(Decimal('3'),400)}
+             'D-lh1':(Decimal('3'),400),
+             # D-ma1: multi-agent M2+M3 benchmark, Anders approved up to US$12 on 2026-09-30
+             # (D remainder US$14.39 after D-lh1).
+             'D-ma1':(Decimal('12'),2000),
+             # D-ma2: multi-agent re-run on upstream Hermes fb67154 (terminal heartbeat bug fixed),
+             # Anders approved up to US$14 on 2026-10-01.
+             'D-ma2':(Decimal('14'),2000)}
 
 
 def validate_allocation_limits(config):
@@ -371,7 +382,7 @@ class RouteSession:
             hs={k:v for k,v in headers.items() if k.lower().startswith('x-recursant-')}
             hs['Content-Type']='application/json'
             hs['Authorization']='Bearer '+(self.source_key if path.startswith('/v1/context') else self.api_key)
-            conn=http.client.HTTPConnection('127.0.0.1',self.port,timeout=185)
+            conn=http.client.HTTPConnection('127.0.0.1',self.port,timeout=605)
             try:
                 conn.request('POST',path,json.dumps(body),hs)
                 response=conn.getresponse(); raw=response.read(16*1024*1024+1)
@@ -487,7 +498,9 @@ class Egress:
         upstream=self.config['upstreams'][upstream_name]
         url=urlsplit(upstream['url'])
         cls=http.client.HTTPSConnection if url.scheme=='https' else http.client.HTTPConnection
-        conn=cls(url.hostname,url.port,timeout=180)
+        # Per-upstream transaction bound (default 180 s); a slow private model may declare more.
+        limit=upstream.get('timeout_s',180)
+        conn=cls(url.hostname,url.port,timeout=limit)
         timer=None
         try:
             conn.connect()
@@ -496,7 +509,7 @@ class Egress:
                 import socket
                 try: sock.shutdown(socket.SHUT_RDWR)
                 except OSError: pass
-            timer=threading.Timer(180,interrupt); timer.daemon=True; timer.start()
+            timer=threading.Timer(limit,interrupt); timer.daemon=True; timer.start()
             auth=os.environ.get(upstream.get('api_key_env',''),'')
             hs={'Content-Type':'application/json'}
             if auth: hs['Authorization']='Bearer '+auth
