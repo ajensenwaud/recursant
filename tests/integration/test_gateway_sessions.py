@@ -337,6 +337,40 @@ class GatewaySessionTests(unittest.TestCase):
             first = [{'role': 'user', 'content': 'the first labelled conversation'}]
             self.assertEqual(self.step(p, sink, first, headers={'X-Recursant-session-id': 'label-0'}), 'physical')
 
+    def test_l_full_capacity_candidate_is_not_offered(self):
+        """max_inflight: a slow private destination takes routine steps only while
+        it has free capacity; otherwise the step uses the next cheapest option."""
+        import threading
+        def edit(c, s):
+            self.setup(c, s)
+            c['context']['candidates'][1]['max_inflight'] = 1   # 'alias' -> private 'physical'
+        with self.router(edit) as (p, sink):
+            sink.envelope = {'message': {'tool_calls': [call(1)]}}
+            a = [{'role': 'user', 'content': 'conversation A'}]
+            b = [{'role': 'user', 'content': 'conversation B'}]
+            self.assertEqual(self.step(p, sink, a), 'frontier')
+            self.assertEqual(self.step(p, sink, b), 'frontier')
+            a.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'})
+            b.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'})
+            sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            sink.chat_delay = 1.0
+            results = []
+            worker = threading.Thread(target=lambda: results.append(self.request(p, body=self.body(a))))
+            worker.start()
+            for _ in range(100):   # wait until A is running on the capacity-limited model
+                if any(x[2]['model'] == 'physical' for x in sink.seen): break
+                time.sleep(0.01)
+            sink.chat_delay = 0
+            self.assertEqual(self.step(p, sink, b), 'frontier')   # 'physical' is full
+            worker.join()
+            self.assertEqual(results[0][0], 200)
+            a.append(json.loads(results[0][1])['choices'][0]['message'])
+            b.append({'role': 'tool', 'tool_call_id': 'call-2', 'content': 'ok'})
+            sink.envelope = {'message': {'tool_calls': [call(3)]}}
+            self.assertEqual(self.step(p, sink, b), 'physical')   # capacity released
+        busy = [l for l in self.lines(sink, 'route_decision ') if 'alias:' in l and '(denied)' in l]
+        self.assertEqual(len(busy), 1)
+
     def test_strict_session_configuration(self):
         import test_router
         cfg0 = {'listen': {'host': '127.0.0.1', 'port': 12345},
@@ -348,6 +382,9 @@ class GatewaySessionTests(unittest.TestCase):
         cheap = lambda c: c['context']['candidates'][1]
         bad = [lambda c: c['context'].update(sessions='on'),
                lambda c: c['context'].update(reasoning_text='keep'),
+               lambda c: cheap(c).update(max_inflight=0),
+               lambda c: cheap(c).update(max_inflight='1'),
+               lambda c: cheap(c).update(max_inflight=5000),
                lambda c: c['context'].update(reasoning_text=True),
                lambda c: c['context'].update(sessions=True),
                lambda c: c['context'].update(sessions='Request'),
@@ -357,6 +394,7 @@ class GatewaySessionTests(unittest.TestCase):
                 lambda c: c['context'].update(sessions='headers'),
                 lambda c: c['context'].update(reasoning_text='drop'),
                 lambda c: c['context'].update(reasoning_text='pin'),
+                lambda c: cheap(c).update(max_inflight=1),
                 lambda c: c['context'].pop('sessions'),
                 lambda c: cheap(c).update(qualified_tasks=['format_simple', 'tool_followup_ok', 'final_answer', 'delegated_start'])]
         env = {**os.environ, 'RC_TEST_AUTH': 'local-test-key', 'RC_TEST_SOURCE': 'source-only-test-key'}

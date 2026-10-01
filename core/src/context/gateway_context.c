@@ -92,6 +92,12 @@ struct rc_gateway_context {
     struct hint hints[HINTS];
     struct {char session[RC_ATTEMPT_TOKEN_SIZE];bool set;} labels[LABELS];
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
+    /* Capacity-aware placement: candidate max_inflight (0 = unlimited) and the
+     * requests currently running on that candidate's model through this router.
+     * A full candidate is not offered for cost routing; compliance placement
+     * ignores it (private data waits for the private model rather than going
+     * public). */
+    uint64_t max_inflight[RC_SELECTOR_MAX_CANDIDATES], inflight[RC_SELECTOR_MAX_CANDIDATES];
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
@@ -171,7 +177,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     bool found=false;
     for(size_t i=0;i<g->count;i++) {
         json_t *v=json_array_get(list,i);const char *a=token(v,"alias",128);
-        if(!keys(v,"|alias||quality_evidence||qualified_tasks||escalation||context_limit||expected_task_cost||price||capabilities|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        if(!keys(v,"|alias||quality_evidence||qualified_tasks||escalation||context_limit||expected_task_cost||price||capabilities||max_inflight|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        if(json_object_get(v,"max_inflight")&&!integer(v,"max_inflight",1024,&g->max_inflight[i]))return false;
         json_t *caps=json_object_get(v,"capabilities");
         if(caps){
             if(!keys(caps,"|tool_history||function_tools||parallel_tools||stream_tools||nested_tool_schemas||reasoning_effort|"))return false;
@@ -775,7 +782,7 @@ static size_t compliant_candidate(rc_runtime *rt,struct rc_gateway_context *g,co
     return best;
 }
 unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket) {
-    struct rc_gateway_context *g=rt->gateway;ticket->scope=-1;ticket->row=-1;
+    struct rc_gateway_context *g=rt->gateway;ticket->scope=-1;ticket->row=-1;ticket->capacity=-1;
     if(!g)return rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)?403:0;
     /* Optional judge, asked BEFORE the gateway lock (it blocks up to its
      * timeout). Only for automatic turns the deterministic signals leave
@@ -908,6 +915,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
                     (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
                 if(g->candidates[i].alias_index==g->baseline)baseline_permitted=quotes[i].permitted;
+                else if(g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i])quotes[i].permitted=false;
                 /* A destination must declare every scope requirement,
                  * including the exact reasoning_effort token. The baseline
                  * stays usable as owner without declarations. */
@@ -987,6 +995,12 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             if(!s->pending||(tools&&!s->pending_tools))s->pinned=true;
         }
     }
+    /* Count every dispatch to a capacity-limited candidate's model, scoped or
+     * not and however it was chosen; released in rc_gateway_finish. */
+    for(size_t i=0;model&&i<g->count;i++){
+        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];
+        if(g->max_inflight[i]&&a->endpoint==*endpoint&&!strcmp(a->model,model)){g->inflight[i]++;ticket->capacity=(int)i;break;}
+    }
     rc_attempt_result recorded=rc_attempt_begin(g->ledger,g->authorization,&h->invocation,now,&ticket->id);ticket->begun=true;
     if(recorded==RC_ATTEMPT_TRACKED&&free_row>=0){
         ticket->row=free_row;g->rows[free_row]=(struct physical){.headers=h->invocation,.id=ticket->id,.scope=ticket->scope,.in_use=true,.begun=now};
@@ -1022,6 +1036,7 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
     pthread_mutex_lock(&g->lock);
     if(ticket->finished){pthread_mutex_unlock(&g->lock);return;}
     ticket->finished=true;uint64_t now=now_ms();
+    if(ticket->capacity>=0&&(size_t)ticket->capacity<g->count&&g->inflight[ticket->capacity])g->inflight[ticket->capacity]--;
     rc_attempt_finish(g->ledger,ticket->id,complete,now);
     if(ticket->row>=0){g->rows[ticket->row].complete=complete;g->rows[ticket->row].settled=true;}
     if(ticket->scope>=0){

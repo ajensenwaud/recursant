@@ -16,7 +16,8 @@ typedef struct {
     char generation[33], branch[64];
     bool invalid;
 } rc_gateway_headers;
-typedef struct { rc_attempt_id id; int scope, row; bool begun, finished; } rc_gateway_ticket;
+/* capacity: candidate index whose in-flight count this dispatch holds, or -1. */
+typedef struct { rc_attempt_id id; int scope, row; bool begun, finished; int capacity; } rc_gateway_ticket;
 void rc_gateway_header(rc_gateway_headers *, const char *, const char *);
 unsigned rc_gateway_prepare(rc_runtime *, json_t *, bool automatic,
     const rc_gateway_headers *, rc_endpoint *, rc_gateway_ticket *);
