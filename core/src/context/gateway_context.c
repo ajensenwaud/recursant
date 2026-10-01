@@ -21,6 +21,9 @@
 #define SCOPES 160
 #define HINTS 64
 #define HINT_TTL_MS 600000u
+/* Harness data labels ("restricted" sessions). Never expire or get evicted:
+ * a full table refuses new labels (503) instead of forgetting an old one. */
+#define LABELS 256
 /* Native request-profile requirements (operator-declared destination
  * capabilities; bit positions continue RC_TOOL_CAP_*). */
 #define RC_REQ_STREAM_TOOLS UINT32_C(8)
@@ -87,6 +90,7 @@ struct rc_gateway_context {
     bool implicit; /* context.sessions "request": sessions from the request stream */
     bool drop_reasoning; /* context.reasoning_text "drop" (default "pin") */
     struct hint hints[HINTS];
+    struct {char session[RC_ATTEMPT_TOKEN_SIZE];bool set;} labels[LABELS];
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
@@ -295,24 +299,43 @@ unsigned rc_gateway_event(rc_runtime *rt,const char *path,json_t *body,json_t **
         return status;
     }
     if(!strcmp(path,"/v1/context/hint")){
-        /* Advisory only: the harness names a session and its role. "leaf" marks
-         * a delegated subagent. It can make a first turn eligible for a class
-         * the operator qualified; it never moves data or overrides M2. */
+        /* The harness names a session and, optionally, its role and a data
+         * label. A role is advisory: "leaf" marks a delegated subagent, which
+         * can make a first turn eligible for a class the operator qualified.
+         * A data label is compliance input and only ever restricts: "restricted"
+         * keeps the session on private inference from now on, for good. */
         const char *session=token(body,"session_id",RC_ATTEMPT_TOKEN_SIZE-1);
-        bool leaf=eq(body,"role","leaf");
+        json_t *role=json_object_get(body,"role"),*data=json_object_get(body,"data");
+        bool leaf=eq(body,"role","leaf"),restricted=eq(body,"data","restricted");
         if(!g->implicit)return 404;
-        if(!keys(body,"|session_id||role||parent_session_id|")||!session||(!leaf&&!eq(body,"role","orchestrator"))||
+        if(!keys(body,"|session_id||role||parent_session_id||data|")||!session||(!role&&!data)||
+           (role&&!leaf&&!eq(body,"role","orchestrator"))||(data&&!restricted)||
            (json_object_get(body,"parent_session_id")&&!token(body,"parent_session_id",RC_ATTEMPT_TOKEN_SIZE-1)))return 400;
-        pthread_mutex_lock(&g->lock);uint64_t now=now_ms();size_t slot=HINTS,oldest=0;
-        for(size_t i=0;i<HINTS;i++){
-            if(g->hints[i].set&&!strcmp(g->hints[i].session,session)){slot=i;break;}
-            if(!g->hints[i].set){if(slot==HINTS)slot=i;}
-            else if(g->hints[i].at<g->hints[oldest].at)oldest=i;
+        pthread_mutex_lock(&g->lock);uint64_t now=now_ms();
+        if(restricted){
+            size_t free_label=LABELS;bool known=false;
+            for(size_t i=0;i<LABELS&&!known;i++){
+                if(g->labels[i].set&&!strcmp(g->labels[i].session,session))known=true;
+                else if(!g->labels[i].set&&free_label==LABELS)free_label=i;
+            }
+            if(!known){
+                if(free_label==LABELS){pthread_mutex_unlock(&g->lock);return 503;}
+                g->labels[free_label].set=true;strcpy(g->labels[free_label].session,session);
+            }
+            for(int i=0;i<SCOPES;i++)if(g->scopes[i].open&&g->scopes[i].implicit&&!strcmp(g->scopes[i].ident,session))g->scopes[i].private_only=true;
         }
-        if(slot==HINTS)slot=oldest;
-        g->hints[slot]=(struct hint){.at=now,.delegated=leaf,.set=true};strcpy(g->hints[slot].session,session);
+        if(role){
+            size_t slot=HINTS,oldest=0;
+            for(size_t i=0;i<HINTS;i++){
+                if(g->hints[i].set&&!strcmp(g->hints[i].session,session)){slot=i;break;}
+                if(!g->hints[i].set){if(slot==HINTS)slot=i;}
+                else if(g->hints[i].at<g->hints[oldest].at)oldest=i;
+            }
+            if(slot==HINTS)slot=oldest;
+            g->hints[slot]=(struct hint){.at=now,.delegated=leaf,.set=true};strcpy(g->hints[slot].session,session);
+        }
         pthread_mutex_unlock(&g->lock);
-        fprintf(stderr,"session_hint role=%s\n",leaf?"leaf":"orchestrator");
+        fprintf(stderr,"session_hint role=%s data=%s\n",role?(leaf?"leaf":"orchestrator"):"none",restricted?"restricted":"none");
         *out=json_pack("{s:s}","status","accepted");return *out?202:500;
     }
     if(strcmp(path,"/v1/context/open"))return 404;
@@ -682,6 +705,13 @@ static bool handed_out(struct rc_gateway_context *g,const char *first) {
     }
     return found_any;
 }
+/* The request names (X-Recursant-session-id) a session the harness labelled
+ * restricted. Caller holds the lock. */
+static bool labelled(struct rc_gateway_context *g,const rc_gateway_headers *h) {
+    if(!(h->invocation.mask&2u)||h->invocation.invalid)return false;
+    for(size_t i=0;i<LABELS;i++)if(g->labels[i].set&&!strcmp(g->labels[i].session,h->invocation.values[1]))return true;
+    return false;
+}
 /* Session for an unregistered automatic request. -1 = leave it unscoped (the
  * baseline, as before): nothing usable, the matching session is busy, or the
  * table is full of live sessions. Never rejects a request. */
@@ -712,6 +742,9 @@ static int implicit_scope(struct rc_gateway_context *g,json_t *body,const rc_gat
     }
     struct scope *s=&g->scopes[slot];
     s->open=s->implicit=true;s->active=now;s->anchor=anchor;strcpy(s->ident,ident);s->last_row=-1;s->evidence_row=-1;
+    /* A restricted label outlives any session object, including one reclaimed
+     * while idle and re-adopted mid-conversation. */
+    for(size_t i=0;ident[0]&&i<LABELS;i++)if(g->labels[i].set&&!strcmp(g->labels[i].session,ident))s->private_only=true;
     const char *lineage="none";
     if(start){
         for(size_t i=0;ident[0]&&i<HINTS;i++)
@@ -720,7 +753,7 @@ static int implicit_scope(struct rc_gateway_context *g,json_t *body,const rc_gat
          * even when a hint already identified this session. */
         if(handed_out(g,first)&&!s->delegated){s->delegated=true;lineage="request";}
     }
-    fprintf(stderr,"session scope=%d kind=request start=%d delegated=%d lineage=%s\n",slot,start,s->delegated,lineage);
+    fprintf(stderr,"session scope=%d kind=request start=%d delegated=%d lineage=%s%s\n",slot,start,s->delegated,lineage,s->private_only?" data=restricted":"");
     return slot;
 }
 /* M2 vetoed the destination this session would otherwise use. Cheapest
@@ -756,6 +789,8 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             bool pub=probe&&!json_object_set_new(probe,"model",json_string(b->model))&&
                 (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==RC_ENDPOINT_PUBLIC;
             json_decref(probe);
+            /* A restricted session's state never goes to the public judge. */
+            if(pub&&g->implicit){pthread_mutex_lock(&g->lock);if(labelled(g,h))pub=false;pthread_mutex_unlock(&g->lock);}
             if(pub){judged=rc_judge_ask(&g->judge,body);asked=judged.attempted;}
         }
     }
@@ -920,7 +955,9 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(!requested||strlen(requested)>128){status=403;goto done;}
         strcpy(requested_model,requested);
     }
-    if(s&&s->private_only){
+    /* Restricted: the session's own authority, or a harness label on a request
+     * that could not be given a session (busy, table full): never public. */
+    if((s&&s->private_only)||(!s&&g->implicit&&labelled(g,h))){
         if(!automatic){if(*endpoint!=RC_ENDPOINT_PRIVATE){status=403;goto done;}}
         else {
             *endpoint=RC_ENDPOINT_PRIVATE;

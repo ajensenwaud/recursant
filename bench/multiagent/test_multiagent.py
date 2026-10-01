@@ -66,6 +66,37 @@ class LiteBridgeTests(unittest.TestCase):
                 with self.assertRaises(ValueError): LiteBridge(endpoint=bad, source_key_env='SRC')
         with self.assertRaises(ValueError): LiteBridge(endpoint='http://127.0.0.1:9/v1', source_key_env='UNSET_SOURCE_KEY')
 
+    def test_restricted_path_labels_the_session_before_the_tool_runs(self):
+        url, seen = self.serve()
+        with patch.dict(os.environ, SRC='source-key'):
+            registry = Registry()
+            b = install_lite(registry, enabled=True, endpoint=url, source_key_env='SRC',
+                             restricted_paths=['data/*.csv', '*/secrets/*'])
+        self.assertIn('pre_tool_call', registry.hooks)
+        hook = registry.hooks['pre_tool_call']
+        self.assertIsNone(hook(session_id='s1', tool_name='read_file', args={'path': '/workspace/README.md'}))
+        self.assertEqual(seen, [])
+        self.assertIsNone(hook(session_id='s1', tool_name='read_file', args={'path': './data/customers.csv'}))
+        self.assertIsNone(hook(session_id='s1', tool_name='terminal', args={'command': 'head -n 3 data/customers.csv'}))
+        self.assertIsNone(hook(session_id='s2', tool_name='terminal', args={'command': 'cat /w/secrets/keys.txt'}))
+        self.assertEqual([body for _, _, body in seen], [{'session_id': 's1', 'data': 'restricted'},
+                                                         {'session_id': 's2', 'data': 'restricted'}])
+        self.assertEqual(b.labelled, {'s1', 's2'})
+
+    def test_restricted_call_is_blocked_when_the_label_is_not_confirmed(self):
+        url, _ = self.serve(status=503)
+        with patch.dict(os.environ, SRC='source-key'):
+            refused = LiteBridge(endpoint=url, source_key_env='SRC', restricted_paths=['data/*'])
+            down = LiteBridge(endpoint='http://127.0.0.1:9/v1', source_key_env='SRC', timeout=0.2, restricted_paths=['data/*'])
+            for b in (refused, down):
+                verdict = b.pre_tool_call(session_id='s1', tool_name='read_file', args={'path': 'data/x.csv'})
+                self.assertEqual(verdict['action'], 'block')
+                self.assertEqual(b.blocked, 1)
+            self.assertIsNone(down.pre_tool_call(session_id='s1', tool_name='read_file', args={'path': 'notes.md'}))
+            with self.assertRaises(ValueError): LiteBridge(endpoint=url, source_key_env='SRC', restricted_paths='data/*')
+            registry = Registry(); install_lite(registry, enabled=True, endpoint=url, source_key_env='SRC')
+            self.assertNotIn('pre_tool_call', registry.hooks)
+
 
 class ConfigTests(unittest.TestCase):
     def test_both_routed_arms_share_one_router_config_with_scanning_on(self):

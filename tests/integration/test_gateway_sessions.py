@@ -295,6 +295,48 @@ class GatewaySessionTests(unittest.TestCase):
             sink.stream_wire = None; sink.envelope = {'message': {'tool_calls': [call(2)]}}
             self.assertEqual(self.step(p, sink, history), 'frontier')
 
+    def test_k_harness_label_keeps_a_session_private(self):
+        """A harness data label only ever restricts: once a session is labelled
+        restricted, every later request in it goes to private inference."""
+        PRIVATE_PATH = '/v1/chat/completions'
+        with self.router(self.setup) as (p, sink):
+            for bad in ({'session_id': 's1', 'data': 'secret'}, {'session_id': 's1'},
+                        {'session_id': 's1', 'data': True}, {'session_id': 's1', 'data': None}):
+                self.assertEqual(self.hint(p, bad), 400, bad)
+            self.assertEqual(self.hint(p, {'session_id': 's1', 'data': 'restricted'}, source=False), 401)
+            # Labelled before its first request.
+            self.assertEqual(self.hint(p, {'session_id': 'early', 'data': 'restricted'}), 202)
+            sink.envelope = {'message': {'tool_calls': [call(1)]}}
+            early = [{'role': 'user', 'content': 'a labelled conversation from the start'}]
+            self.assertEqual(self.step(p, sink, early, headers={'X-Recursant-session-id': 'early'}), 'physical')
+            self.assertEqual(sink.seen[-1][0], PRIVATE_PATH)
+            # Labelled mid-session: public before, private after, for good.
+            late = [{'role': 'user', 'content': 'a conversation labelled later'}]
+            hs = {'X-Recursant-session-id': 'late'}
+            self.assertEqual(self.step(p, sink, late, headers=hs), 'frontier')
+            self.assertEqual(sink.seen[-1][0], PUBLIC_PATH)
+            self.assertEqual(self.hint(p, {'session_id': 'late', 'data': 'restricted', 'role': 'orchestrator'}), 202)
+            for i in (1, 2):
+                late.append({'role': 'tool', 'tool_call_id': 'call-%d' % i, 'content': 'ok'})
+                sink.envelope = {'message': {'tool_calls': [call(i + 1)]}}
+                self.assertEqual(self.step(p, sink, late, headers=hs), 'physical')
+                self.assertEqual(sink.seen[-1][0], PRIVATE_PATH)
+            # Unlabelled sessions are unaffected.
+            other = [{'role': 'user', 'content': 'an unlabelled conversation'}]
+            self.assertEqual(self.step(p, sink, other, headers={'X-Recursant-session-id': 'other'}), 'frontier')
+        self.assertIn(' data=restricted', self.lines(sink, 'session ')[0])
+        self.assertTrue([l for l in self.lines(sink, 'session_hint ') if 'data=restricted' in l])
+
+    def test_k_label_table_refuses_rather_than_forgets(self):
+        with self.router(self.setup) as (p, sink):
+            for i in range(256):
+                self.assertEqual(self.hint(p, {'session_id': 'label-%d' % i, 'data': 'restricted'}), 202)
+            self.assertEqual(self.hint(p, {'session_id': 'label-0', 'data': 'restricted'}), 202)  # already held
+            self.assertEqual(self.hint(p, {'session_id': 'one-too-many', 'data': 'restricted'}), 503)
+            sink.envelope = {'message': {'tool_calls': [call(1)]}}
+            first = [{'role': 'user', 'content': 'the first labelled conversation'}]
+            self.assertEqual(self.step(p, sink, first, headers={'X-Recursant-session-id': 'label-0'}), 'physical')
+
     def test_strict_session_configuration(self):
         import test_router
         cfg0 = {'listen': {'host': '127.0.0.1', 'port': 12345},

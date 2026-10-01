@@ -85,7 +85,8 @@ def main():
             source_key_env='EVALUATION_SOURCE',content_enabled=True)
     elif integration=='lite':
         from context_adapter.lite import install_lite
-        bridge=install_lite(ctx,enabled=True,endpoint=endpoint,source_key_env='EVALUATION_SOURCE')
+        bridge=install_lite(ctx,enabled=True,endpoint=endpoint,source_key_env='EVALUATION_SOURCE',
+                            restricted_paths=tuple(settings.get('restricted_paths') or ()))
     elif integration!='none':
         raise RuntimeError('unknown integration')
     config={'plugins':{'enabled':['recursant-observer'],'stream_reasoning_deltas':True},
@@ -119,7 +120,8 @@ def main():
                 last_status=bridge.last_status)))
         elif integration=='lite':
             Path('/trace/scope.json').write_text(json.dumps({'integration':'lite','annotated':bridge.annotated,
-                'hints':[{'role':r,'status':s} for _,r,s in bridge.hints]}))
+                'hints':[{'role':r,'status':s} for _,r,s in bridge.hints],
+                'restricted_sessions':len(bridge.labelled),'blocked_calls':bridge.blocked}))
         agent.close(); server.shutdown(); server.server_close()
 
 

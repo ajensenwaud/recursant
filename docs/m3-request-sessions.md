@@ -103,3 +103,26 @@ Startup logs `compliance_text_mode=agent`.
   verbatim as the child's first user message (pinned Hermes does). Others need the hint.
 - Request sessions are per process and in memory; a router restart adopts running
   conversations pinned at the baseline.
+
+## Harness data labels (telemetry that only restricts)
+
+`POST /v1/context/hint` also accepts `"data": "restricted"` for a session id (role
+optional). From then on every request carrying that `X-Recursant-session-id` is placed on
+private inference: through the session's `private_only` authority, and directly for a
+request that could not be given a session. Labels never expire and are never evicted; when
+the 256-entry table is full a new label is refused with 503. A labelled session's state is
+never sent to the public judge.
+
+The Hermes plugin (`deploy/hermes/context_adapter/lite.py`, `restricted_paths`) sends the
+label from `pre_tool_call`, before a tool touches a path matching an operator pattern, and
+blocks the call if the router does not confirm it. This catches confidential data the
+pattern rules cannot recognise. Fixture run through real Hermes: the subagent that reads
+`data/customers.csv` is labelled before the read (`session_hint role=none data=restricted`).
+
+## Streamed reasoning text (`context.reasoning_text`)
+
+`"pin"` (default) keeps the reviewed behaviour: any streamed reasoning field pins the
+session. `"drop"` accepts string `reasoning` / `reasoning_content` deltas (vLLM-served
+models such as the local GLM stream them) and leaves them out of the replayable message;
+the exact replay of the next request still decides continuity. Structured or encrypted
+reasoning always pins. Without `"drop"`, every session moved to the local GLM pinned there.

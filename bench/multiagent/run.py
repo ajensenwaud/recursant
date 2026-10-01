@@ -43,7 +43,10 @@ BASELINE, ECONOMY, LOCAL = 'openai/gpt-4.1', 'openai/gpt-4.1-mini', 'GLM-5.3-Fla
 # Identical harness settings in every arm. reasoning_effort "low": the local model
 # spends its whole output budget on reasoning at "medium" (measured 2026-09-30).
 SETTINGS = dict(base.SETTINGS, turns=60, output=4096, deadline_s=2400, context=131072, request_cap=200,
-                reasoning_effort='low', delegation={'max_iterations': 30, 'max_concurrent_children': 3})
+                reasoning_effort='low', delegation={'max_iterations': 30, 'max_concurrent_children': 3},
+                # Used only by the telemetry arm's plugin: label a session restricted before
+                # any tool touches the task's data files.
+                restricted_paths=['data/*', '/workspace/data/*'])
 EFFORTS = ['low', 'medium', 'high']
 CAPS = {'tool_history': True, 'function_tools': True, 'parallel_tools': True, 'stream_tools': True,
         'nested_tool_schemas': True, 'reasoning_effort': EFFORTS}
