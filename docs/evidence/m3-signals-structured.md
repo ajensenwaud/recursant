@@ -93,3 +93,20 @@ Paired cost ratio (bootstrap 4,000, 95%): new vs old rules 0.72 [0.55, 0.97] all
   against direct (2 >= 2 - 1) but is below the old rules on whole jobs. Ten episodes cannot
   separate these.
 - Compliance unchanged: 0 requests with personal data to the public provider.
+
+## Rejected lever: keep subagents on the cheap model through failures (offline, US$0.194)
+
+All 116 subagent steps that went back to gpt-4.1 in the latest routed runs (`ma1-main3`,
+`ma1-sig`; almost all after a real failure) were resent unchanged to gpt-4.1-mini
+(`.hermes/runtime/m3-live/mini_counterfactual_helpers.py`; 111 answered).
+
+| gpt-4.1's actual next move | n | Mini picked the same tool |
+|---|---|---|
+| Run a command | 51 | 82% |
+| Write or fix code | 25 | 36% |
+| Read or search | 21 | 57% |
+| Final answer | 14 | 93% |
+| All | 111 | 68% (same tool and target: 32%; control 53%) |
+
+On the steps that fix code after a failure, mini rarely makes gpt-4.1's move. Those are the
+steps the strong model is there for, so a blanket "subagents stay cheap" rule is not adopted.
