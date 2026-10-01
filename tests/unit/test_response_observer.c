@@ -344,6 +344,27 @@ static void openrouter_real_tool_finish(void) {
     feed(o,"data: [DONE]\n\n");
     assert(!rc_response_observer_message(o));rc_response_observer_release(o);free(o);
 }
+static void readable_reasoning_is_dropped(void) {
+    /* context.reasoning_text "drop": vLLM (local GLM) streams readable
+     * reasoning next to content and tool calls. It is accepted and left out of
+     * the replayable message. Default (drop off): it fails closed. Structured
+     * reasoning fails closed either way. */
+    for(int mode=0;mode<4;mode++){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        o->drop_reasoning=mode!=2;
+        json_t *v=tool_event(NULL),*d=json_object_get(json_array_get(json_object_get(v,"choices"),0),"delta");
+        if(mode==3)json_object_set_new(d,"reasoning",json_pack("{s:s}","encrypted","opaque"));
+        else json_object_set_new(d,mode==1?"reasoning_content":"reasoning",json_string("Let me think about the file first."));
+        feed_json(o,v);feed(o,"data: [DONE]\n\n");
+        json_t *m=rc_response_observer_message(o);
+        if(mode>=2)assert(!m);
+        else{
+            assert(m&&!json_object_get(m,"reasoning")&&!json_object_get(m,"reasoning_content"));
+            assert(json_array_size(json_object_get(m,"tool_calls"))==1);
+        }
+        json_decref(m);json_decref(v);rc_response_observer_release(o);free(o);
+    }
+}
 static void tool_guards(void) {
     for(int mode=0;mode<24;mode++){
         rc_response_observer *o=calloc(1,sizeof *o);assert(o);
@@ -521,4 +542,4 @@ static void usage_capture(void) {
         json_decref(m);rc_response_observer_release(o);free(o);
     }
 }
-int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();readable_reasoning_is_dropped();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}

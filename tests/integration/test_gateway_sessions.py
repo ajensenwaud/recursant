@@ -264,6 +264,37 @@ class GatewaySessionTests(unittest.TestCase):
             first.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'})
             self.assertEqual(self.step(p, sink, first), 'frontier')
 
+    def test_j_streamed_reasoning_text_does_not_freeze_the_session(self):
+        """vLLM-served models stream readable reasoning beside the tool call; the
+        harness does not replay it, so the session stays routable."""
+        def edit(c, s, drop=True):
+            self.setup(c, s)
+            c['context']['candidates'][1]['capabilities']['stream_tools'] = True
+            if drop: c['context']['reasoning_text'] = 'drop'
+        events = [{'choices': [{'index': 0, 'delta': {'role': 'assistant', 'reasoning': 'Read the file first.', 'content': ''}, 'finish_reason': None}]},
+                  {'choices': [{'index': 0, 'delta': {'tool_calls': [{'index': 0, 'id': 'call-1', 'type': 'function',
+                                'function': {'name': 'f', 'arguments': '{}'}}]}, 'finish_reason': None}]},
+                  {'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'tool_calls'}]}]
+        with self.router(edit) as (p, sink):
+            sink.stream_wire = b''.join(b'data: ' + json.dumps(e).encode() + b'\n\n' for e in events) + b'data: [DONE]\n\n'
+            history = [{'role': 'user', 'content': 'stream a tool call with reasoning'}]
+            code, _, _ = self.request(p, body=self.body(history, stream=True))
+            self.assertEqual(code, 200)
+            history.append({'role': 'assistant', 'content': '', 'tool_calls': [call(1)]})
+            history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'})
+            sink.stream_wire = None; sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            self.assertEqual(self.step(p, sink, history), 'physical')
+        self.assertFalse([l for l in self.lines(sink, 'route_decision ') if 'reason=pin' in l])
+        # Default ("pin"): the same stream pins the session, as before.
+        with self.router(lambda c, s: edit(c, s, drop=False)) as (p, sink):
+            sink.stream_wire = b''.join(b'data: ' + json.dumps(e).encode() + b'\n\n' for e in events) + b'data: [DONE]\n\n'
+            history = [{'role': 'user', 'content': 'stream a tool call with reasoning'}]
+            self.assertEqual(self.request(p, body=self.body(history, stream=True))[0], 200)
+            history += [{'role': 'assistant', 'content': '', 'tool_calls': [call(1)]},
+                        {'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'}]
+            sink.stream_wire = None; sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            self.assertEqual(self.step(p, sink, history), 'frontier')
+
     def test_strict_session_configuration(self):
         import test_router
         cfg0 = {'listen': {'host': '127.0.0.1', 'port': 12345},
@@ -274,12 +305,16 @@ class GatewaySessionTests(unittest.TestCase):
         self.setup(cfg0, S())
         cheap = lambda c: c['context']['candidates'][1]
         bad = [lambda c: c['context'].update(sessions='on'),
+               lambda c: c['context'].update(reasoning_text='keep'),
+               lambda c: c['context'].update(reasoning_text=True),
                lambda c: c['context'].update(sessions=True),
                lambda c: c['context'].update(sessions='Request'),
                lambda c: cheap(c).update(qualified_tasks=['delegated_start', 'delegated_start']),
                lambda c: cheap(c).update(qualified_tasks=['format_simple', 'tool_followup_ok', 'final_answer', 'delegated_start', 'final_answer'])]
         good = [lambda c: None,
                 lambda c: c['context'].update(sessions='headers'),
+                lambda c: c['context'].update(reasoning_text='drop'),
+                lambda c: c['context'].update(reasoning_text='pin'),
                 lambda c: c['context'].pop('sessions'),
                 lambda c: cheap(c).update(qualified_tasks=['format_simple', 'tool_followup_ok', 'final_answer', 'delegated_start'])]
         env = {**os.environ, 'RC_TEST_AUTH': 'local-test-key', 'RC_TEST_SOURCE': 'source-only-test-key'}

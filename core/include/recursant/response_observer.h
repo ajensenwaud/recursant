@@ -46,6 +46,10 @@ typedef struct {
      * adapter, which also permits its validated accounting tail. Never
      * changed after the first feed. */
     bool strict_openai;
+    /* Set once at allocation from context.reasoning_text: true = accept and
+     * drop readable string reasoning deltas; false (default) = they fail
+     * closed like any other unsupported field, which pins the session. */
+    bool drop_reasoning;
     /* Validated usage from the stream (include_usage tail or OpenRouter
      * accounting chunk). Cost evidence only, never continuity authority. */
     bool usage_known;

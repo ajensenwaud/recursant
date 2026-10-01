@@ -8,6 +8,8 @@ bool rc_gateway_start(rc_runtime *);
 void rc_gateway_destroy(rc_runtime *);
 unsigned rc_gateway_event(rc_runtime *, const char *path, json_t *, json_t **);
 bool rc_gateway_auto(rc_runtime *, const char *, rc_endpoint *, const char **);
+/* context.reasoning_text "drop": streamed readable reasoning does not pin. */
+bool rc_gateway_drop_reasoning(const rc_runtime *);
 #include "recursant/attempts.h"
 typedef struct {
     rc_attempt_headers invocation;

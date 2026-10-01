@@ -107,7 +107,14 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     if(native&&!json_is_null(native)&&
        !((string_is(native,"completed")&&(string_is(finish,"stop")||string_is(finish,"tool_calls")))||
          (string_is(native,"tool_calls")&&string_is(finish,"tool_calls"))))return false;
-    if(!keys(delta,"|role||content||tool_calls|","|refusal||annotations||audio||function_call|"))return false;
+    if(!keys(delta,o->drop_reasoning?"|role||content||tool_calls||reasoning||reasoning_content|":"|role||content||tool_calls|",
+             "|refusal||annotations||audio||function_call|"))return false;
+    /* Opt-in (context.reasoning_text "drop"): readable reasoning text (vLLM
+     * "reasoning", "reasoning_content") is left out of the replayable message.
+     * Whether a harness replays it is checked by the exact replay of the next
+     * request. Structured or encrypted reasoning always fails closed. */
+    json_t *thinking[]={json_object_get(delta,"reasoning"),json_object_get(delta,"reasoning_content")};
+    for(size_t k=0;k<2;k++)if(thinking[k]&&!json_is_null(thinking[k])&&!json_is_string(thinking[k]))return false;
     json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
     /* OpenRouter repeats the empty terminal choice with accounting. This is
      * not a second completion or permission to append state after finish. */

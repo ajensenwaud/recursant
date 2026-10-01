@@ -85,6 +85,7 @@ struct rc_gateway_context {
     rc_candidate_cost costs[RC_SELECTOR_MAX_CANDIDATES];bool priced;uint64_t expected_output;
     bool signals; /* S4 context.signals: "on" enables the structured-signal class */
     bool implicit; /* context.sessions "request": sessions from the request stream */
+    bool drop_reasoning; /* context.reasoning_text "drop" (default "pin") */
     struct hint hints[HINTS];
     uint32_t cap_known[RC_SELECTOR_MAX_CANDIDATES], cap_supported[RC_SELECTOR_MAX_CANDIDATES];
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
@@ -121,7 +122,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||judge||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||judge||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -139,6 +140,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     /* Default "headers": only registered scopes are routed, as before. */
     if(json_object_get(o,"sessions")&&!eq(o,"sessions","request")&&!eq(o,"sessions","headers"))return false;
     g->implicit=eq(o,"sessions","request");
+    if(json_object_get(o,"reasoning_text")&&!eq(o,"reasoning_text","drop")&&!eq(o,"reasoning_text","pin"))return false;
+    g->drop_reasoning=eq(o,"reasoning_text","drop");
     /* context.judge: {provider, model, url, timeout_ms, routine_min,
      * difficulty_max}. Public-trust provider (its resolved key is borrowed);
      * requires signals on. Absent = off. */
@@ -328,6 +331,9 @@ unsigned rc_gateway_event(rc_runtime *rt,const char *path,json_t *body,json_t **
     strcpy(s->key.tenant,g->tenant);strcpy(s->key.project,g->project);strcpy(s->key.task_generation,s->generation);strcpy(s->key.branch,s->branch);strcpy(s->key.step,"trajectory");strcpy(s->key.attempt,"aggregate");
     *out=json_pack("{s:s,s:s,s:s,s:s}","task_id",task,"session_id",session,"branch",branch,"generation",s->generation);
     pthread_mutex_unlock(&g->lock);return *out?201:500;
+}
+bool rc_gateway_drop_reasoning(const rc_runtime *rt) {
+    return rt->gateway&&rt->gateway->drop_reasoning;
 }
 bool rc_gateway_auto(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const char **physical) {
     struct rc_gateway_context *g=rt->gateway;if(!g||strcmp(model,g->auto_alias))return false;

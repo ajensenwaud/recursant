@@ -74,7 +74,7 @@ static size_t receive(char *data,size_t size,size_t nmemb,void *ctx){
             if(!r->stream_observation&&!r->observation_overflow){
                 r->stream_observation=calloc(1,sizeof *r->stream_observation);
                 if(!r->stream_observation)r->observation_overflow=true;
-                else r->stream_observation->strict_openai=r->strict_stream;
+                else {r->stream_observation->strict_openai=r->strict_stream;r->stream_observation->drop_reasoning=rc_gateway_drop_reasoning(r->runtime);}
             }
             if(r->stream_observation)rc_response_observer_feed(r->stream_observation,data,n);
         }
