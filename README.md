@@ -2,7 +2,7 @@
 
 C inference gateway for explicit hybrid routing and deterministic request-egress controls. Requirements: [AGENTS.md](AGENTS.md).
 
-**Current checkpoint:** Functional M1/M2 remain implemented and tested, including [live private/public routing](docs/evidence/live-smoke-gx10-20260927.md). Reviewed opt-in M3 gateway wiring now joins scoped ingestion, asynchronous interpretation and safe selection; the combined checkout passes **17/17 normal and 17/17 ASan/UBSan suites**. Local GLM reference interpretation uses **4,096 output tokens and 180-second timeouts**. **M3 is not complete:** the reviewed Hermes bridge is integrated, but native streaming/tool flows remain conservatively pinned, and full-task quality and dollar savings are unproved. See the [continuation checkpoint](docs/evidence/m3-continuation-checkpoint.md) for evidence, limitations and the consumed live-test allowance. Scripted-provider qualification/cost fixtures are not measured economics.
+**Current checkpoint (2026-10-01):** M1 and M2 are implemented and tested, including [live private/public routing](docs/evidence/live-smoke-gx10-20260927.md). M3 routes multi-agent workflows per turn with compliance scanning on and no harness integration required: sessions and subagents are recognised from the request stream ([design](docs/m3-request-sessions.md)). On a live multi-agent benchmark with upstream Hermes, public cost fell 54-66% against Hermes direct with no loss of quality, and no request carrying synthetic personal data reached a public provider ([evidence](docs/evidence/m3-multiagent.md)). CTest 31/31 normal and ASan/UBSan. Development tasks, one harness and one model pair: see the evidence for limits.
 
 ## Production binary
 
@@ -73,7 +73,7 @@ Cancellation distinguishes a receive-side FIN from a reset: valid write-half-clo
 - No model retries are attempted after uncertain dispatch. Private failures never trigger public fallback.
 - Regex-based M2 is a configured-pattern request-egress boundary, not universal PII detection, output DLP, verified residency or APRA certification.
 - Tenant federation, persistent session policy, Postgres audit, Next.js management, pooling and hard admission budgets from the broader architecture plan remain separate work. Do not interpret the functional M1/M2 requirements as completion of every production-hardening item in that plan.
-- M3 direct-harness/OTel context engine and matched quality/token evaluation remain unimplemented.
+- OTel trace ingestion is not used for routing; request-stream signals plus optional harness hints are. Broader held-out quality evaluation remains open.
 - Accounting evaluator: `python3 -m bench.accounting RECORDS.json`. It reports descriptive arithmetic, not a statistical release pass. Missing usage remains unknown; failed attempts and auxiliary calls must be retained.
 
 ## Evidence
