@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <sys/random.h>
 #include <math.h>
+#include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,6 +136,10 @@ struct rc_gateway_context {
     struct {double session_usd,downshift_at;uint64_t session_requests,rpm;} budget;
     uint64_t rpm_window,rpm_count;
     bool quiet_headers; /* context.decision_headers "off" */
+    /* context.shadow: deterministic sample of eligible routed steps copied to
+     * one candidate off the hot path (paired outcome labels for M4). Spend
+     * from the shadow's usage x its price, capped at usd_cap. */
+    struct {bool on,capped;size_t candidate;double sample,usd_cap,acc,spent;uint64_t max_inflight,inflight;} shadow;
     uint64_t decisions;  /* decision id counter */
     struct {int family;char low[RC_EFFORT_BYTES+1],high[RC_EFFORT_BYTES+1];} efforts_by_signal[RC_SELECTOR_MAX_CANDIDATES];
     /* context.housekeeping: harness auxiliary calls (session titles,
@@ -178,7 +183,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||budgets||decision_headers||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -321,6 +326,18 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
            (json_object_get(budgets,"session_requests")&&!integer(budgets,"session_requests",1000000,&g->budget.session_requests))||
            (json_object_get(budgets,"requests_per_minute")&&!integer(budgets,"requests_per_minute",1000000,&g->budget.rpm)))return false;
         g->budget.session_usd=usd?json_number_value(usd):0;g->budget.downshift_at=at?json_number_value(at):0.8;
+    }
+    json_t *shadow=json_object_get(o,"shadow");
+    if(shadow){
+        const char *a=token(shadow,"alias",128);json_t *sample=json_object_get(shadow,"sample"),*cap=json_object_get(shadow,"usd_cap");size_t index;
+        g->shadow.max_inflight=2;
+        if(!keys(shadow,"|alias||sample||usd_cap||max_inflight|")||!a||!alias(rt,a,&index)||!g->priced||
+           !json_is_number(sample)||!(json_number_value(sample)>0)||json_number_value(sample)>1||
+           !json_is_number(cap)||!(json_number_value(cap)>0)||json_number_value(cap)>1e6||
+           (json_object_get(shadow,"max_inflight")&&!integer(shadow,"max_inflight",64,&g->shadow.max_inflight)))return false;
+        for(g->shadow.candidate=0;g->shadow.candidate<g->count&&g->candidates[g->shadow.candidate].alias_index!=index;g->shadow.candidate++);
+        if(g->shadow.candidate==g->count)return false;
+        g->shadow.on=true;g->shadow.sample=json_number_value(sample);g->shadow.usd_cap=json_number_value(cap);
     }
     json_t *hk=json_object_get(o,"housekeeping");
     if(hk){
@@ -907,6 +924,109 @@ static int candidate_of(rc_runtime *rt,struct rc_gateway_context *g,rc_endpoint 
 static bool cooling(const struct rc_gateway_context *g,size_t i,uint64_t now) {
     return g->health.on&&g->outcome[i].until>now;
 }
+static void remove_effort(json_t *,int);
+/* Shadow dispatch helpers. Tool names are the harness's schema names (never
+ * content); arguments are only hashed. */
+static uint64_t fnv(const char *s) {
+    uint64_t h=UINT64_C(1469598103934665603);
+    for(;*s;s++){h^=(unsigned char)*s;h*=UINT64_C(1099511628211);}
+    return h;
+}
+static void first_call(json_t *message,char name[65],uint64_t *hash) {
+    json_t *f=json_object_get(json_array_get(json_object_get(message,"tool_calls"),0),"function");
+    const char *n=token(f,"name",64),*a=json_string_value(json_object_get(f,"arguments"));
+    strcpy(name,"none");*hash=0;
+    if(n){bool plain=true;for(const char *c=n;*c;c++)if(!((*c>='a'&&*c<='z')||(*c>='A'&&*c<='Z')||(*c>='0'&&*c<='9')||*c=='_'||*c=='-'||*c=='.'))plain=false;strcpy(name,plain?n:"other");}
+    if(!a)return;
+    json_error_t e;json_t *v=json_loads(a,JSON_DECODE_ANY,&e);char *c=v?json_dumps(v,JSON_COMPACT|JSON_SORT_KEYS|JSON_ENCODE_ANY):NULL;
+    *hash=fnv(c?c:a);free(c);json_decref(v);
+}
+struct shadow_job {rc_runtime *rt;char *url,*auth,*payload;char decision[17];size_t candidate;};
+struct shadow_reply {char *bytes;size_t length;bool overflow;};
+static size_t shadow_write(char *data,size_t size,size_t count,void *arg) {
+    struct shadow_reply *b=arg;size_t n=size*count;
+    if(b->overflow||b->length+n>262144){b->overflow=true;return n;}
+    char *m=realloc(b->bytes,b->length+n+1);if(!m){b->overflow=true;return n;}
+    b->bytes=m;memcpy(m+b->length,data,n);b->length+=n;m[b->length]=0;return n;
+}
+static void *shadow_run(void *arg) {
+    struct shadow_job *j=arg;rc_runtime *rt=j->rt;struct rc_gateway_context *g=rt->gateway;
+    struct shadow_reply b={0};long status=0;uint64_t start=now_ms();
+    CURL *c=curl_easy_init();struct curl_slist *hs=curl_slist_append(NULL,"Content-Type: application/json");
+    if(hs)hs=curl_slist_append(hs,"X-Recursant-Shadow: 1");
+    if(hs&&j->auth)hs=curl_slist_append(hs,j->auth);
+    if(c&&hs){
+        curl_easy_setopt(c,CURLOPT_URL,j->url);curl_easy_setopt(c,CURLOPT_POSTFIELDS,j->payload);curl_easy_setopt(c,CURLOPT_HTTPHEADER,hs);
+        curl_easy_setopt(c,CURLOPT_WRITEFUNCTION,shadow_write);curl_easy_setopt(c,CURLOPT_WRITEDATA,&b);
+        curl_easy_setopt(c,CURLOPT_NOSIGNAL,1L);curl_easy_setopt(c,CURLOPT_FOLLOWLOCATION,0L);curl_easy_setopt(c,CURLOPT_PROXY,"");
+        curl_easy_setopt(c,CURLOPT_PROTOCOLS_STR,"http,https");curl_easy_setopt(c,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(c,CURLOPT_SSL_VERIFYHOST,2L);
+        curl_easy_setopt(c,CURLOPT_TIMEOUT,(long)rt->request_timeout_seconds);curl_easy_setopt(c,CURLOPT_CONNECTTIMEOUT,(long)rt->request_timeout_seconds);
+        if(curl_easy_perform(c)==CURLE_OK)curl_easy_getinfo(c,CURLINFO_RESPONSE_CODE,&status);
+    }
+    uint64_t ms=now_ms()-start,prompt=0,completion=0,cached=0;char tool[65]="none",finish[33]="none";uint64_t hash=0;double cost=0;
+    json_error_t error;json_t *root=status==200&&!b.overflow&&b.bytes?json_loadb(b.bytes,b.length,0,&error):NULL;
+    json_t *usage=json_object_get(root,"usage"),*choice=json_array_get(json_object_get(root,"choices"),0);
+    json_t *pt=json_object_get(usage,"prompt_tokens"),*ct=json_object_get(usage,"completion_tokens"),*cd=json_object_get(json_object_get(usage,"prompt_tokens_details"),"cached_tokens");
+    if(json_is_integer(pt)&&json_integer_value(pt)>=0)prompt=(uint64_t)json_integer_value(pt);
+    if(json_is_integer(ct)&&json_integer_value(ct)>=0)completion=(uint64_t)json_integer_value(ct);
+    if(json_is_integer(cd)&&json_integer_value(cd)>=0)cached=(uint64_t)json_integer_value(cd);
+    const char *fr=token(choice,"finish_reason",32);if(fr)strcpy(finish,fr);
+    first_call(json_object_get(choice,"message"),tool,&hash);
+    cost=rc_turn_cost(&g->costs[j->candidate].price,prompt,cached,completion);if(cost<0)cost=0;
+    json_decref(root);
+    pthread_mutex_lock(&g->lock);if(g->shadow.inflight)g->shadow.inflight--;g->shadow.spent+=cost;pthread_mutex_unlock(&g->lock);
+    fprintf(stderr,"shadow id=%s alias=%s status=%ld ms=%llu prompt=%llu completion=%llu cost=%.6f finish=%s tool=%s args=%016llx\n",
+        j->decision,rt->config.aliases[g->candidates[j->candidate].alias_index].from,status,(unsigned long long)ms,
+        (unsigned long long)prompt,(unsigned long long)completion,cost,finish,tool,(unsigned long long)hash);
+    curl_easy_cleanup(c);curl_slist_free_all(hs);free(b.bytes);
+    if(j->auth){memset(j->auth,0,strlen(j->auth));free(j->auth);}
+    free(j->url);free(j->payload);free(j);return NULL;
+}
+void rc_gateway_shadow(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint endpoint,rc_gateway_ticket *ticket) {
+    struct rc_gateway_context *g=rt->gateway;
+    if(!g||!g->shadow.on||!automatic||!g->active||ticket->scope<0)return;
+    pthread_mutex_lock(&g->lock);
+    struct scope *s=&g->scopes[ticket->scope];
+    int from=candidate_of(rt,g,endpoint,json_string_value(json_object_get(body,"model")));
+    bool go=!s->pinned&&!s->private_only&&!labelled(g,h)&&from>=0&&(size_t)from!=g->shadow.candidate;
+    if(go&&g->shadow.spent>=g->shadow.usd_cap){
+        if(!g->shadow.capped){g->shadow.capped=true;fprintf(stderr,"shadow_cap spent=%.6f limit=%.6f\n",g->shadow.spent,g->shadow.usd_cap);}
+        go=false;
+    }
+    if(go&&g->shadow.inflight>=g->shadow.max_inflight)go=false;
+    if(go){g->shadow.acc+=g->shadow.sample;if(g->shadow.acc>=1-1e-9)g->shadow.acc-=1;else go=false;}
+    struct shadow_job *j=NULL;
+    if(go){
+        /* The exact final request, as the shadow's own non-streamed request;
+         * a field the router added for the primary's family is removed. Final
+         * M2 vets the copy on the shadow's own trust class. */
+        rc_alias *a=&rt->config.aliases[g->candidates[g->shadow.candidate].alias_index];rc_endpoint ep=a->endpoint;
+        json_t *copy=json_deep_copy(body);
+        if(copy&&s->reasoning_added)remove_effort(copy,s->reasoning_added);
+        bool ok=copy&&!json_object_set_new(copy,"model",json_string(a->model))&&!json_object_set_new(copy,"stream",json_false());
+        if(ok){json_object_del(copy,"stream_options");ok=(!rc_dispatch_gate||!rc_dispatch_gate(rt,copy,&ep))&&ep==a->endpoint&&eq(copy,"model",a->model);}
+        size_t p=ok?rc_runtime_dispatch_provider(rt,ep,a->model):RC_PROVIDER_NONE;
+        if(p!=RC_PROVIDER_NONE&&(j=calloc(1,sizeof *j))){
+            const char *base=rt->config.providers[p].url,*key=rt->provider_keys[p];size_t n=strlen(base);while(n&&base[n-1]=='/')n--;
+            j->rt=rt;j->candidate=g->shadow.candidate;strcpy(j->decision,ticket->decision);
+            j->url=malloc(n+32);j->payload=json_dumps(copy,JSON_COMPACT);j->auth=key?malloc(strlen(key)+24):NULL;
+            if(j->url)snprintf(j->url,n+32,"%.*s/chat/completions",(int)n,base);
+            if(j->auth)snprintf(j->auth,strlen(key)+24,"Authorization: Bearer %s",key);
+            if(!j->url||!j->payload||(key&&!j->auth)){free(j->url);free(j->payload);free(j->auth);free(j);j=NULL;}
+        }
+        json_decref(copy);
+        if(j){g->shadow.inflight++;ticket->shadowed=true;}
+    }
+    pthread_mutex_unlock(&g->lock);
+    if(!j)return;
+    pthread_t thread;pthread_attr_t attr;
+    bool started=!pthread_attr_init(&attr)&&!pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED)&&!pthread_create(&thread,&attr,shadow_run,j);
+    pthread_attr_destroy(&attr);
+    if(!started){
+        pthread_mutex_lock(&g->lock);g->shadow.inflight--;ticket->shadowed=false;pthread_mutex_unlock(&g->lock);
+        free(j->url);free(j->payload);free(j->auth);free(j);
+    }
+}
 static bool zero_price(const struct rc_gateway_context *g,size_t i) {
     return g->costs[i].priced&&g->costs[i].price.input_per_mtok==0&&g->costs[i].price.output_per_mtok==0;
 }
@@ -1069,7 +1189,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
     snprintf(ticket->decision,sizeof ticket->decision,"%016llx",(unsigned long long)(g->boot^(++g->decisions*UINT64_C(0x9e3779b97f4a7c15))));
-    ticket->reason=automatic?"baseline":"fixed";ticket->costed=false;ticket->chosen[0]=0;
+    ticket->reason=automatic?"baseline":"fixed";ticket->costed=false;ticket->chosen[0]=0;ticket->shadowed=false;
     if(g->budget.rpm){
         if(!g->rpm_count||now-g->rpm_window>=60000){g->rpm_window=now;g->rpm_count=0;}
         if(g->rpm_count>=g->budget.rpm){fprintf(stderr,"budget_exhausted kind=requests_per_minute limit=%llu\n",(unsigned long long)g->budget.rpm);status=429;goto done;}
@@ -1429,6 +1549,12 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             message=stream_message;
             safe=message!=NULL;
             tool_response=safe&&json_object_get(message,"tool_calls")!=NULL;
+        }
+        if(ticket->shadowed){
+            char name[65];uint64_t hash;first_call(message,name,&hash);int i=candidate_of(rt,g,s->endpoint,s->model);
+            const char *fr=sse?(json_object_get(message,"tool_calls")?"tool_calls":"stop"):token(choice,"finish_reason",32);
+            fprintf(stderr,"shadow_primary id=%s alias=%s finish=%s tool=%s args=%016llx\n",ticket->decision,
+                i>=0?rt->config.aliases[g->candidates[i].alias_index].from:"other",complete&&fr?fr:"none",name,(unsigned long long)hash);
         }
         bool tool=tool_response&&!s->pinned&&s->pending&&s->pending_tools;
         if(tool){

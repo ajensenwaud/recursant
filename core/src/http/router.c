@@ -221,6 +221,7 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     if(r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC){json_decref(body);return error_reply(c,403);}
     const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
     if(!info || (r->downstream_fd=dup(info->connect_fd))<0){json_decref(body);return error_reply(c,503);}
+    rc_gateway_shadow(rt,body,automatic,&headers_in,r->endpoint,&r->ticket);
     /* context.health: a failure that reached no client byte (error status or
      * no response headers) may be retried on a failover target. */
     long status=0;bool sse=false;

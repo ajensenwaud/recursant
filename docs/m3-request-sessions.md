@@ -271,3 +271,23 @@ only, not set after a failover or cooldown move), `X-Recursant-Routing-Us` (time
 routing, including a judge call) and `X-Recursant-Decision-Id`. The id also appears on a
 `decision_id scope= id=` line after the `route_decision` line, whose format is unchanged.
 Modelled on vLLM Semantic Router's `x-vsr-*` headers. No content is ever included.
+
+## Shadow dispatch (`context.shadow`)
+
+`{"alias", "sample", "usd_cap", "max_inflight"}` (priced registries only; absent = off).
+Modelled on vLLM Semantic Router's `shadow_dispatch` plugin. A deterministic fraction
+`sample` (0 to 1) of eligible routed steps is copied to the `alias` candidate on a detached
+thread: the exact final request as a non-streamed request, with any reasoning field the
+router added for the primary removed, vetted by final M2 on the shadow's own trust class.
+The shadow's answer is discarded; it never changes the primary and never feeds health.
+
+- Eligible: automatic steps in an unpinned, unrestricted, non-private-only session whose
+  destination is not the shadow candidate, while fewer than `max_inflight` (default 2)
+  shadows run and shadow spend (usage x the shadow's price) is below `usd_cap`
+  (`shadow_cap` is logged once when reached).
+- Evidence: `shadow id=<decision id> alias= status= ms= prompt= completion= cost= finish=
+  tool= args=<hash>` and, when the primary completes, `shadow_primary id= alias= finish=
+  tool= args=`. Tool names are schema names; arguments are only hashed (FNV-1a of compact
+  sorted-key JSON), so equal hashes mean the shadow proposed the same call. Paired labels
+  for the self-improvement engine (M4).
+- Spends money on public shadows: set `usd_cap` from an approved allocation.
