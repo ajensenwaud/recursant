@@ -73,6 +73,13 @@ class GatewayHeaderTests(unittest.TestCase):
             code, h = self.send(p, self.first('job one'))
         self.assertEqual((code, h), (200, {}))
 
+    def test_e_agent_example_config_validates(self):
+        import os, pathlib, subprocess, test_router
+        path = pathlib.Path(__file__).resolve().parents[2] / 'config/recursant.agent.example.json'
+        env = {**os.environ, 'OPENROUTER_API_KEY': 'x', 'RECURSANT_API_KEY': 'k', 'RECURSANT_SOURCE_KEY': 's'}
+        result = subprocess.run([str(test_router.BIN), 'validate', str(path)], env=env, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()
