@@ -10,6 +10,20 @@ import copy
 from pathlib import Path
 from unittest.mock import patch
 
+def dechunk(raw):
+    """Payload of a (possibly partial) HTTP/1.1 chunked response: the bytes with
+    the status line, headers and chunk-size framing removed."""
+    head, sep, body = raw.partition(b'\r\n\r\n')
+    out = b''
+    while sep:
+        line, sep, rest = body.partition(b'\r\n')
+        if not sep: break
+        size = int(line.split(b';')[0] or b'0', 16)
+        if size == 0 or len(rest) < size: out += rest[:size]; break
+        out += rest[:size]; body = rest[size + 2:]
+    return out
+
+
 class ContextSink(test_router.Sink):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
@@ -303,7 +317,8 @@ class GatewayContextTests(unittest.TestCase):
                             client.sendall(b'POST /v1/chat/completions HTTP/1.1\r\n' +
                                 ''.join(k + ': ' + v + '\r\n' for k, v in headers.items()).encode() + b'\r\n' + payload)
                             received = b''
-                            while b'[DONE]' not in received:
+                            # Search the de-chunked body: a chunk boundary can split "[DONE]".
+                            while b'[DONE]' not in dechunk(received):
                                 part = client.recv(4096); self.assertTrue(part); received += part
                             self.assertTrue(sink.stream_sent.wait(1))
                             self.assertEqual(self.request(p, headers=self.headers(scope, 2), body=body)[0], 409)

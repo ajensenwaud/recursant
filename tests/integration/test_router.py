@@ -60,7 +60,7 @@ class RouterTests(unittest.TestCase):
             path.write_text(json.dumps(cfg))
             process = subprocess.Popen([str(BIN), 'serve', str(path), '--test-mode'], env={**os.environ, 'RC_TEST_AUTH': 'local-test-key'}, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
-                for _ in range(100):
+                for _ in range(250):   # 5 s: sanitizer builds start slowly under parallel ctest
                     if process.poll() is not None:
                         self.fail('router exited: ' + process.stderr.read().decode())
                     try:

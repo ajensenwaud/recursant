@@ -193,7 +193,8 @@ class StreamToolsTests(unittest.TestCase):
                             client.sendall(b'POST /v1/chat/completions HTTP/1.1\r\n' +
                                 ''.join(k + ': ' + v + '\r\n' for k, v in headers.items()).encode() + b'\r\n' + payload)
                             received = b''
-                            while b'[DONE]' not in received:
+                            # Search the de-chunked body: a chunk boundary can split "[DONE]".
+                            while b'[DONE]' not in base.dechunk(received):
                                 part = client.recv(4096); self.assertTrue(part); received += part
                             self.assertTrue(sink.stream_sent.wait(1))
                             self.assertEqual(self.request(p, headers=self.headers(scope, 2), body=body)[0], 409)

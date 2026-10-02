@@ -31,3 +31,13 @@ with A2. Pre-existing flake, not investigated here.
   boundary, and the provider-overflow failover now covers an underestimate.
 - Requests with no session (no `context.sessions`) are not checked against the window
   before dispatch; the overflow failover covers them.
+
+## Flake resolved (2026-10-02)
+
+The `stream_tools_gateway` failure was a test bug. The raw-socket client searched the
+response bytes for `[DONE]`, but the response is HTTP chunked, and with a 1-byte upstream
+step the chunk framing sometimes split it (`[` + `\r\n4\r\n` + `DONE]`). Captured failures show
+the full stream including the terminal `0` chunk. The client now searches the de-chunked
+body (`dechunk` in `test_gateway_context.py`; the same latent pattern there is fixed too).
+20/20 isolated runs pass (before: 5 to 7 of 10 failed). Separately, the router readiness
+wait in `test_router.py` is 5 s instead of 2 s (ASan builds under `-j4`).
