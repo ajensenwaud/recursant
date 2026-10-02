@@ -82,6 +82,8 @@ struct scope {
     /* Reasoning field family the router added to the current request (0 =
      * none); removed again if the request fails over. */
     int reasoning_added;
+    /* context.budgets: spend (USD) and dispatches in this session. */
+    double spent;uint64_t requests;
 };
 /* Advisory harness telemetry: session -> role. Bounded, expiring, never
  * continuity or placement authority. */
@@ -125,6 +127,13 @@ struct rc_gateway_context {
      * high effort, in the family's own field. Never overrides the harness. */
     bool reasoning;
     bool repeat; /* context.repeat_escalation "on": signals' repeat-loop rule */
+    /* context.budgets. Per session: spend from provider usage x the served
+     * candidate's price (priced registries); from downshift_at x session_usd
+     * cost routing takes the cheapest permitted candidate; at session_usd
+     * only zero-price candidates, else 429. Request caps per session and per
+     * minute (single client key). Final M2 decides "permitted" as always. */
+    struct {double session_usd,downshift_at;uint64_t session_requests,rpm;} budget;
+    uint64_t rpm_window,rpm_count;
     struct {int family;char low[RC_EFFORT_BYTES+1],high[RC_EFFORT_BYTES+1];} efforts_by_signal[RC_SELECTOR_MAX_CANDIDATES];
     /* context.housekeeping: harness auxiliary calls (session titles,
      * compaction summaries) recognised by the opening of their first message
@@ -167,7 +176,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||budgets||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -299,6 +308,16 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
         if(g->candidates[i].alias_index==g->baseline)found=true;
     }
     if(!found)return false;
+    json_t *budgets=json_object_get(o,"budgets");
+    if(budgets){
+        json_t *usd=json_object_get(budgets,"session_usd"),*at=json_object_get(budgets,"downshift_at");
+        if(!keys(budgets,"|session_usd||downshift_at||session_requests||requests_per_minute|")||
+           (usd&&(!json_is_number(usd)||!(json_number_value(usd)>0)||json_number_value(usd)>1e6||!g->priced))||
+           (at&&(!usd||!json_is_number(at)||!(json_number_value(at)>0)||json_number_value(at)>1))||
+           (json_object_get(budgets,"session_requests")&&!integer(budgets,"session_requests",1000000,&g->budget.session_requests))||
+           (json_object_get(budgets,"requests_per_minute")&&!integer(budgets,"requests_per_minute",1000000,&g->budget.rpm)))return false;
+        g->budget.session_usd=usd?json_number_value(usd):0;g->budget.downshift_at=at?json_number_value(at):0.8;
+    }
     json_t *hk=json_object_get(o,"housekeeping");
     if(hk){
         const char *a=token(hk,"alias",128);json_t *markers=json_object_get(hk,"markers");size_t index;
@@ -884,6 +903,9 @@ static int candidate_of(rc_runtime *rt,struct rc_gateway_context *g,rc_endpoint 
 static bool cooling(const struct rc_gateway_context *g,size_t i,uint64_t now) {
     return g->health.on&&g->outcome[i].until>now;
 }
+static bool zero_price(const struct rc_gateway_context *g,size_t i) {
+    return g->costs[i].priced&&g->costs[i].price.input_per_mtok==0&&g->costs[i].price.output_per_mtok==0;
+}
 /* Index of the housekeeping marker that opens this tool-less request's first
  * message, or -1. */
 static int housekeeping_marker(const struct rc_gateway_context *g,json_t *body) {
@@ -1035,6 +1057,12 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     }
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
+    if(g->budget.rpm){
+        if(!g->rpm_count||now-g->rpm_window>=60000){g->rpm_window=now;g->rpm_count=0;}
+        if(g->rpm_count>=g->budget.rpm){fprintf(stderr,"budget_exhausted kind=requests_per_minute limit=%llu\n",(unsigned long long)g->budget.rpm);status=429;goto done;}
+        g->rpm_count++;
+    }
+    double spend=0; /* session spend as a fraction of session_usd */
     /* Capacity fence BEFORE selection: an unrecordable next request is a
      * windowed loss covering every row it could duplicate (see attempts.c). */
     int free_row=row_slot(g,now);
@@ -1063,6 +1091,11 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     else if(g->implicit&&automatic&&(slot=implicit_scope(g,body,h,now))>=0)s=&g->scopes[slot];
     if(s) {
         ticket->scope=slot;s->reasoning_added=EFFORT_NONE;
+        if(g->budget.session_requests&&s->requests>=g->budget.session_requests){
+            fprintf(stderr,"budget_exhausted scope=%d kind=session_requests limit=%llu\n",slot,(unsigned long long)g->budget.session_requests);status=429;goto done;
+        }
+        s->requests++;
+        if(g->budget.session_usd>0)spend=s->spent/g->budget.session_usd;
         uint32_t required=s->requirements,own=0;char effort[RC_EFFORT_BYTES+1];
         bool options=request_options(body,&own,effort);
         if(s->implicit)s->seen_messages=json_array_size(json_object_get(body,"messages"));
@@ -1171,8 +1204,17 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             /* Shadow proposal failure has no dispatch authority. Mandatory
              * scope continuity and final M2 below apply in either mode. */
             bool placed=false;const char *placement="compliance";
+            if(g->budget.session_usd>0&&spend>=g->budget.downshift_at){
+                /* Near the cap: the cheapest permitted candidate that fits; at
+                 * the cap, only zero-price ones (none: refused below). */
+                size_t to=g->count;
+                for(size_t i=0;i<g->count;i++)
+                    if(quotes[i].permitted&&g->candidates[i].context_limit>=tokens&&(spend<1||zero_price(g,i))&&
+                       (to==g->count||quotes[i].expected_task_cost<quotes[to].expected_task_cost))to=i;
+                if(to<g->count){selected.alias_index=g->candidates[to].alias_index;placed=true;placement="budget";}
+            }
             size_t base=0;while(base<g->count&&g->candidates[base].alias_index!=g->baseline)base++;
-            if(baseline_permitted&&base<g->count&&g->candidates[base].context_limit<tokens){
+            if(!placed&&baseline_permitted&&base<g->count&&g->candidates[base].context_limit<tokens){
                 /* The baseline cannot hold this request: the cheapest permitted
                  * escalation-qualified candidate that can, instead of refusing. */
                 size_t to=g->count;
@@ -1244,6 +1286,12 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     }
     if(rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)){status=403;goto done;}
     const char *model=json_string_value(json_object_get(body,"model"));
+    if(s&&g->budget.session_usd>0&&spend>=1){
+        int i=candidate_of(rt,g,*endpoint,model);
+        if(i<0||!zero_price(g,(size_t)i)){
+            fprintf(stderr,"budget_exhausted scope=%d kind=session_usd spent=%.6f limit=%.6f\n",ticket->scope,s->spent,g->budget.session_usd);status=429;goto done;
+        }
+    }
     if(s){
         if(!model||strlen(model)>128){status=403;goto done;}
         if((!automatic||(s->requirements&&s->owner))&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
@@ -1336,6 +1384,18 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             s->usage=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),
                 .completion_tokens=(uint64_t)json_integer_value(ct),.cached_tokens=cached?(uint64_t)json_integer_value(cached):0};
             s->usage_messages=s->request_messages+1;strcpy(s->usage_model,s->model);
+        }
+        /* Budget spend of this exchange (pinned or not), at the served price. */
+        if(g->budget.session_usd>0&&complete){
+            rc_usage_observation u={0};
+            if(sse&&observer&&observer->usage_known&&!observer->failed&&observer->done)
+                u=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)observer->usage_prompt,.completion_tokens=(uint64_t)observer->usage_completion,.cached_tokens=(uint64_t)observer->usage_cached};
+            else if(!sse&&json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0)
+                u=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),.completion_tokens=(uint64_t)json_integer_value(ct),
+                    .cached_tokens=json_is_integer(cached)&&json_integer_value(cached)>=0?(uint64_t)json_integer_value(cached):0};
+            int i=candidate_of(rt,g,s->endpoint,s->model);
+            double c=u.known&&i>=0?rc_turn_cost(&g->costs[i].price,u.prompt_tokens,u.cached_tokens,u.completion_tokens):0;
+            if(c>0)s->spent+=c;
         }
         json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
         bool tool_response=safe&&eq(choice,"finish_reason","tool_calls")&&tool_envelope(root,choice);

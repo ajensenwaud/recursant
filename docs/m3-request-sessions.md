@@ -236,3 +236,23 @@ calls, the step is classed `recovery` (escalate), whatever its results say. Not 
 when the last results are harness rejections: those rules decide, so rejections stay
 neutral. Off by default because existing configurations and fixtures repeat identical
 calls legitimately.
+
+## Budgets (`context.budgets`)
+
+`{"session_usd", "downshift_at", "session_requests", "requests_per_minute"}`, all optional;
+absent = no limits. Modelled on LiteLLM's per-session budget and iteration limiters
+(`proxy/hooks/max_budget_per_session_limiter.py`, `max_iterations_limiter.py`), but a budget
+moves work to cheaper destinations before it refuses anything.
+
+- `session_usd` (priced registries only): a session's spend is the provider-reported usage
+  of each completed exchange times the price of the candidate that served it (pinned
+  sessions included). From `downshift_at` x `session_usd` (default 0.8), cost routing takes
+  the cheapest permitted candidate that fits the request (`route_decision ...
+  reason=budget`). At the cap only zero-price candidates (an on-premise model) are used;
+  with none permitted the request is refused with 429 (`budget_exhausted kind=session_usd`).
+  "Permitted" includes final M2, so a budget never sends private data public.
+- `session_requests`: dispatches per session; beyond it, 429.
+- `requests_per_minute`: all chat requests through the gateway (one client key), fixed
+  60 s window; beyond it, 429.
+- Sessions are per process and in memory, so a session's budget ends with the session
+  (idle reclaim or restart). Persistence belongs with the Postgres application layer.
