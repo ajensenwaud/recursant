@@ -202,3 +202,27 @@ Each candidate may declare `reasoning: {"family": ..., "low": token, "high": tok
   private-only. If the request fails over, the added field is removed first.
 - Not modelled: providers that invalidate the prompt cache when the thinking setting
   changes (Anthropic). None of the current candidates do.
+
+## Harness housekeeping calls (`context.housekeeping`)
+
+`{"alias": <candidate alias>, "markers": [...]}`, absent = off. A tool-less automatic
+request whose first message opens with a marker goes to that candidate, without a
+session (`route_housekeeping chosen= marker=<index>`). Default markers are the pinned
+Hermes prompts: the session-title system prompt ("You name chat sessions.",
+`agent/title_generator.py`) and the compaction summariser ("You are a summarization agent
+creating a context checkpoint.", `agent/context_compressor.py`). `markers` replaces them
+(1 to 8 strings, at most 256 bytes each).
+
+- Without it, a title call (which opens with the user's first message) goes through
+  session lookup like any other request.
+- Final M2 decides as usual: if the candidate is not permitted for the exact request (PII,
+  say), the request takes the ordinary path, including compliance placement. A request
+  carrying a restricted session label always takes the ordinary path.
+- Benchmark recordings contain no auxiliary calls (one-shot `hermes -z`); the benefit is
+  for interactive and long-horizon use, where compaction summaries are large.
+
+## Judge circuit breaker
+
+Three consecutive unusable judge answers (timeout, error, garbage) stop the judge being
+asked for `judge.breaker_ms` (default 30000, 100 to 600000); signals decide meanwhile.
+Evidence line: `judge_breaker state=open failures=3 ms=`.

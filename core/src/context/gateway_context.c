@@ -35,6 +35,13 @@
 #define RC_TOOLS_MAX_BYTES 65536u
 #define RC_SCHEMA_MAX_DEPTH 24u
 #define RC_SCHEMA_MAX_NODES 16384u
+#define HOUSEKEEPING_MARKERS 8u
+#define HOUSEKEEPING_MARKER_BYTES 256u
+#define JUDGE_BREAKER_FAILURES 3u
+/* Pinned Hermes (fb67154): agent/title_generator.py _TITLE_PROMPT_TEMPLATE
+ * (system message) and agent/context_compressor.py _build_summary_prompt
+ * (single user message). */
+static const char *const hermes_markers[]={"You name chat sessions.","You are a summarization agent creating a context checkpoint."};
 struct scope {
     char task[64], session[64], branch[64], generation[33];
     bool inflight, pinned, owner, private_only;
@@ -118,6 +125,13 @@ struct rc_gateway_context {
      * high effort, in the family's own field. Never overrides the harness. */
     bool reasoning;
     struct {int family;char low[RC_EFFORT_BYTES+1],high[RC_EFFORT_BYTES+1];} efforts_by_signal[RC_SELECTOR_MAX_CANDIDATES];
+    /* context.housekeeping: harness auxiliary calls (session titles,
+     * compaction summaries) recognised by the opening of their first message
+     * and sent to one candidate, without a session. */
+    bool housekeeping;size_t housekeeping_candidate;size_t marker_count;char markers[HOUSEKEEPING_MARKERS][HOUSEKEEPING_MARKER_BYTES+1];
+    /* Judge circuit breaker: JUDGE_BREAKER_FAILURES consecutive unusable
+     * answers stop asking for judge.breaker_ms (default 30 s). */
+    uint64_t judge_breaker_ms,judge_open_until;unsigned judge_failures;
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
@@ -152,7 +166,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||judge||health||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||judge||health||housekeeping||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -194,7 +208,9 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(judge){
         const char *provider=token(judge,"provider",63),*jmodel=token(judge,"model",128);
         json_t *url=json_object_get(judge,"url"),*t=json_object_get(judge,"timeout_ms"),*rm=json_object_get(judge,"routine_min"),*dm=json_object_get(judge,"difficulty_max");
-        if(!keys(judge,"|provider||model||url||timeout_ms||routine_min||difficulty_max|")||!provider||!jmodel||!g->signals||
+        json_t *breaker=json_object_get(judge,"breaker_ms");g->judge_breaker_ms=30000;
+        if(breaker&&(!integer(judge,"breaker_ms",600000,&g->judge_breaker_ms)||g->judge_breaker_ms<100))return false;
+        if(!keys(judge,"|provider||model||url||timeout_ms||routine_min||difficulty_max||breaker_ms|")||!provider||!jmodel||!g->signals||
            !json_is_string(url)||json_string_length(url)>2048||strncmp(json_string_value(url),rt->test_mode?"http":"https://",rt->test_mode?4:8)||
            !json_is_integer(t)||json_integer_value(t)<50||json_integer_value(t)>2000||
            !json_is_number(rm)||json_number_value(rm)<0.5||json_number_value(rm)>1||
@@ -279,6 +295,22 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
         if(g->candidates[i].alias_index==g->baseline)found=true;
     }
     if(!found)return false;
+    json_t *hk=json_object_get(o,"housekeeping");
+    if(hk){
+        const char *a=token(hk,"alias",128);json_t *markers=json_object_get(hk,"markers");size_t index;
+        if(!keys(hk,"|alias||markers|")||!a||!alias(rt,a,&index))return false;
+        for(g->housekeeping_candidate=0;g->housekeeping_candidate<g->count&&g->candidates[g->housekeeping_candidate].alias_index!=index;g->housekeeping_candidate++);
+        if(g->housekeeping_candidate==g->count)return false;
+        if(markers){
+            if(!json_is_array(markers)||!json_array_size(markers)||json_array_size(markers)>HOUSEKEEPING_MARKERS)return false;
+            for(size_t m=0;m<json_array_size(markers);m++){
+                json_t *v=json_array_get(markers,m);
+                if(!json_is_string(v)||!json_string_length(v)||json_string_length(v)>HOUSEKEEPING_MARKER_BYTES||json_string_length(v)!=strlen(json_string_value(v)))return false;
+                strcpy(g->markers[g->marker_count++],json_string_value(v));
+            }
+        }else for(size_t m=0;m<sizeof hermes_markers/sizeof *hermes_markers;m++)strcpy(g->markers[g->marker_count++],hermes_markers[m]);
+        g->housekeeping=true;
+    }
     g->registry=rc_candidates_create(1,g->candidates,g->count);return g->registry!=NULL;
 }
 bool rc_gateway_start(rc_runtime *rt) {
@@ -848,6 +880,25 @@ static int candidate_of(rc_runtime *rt,struct rc_gateway_context *g,rc_endpoint 
 static bool cooling(const struct rc_gateway_context *g,size_t i,uint64_t now) {
     return g->health.on&&g->outcome[i].until>now;
 }
+/* Index of the housekeeping marker that opens this tool-less request's first
+ * message, or -1. */
+static int housekeeping_marker(const struct rc_gateway_context *g,json_t *body) {
+    if(!g->housekeeping||json_object_get(body,"tools"))return -1;
+    const char *text=json_string_value(json_object_get(json_array_get(json_object_get(body,"messages"),0),"content"));
+    for(size_t i=0;text&&i<g->marker_count;i++)if(!strncmp(text,g->markers[i],strlen(g->markers[i])))return (int)i;
+    return -1;
+}
+/* Housekeeping placement when final M2 permits the housekeeping candidate for
+ * this exact request on its own trust class; otherwise the ordinary path. */
+static bool housekeeping_place(rc_runtime *rt,struct rc_gateway_context *g,json_t *body,rc_endpoint *endpoint) {
+    rc_alias *a=&rt->config.aliases[g->candidates[g->housekeeping_candidate].alias_index];rc_endpoint ep=a->endpoint;
+    json_t *probe=json_deep_copy(body);
+    bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
+        (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
+    json_decref(probe);
+    if(!ok||json_object_set_new(body,"model",json_string(a->model)))return false;
+    *endpoint=a->endpoint;return true;
+}
 /* Adds candidate i's low/high reasoning effort in its family's field unless
  * the request already carries a reasoning control. Returns the family added. */
 static int add_effort(struct rc_gateway_context *g,size_t i,json_t *body,bool high) {
@@ -963,7 +1014,19 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             json_decref(probe);
             /* A restricted session's state never goes to the public judge. */
             if(pub&&g->implicit){pthread_mutex_lock(&g->lock);if(labelled(g,h))pub=false;pthread_mutex_unlock(&g->lock);}
-            if(pub){judged=rc_judge_ask(&g->judge,body);asked=judged.attempted;}
+            if(pub){
+                pthread_mutex_lock(&g->lock);bool open=g->judge_open_until>now_ms();pthread_mutex_unlock(&g->lock);
+                if(!open){judged=rc_judge_ask(&g->judge,body);asked=judged.attempted;}
+                if(asked){
+                    pthread_mutex_lock(&g->lock);
+                    if(judged.ok)g->judge_failures=0;
+                    else if(++g->judge_failures>=JUDGE_BREAKER_FAILURES){
+                        g->judge_failures=0;g->judge_open_until=now_ms()+g->judge_breaker_ms;
+                        fprintf(stderr,"judge_breaker state=open failures=%u ms=%llu\n",JUDGE_BREAKER_FAILURES,(unsigned long long)g->judge_breaker_ms);
+                    }
+                    pthread_mutex_unlock(&g->lock);
+                }
+            }
         }
     }
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
@@ -980,7 +1043,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     int slot=-1;
     /* context.reasoning: 1 = low (downshift), 2 = high (escalation), for the
      * selected alias effort_alias only. */
-    int effort_step=0;size_t effort_alias=0;
+    int effort_step=0;size_t effort_alias=0;int marker=-1;
     if(h->generation[0]||h->branch[0]||h->invalid) {
         slot=scope_find(g,h->generation,h->branch);
         if(h->invalid||slot<0){status=403;goto done;}
@@ -988,6 +1051,11 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(strcmp(s->task,h->invocation.values[0])||strcmp(s->session,h->invocation.values[1])){status=403;goto done;}
         if(s->inflight){status=409;goto done;}
     }
+    /* Housekeeping: never a session (a title call opens with the user's first
+     * message and would otherwise be matched against the conversation). A
+     * restricted label wins. */
+    else if(automatic&&g->active&&(marker=housekeeping_marker(g,body))>=0&&!labelled(g,h)&&housekeeping_place(rt,g,body,endpoint))
+        fprintf(stderr,"route_housekeeping chosen=%s marker=%d\n",rt->config.aliases[g->candidates[g->housekeeping_candidate].alias_index].from,marker);
     else if(g->implicit&&automatic&&(slot=implicit_scope(g,body,h,now))>=0)s=&g->scopes[slot];
     if(s) {
         ticket->scope=slot;s->reasoning_added=EFFORT_NONE;

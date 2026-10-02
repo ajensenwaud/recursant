@@ -122,6 +122,35 @@ class GatewayJudgeTests(unittest.TestCase):
         self.assertFalse([b for _, b in sink.judge_seen if 'alice@example.com' in json.dumps(b)])
         self.assertFalse([x for x in sink.seen if 'alice@example.com' in json.dumps(x[2]) and x[2]['model'] != 'physical'])
 
+    def test_j7_failing_judge_opens_a_breaker(self):
+        # Three consecutive unusable answers open the breaker: the next
+        # unclassified turn is decided by signals without asking. It closes
+        # after breaker_ms.
+        def edit(c, s):
+            self.jsetup(c, s); c['context']['judge']['breaker_ms'] = 400
+            s.judge_raw = '{"answers":{}}'
+        tasks = iter(range(100))
+        def open_scope(p):   # distinct task ids: repeated invocation headers look like a replay
+            code, data, _ = self.request(p, path='/v1/context/open', source=True,
+                                         body={'task_id': 't%d' % next(tasks), 'session_id': 's', 'branch': 'b'})
+            self.assertEqual(code, 201)
+            return json.loads(data)
+        self.open_scope = open_scope
+        def loop(p, sink):
+            return self.tool_loop(p, sink, ['wrote 3 files', REJ, REJ, REJ])[2]
+        with self.router(edit) as (p, sink):
+            for _ in range(4):
+                self.assertEqual(loop(p, sink)[-1], 'frontier')
+            self.assertEqual(len(sink.judge_seen), 3)
+            time.sleep(0.5)
+            sink.judge_raw = None
+            models = loop(p, sink)
+            self.assertEqual(models[-1], 'physical')
+            self.assertEqual(len(sink.judge_seen), 4)
+        breaker = [l for l in sink.router_stderr.decode().splitlines() if l.startswith('judge_breaker ')]
+        self.assertEqual(len(breaker), 1)
+        self.assertIn('state=open failures=3 ms=400', breaker[0])
+
     def test_j6_config_is_strict_and_requires_signals(self):
         bad = [lambda c: c['context']['judge'].update(timeout_ms=10),
                lambda c: c['context']['judge'].update(timeout_ms=5000),
@@ -130,6 +159,9 @@ class GatewayJudgeTests(unittest.TestCase):
                lambda c: c['context']['judge'].update(provider='private'),
                lambda c: c['context']['judge'].update(provider='missing'),
                lambda c: c['context']['judge'].update(extra=1),
+               lambda c: c['context']['judge'].update(breaker_ms=50),
+               lambda c: c['context']['judge'].update(breaker_ms=600001),
+               lambda c: c['context']['judge'].update(breaker_ms='400'),
                lambda c: c['context'].update(signals='off')]
         for i, change in enumerate(bad):
             with self.subTest(i=i):
