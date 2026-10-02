@@ -31,6 +31,8 @@ typedef struct rc_runtime {
      * unparseable text are decoded and re-scanned. */
     bool agent_text;
     json_t *patterns;
+    /* compliance.identifiers: RC_ID_* kinds to recognise (identifiers.h); 0 = none. */
+    unsigned identifiers;
     struct rc_compliance_policy *compliance_policy;
 } rc_runtime;
 /* Provider for a final (trust, model) pair: the alias provider owning that

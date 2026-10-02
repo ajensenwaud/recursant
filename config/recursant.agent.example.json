@@ -13,7 +13,8 @@
     {"from": "local", "provider": "gx10", "model": "GLM-5.3-Flash"}
   ],
   "limits": {"max_body_bytes": 4194304, "max_connections": 32, "request_timeout_seconds": 600},
-  "compliance": {"enabled": true, "public_allowed": true, "text_mode": "agent"},
+  "compliance": {"enabled": true, "public_allowed": true, "text_mode": "agent",
+                 "identifiers": ["au_tfn", "au_medicare", "au_abn", "payment_card", "au_phone", "au_bank_account", "passport", "drivers_licence", "date_of_birth"]},
   "context": {
     "mode": "active", "tenant": "local", "project": "agents", "source_key_env": "RECURSANT_SOURCE_KEY",
     "auto_alias": "auto", "baseline_alias": "baseline", "ttl_ms": 180000,

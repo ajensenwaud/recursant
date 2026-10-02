@@ -88,7 +88,7 @@ if(ROUTER_DEPS_FOUND)
     target_compile_options(recursant_tools PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(recursant_tools PUBLIC -fsanitize=address,undefined)
   endif()
-  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c)
+  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/compliance/identifiers.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c)
   target_link_libraries(recursant PRIVATE recursant_signals recursant_cost recursant_stream_tools recursant_tools recursant_config recursant_selector recursant_context recursant_attempts recursant_interpreter Threads::Threads PkgConfig::ROUTER_DEPS)
   target_compile_options(recursant PRIVATE -Wall -Wextra -Wpedantic -Werror)
 else()
@@ -151,6 +151,15 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME interpreter_alloc COMMAND test_interpreter_alloc)
   endif()
+  add_executable(test_identifiers tests/unit/test_identifiers.c core/src/compliance/identifiers.c)
+  target_include_directories(test_identifiers PRIVATE core/include)
+  target_compile_options(test_identifiers PRIVATE -Wall -Wextra -Wpedantic -Werror -UNDEBUG)
+  if(RECURSANT_SANITIZERS)
+    target_compile_options(test_identifiers PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(test_identifiers PRIVATE -fsanitize=address,undefined)
+  endif()
+  add_test(NAME identifiers_unit COMMAND test_identifiers)
+
   add_executable(test_context tests/unit/test_context.c)
   target_link_libraries(test_context PRIVATE recursant_context)
   target_compile_options(test_context PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -271,6 +280,10 @@ if(BUILD_TESTING)
       add_test(NAME gateway_shadow_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_shadow.py -v)
       set_tests_properties(gateway_shadow_integration PROPERTIES TIMEOUT 180
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      add_test(NAME compliance_identifiers_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_compliance_identifiers.py -v)
+      set_tests_properties(compliance_identifiers_integration PROPERTIES TIMEOUT 180
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME hermes_observer
                COMMAND ${Python3_EXECUTABLE} -m unittest discover -s

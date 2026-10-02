@@ -2,6 +2,7 @@
 #include <pcre2.h>
 #include "recursant/classifier.h"
 #include "recursant/provider_adapter.h"
+#include "recursant/identifiers.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,8 +30,9 @@ static void bounded_free(void *ptr,void *ctx) {
 }
 struct rc_compliance_policy {
     budget memory;
-    pcre2_code *rules[MAX_RULES+1];
+    pcre2_code *rules[MAX_RULES+1+16];
     size_t count;
+    unsigned identifiers; /* check-digit kinds scanned after the pattern rules */
 };
 typedef enum { CLEAN, PATTERN, UNKNOWN, REGEX_ERROR, UNSCANNED } verdict;
 typedef struct {
@@ -49,18 +51,21 @@ bool rc_compliance_init(rc_runtime *r) {
     if(r->agent_text)fprintf(stderr,"compliance_text_mode=agent\n");
     size_t count=json_array_size(r->patterns);
     if(count>MAX_RULES)return false;
+    /* compliance.identifiers: format kinds become extra built-in patterns. */
+    const char *extra[16];size_t extras=0;
+    for(unsigned bit=1;bit<=RC_ID_DOB;bit<<=1)if((r->identifiers&bit)&&rc_identifier_pattern(bit))extra[extras++]=rc_identifier_pattern(bit);
     struct rc_compliance_policy *p=calloc(1,sizeof *p);
     if(!p)return false;
-    r->compliance_policy=p;p->memory.limit=8U*1024U*1024U;
+    r->compliance_policy=p;p->memory.limit=8U*1024U*1024U;p->identifiers=r->identifiers&RC_ID_CHECKED;
     pcre2_general_context *gc=pcre2_general_context_create(bounded_alloc,bounded_free,&p->memory);
     pcre2_compile_context *cc=gc?pcre2_compile_context_create(gc):NULL;
     if(!cc){pcre2_general_context_free(gc);return false;}
     pcre2_set_parens_nest_limit(cc,64);
     bool ok=true;
-    for(size_t i=0;i<=count;i++) {
-        const char *pattern=i?json_string_value(json_array_get(r->patterns,i-1)):
+    for(size_t i=0;i<=count+extras;i++) {
+        const char *pattern=i>count?extra[i-count-1]:i?json_string_value(json_array_get(r->patterns,i-1)):
             "[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+";
-        size_t len=i?json_string_length(json_array_get(r->patterns,i-1)):strlen(pattern);
+        size_t len=i>count?strlen(pattern):i?json_string_length(json_array_get(r->patterns,i-1)):strlen(pattern);
         if(!pattern || !len || len>MAX_PATTERN_BYTES || memchr(pattern,0,len)){ok=false;break;}
         int error;PCRE2_SIZE offset;
         pcre2_code *rule=pcre2_compile((PCRE2_SPTR)pattern,len,0,&error,&offset,cc);
@@ -83,6 +88,7 @@ static verdict rules(scanner *s,const char *text,size_t n) {
         if(rc>=0)return PATTERN;
         if(rc!=PCRE2_ERROR_NOMATCH)return REGEX_ERROR;
     }
+    if(s->policy->identifiers&&rc_identifiers_scan(text,n,s->policy->identifiers))return PATTERN;
     return CLEAN;
 }
 /* "data:" <up to 128 non-space, non-comma bytes> ";base64," is embedded encoded
