@@ -2,7 +2,7 @@
 # GLM worker sharing the machine can never be starved:  docker run --memory=3g ...
 FROM python:3.12-slim
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir transformers==4.* gliner presidio-analyzer && \
+    pip install --no-cache-dir transformers==4.* gliner presidio-analyzer protobuf sentencepiece && \
     python -m spacy download en_core_web_lg
 ENV HF_HOME=/models
 WORKDIR /eval
