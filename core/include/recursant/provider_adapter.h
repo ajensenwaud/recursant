@@ -24,6 +24,11 @@ typedef struct rc_provider_adapter {
     bool accepts_openrouter_accounting;
 } rc_provider_adapter;
 
+/* An upstream error body that reports the request exceeded the model's
+ * context window (OpenAI code context_length_exceeded; OpenRouter, vLLM and
+ * OpenAI "maximum context length" wording). Never logged. */
+bool rc_provider_context_overflow(const char *body, size_t length);
+
 /* Exact, case-sensitive name lookup; NULL when unknown. */
 const rc_provider_adapter *rc_provider_adapter_find(const char *name);
 #endif

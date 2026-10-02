@@ -157,3 +157,22 @@ continuity rules below.
 - Shadow mode records outcomes but never moves a request.
 - Evidence lines: `route_failover scope= from= to= cause=status:N|transport|cooldown` and
   `health_cooldown candidate= status= ms=`.
+
+## Context-window fit
+
+Every candidate already declares `context_limit`. Two additions:
+
+- When the baseline's `context_limit` cannot hold the request (estimated prompt plus
+  reserved output), the request goes to the cheapest permitted candidate marked
+  `escalation: true` that can (`route_decision ... reason=context`), instead of being
+  refused with 403. With no such candidate it is still refused. Always on: it changes only
+  requests that were refused before.
+- With `context.health` on, a provider 400 whose body reports a context-window overflow
+  (`context_length_exceeded`, "maximum context length": OpenAI, OpenRouter, vLLM) is
+  retried before the first byte on the baseline or an escalation candidate with a strictly
+  larger `context_limit` (`route_failover ... cause=context`). The session keeps the failed
+  limit as a floor, so later turns are not sent to a window the provider has already
+  rejected. An overflow is not a health failure (no cooldown). The error body is read up to
+  4 KiB and never logged.
+- Only transport failures, 401, 404, 408, 429, 5xx and context overflow are retried; any
+  other 4xx is returned as before.

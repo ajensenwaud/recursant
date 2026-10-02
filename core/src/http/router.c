@@ -35,6 +35,7 @@ typedef struct {
     rc_response_observer *stream_observation;
     bool strict_stream; /* resolved provider's adapter lacks OpenRouter accounting */
     uint64_t retry_after_ms; /* upstream Retry-After (seconds form), capped */
+    char error[4096];size_t error_len;bool error_overflow; /* upstream error body; never logged */
 } request;
 static void stop_server(int sig){(void)sig;stopping=1;}
 static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char *text,const char *type){
@@ -74,7 +75,13 @@ static size_t header(char *data,size_t size,size_t nmemb,void *ctx){
 static size_t receive(char *data,size_t size,size_t nmemb,void *ctx){
     request *r=ctx;size_t n=size*nmemb,offset=0;
     pthread_mutex_lock(&r->lock);
-    if(r->status<200||r->status>=300){pthread_mutex_unlock(&r->lock);return 0;}
+    if(r->status<200||r->status>=300){
+        /* Keep a bounded error body for classification; a larger one aborts. */
+        size_t room=sizeof r->error-1-r->error_len;
+        if(n>room){r->error_overflow=true;pthread_mutex_unlock(&r->lock);return 0;}
+        memcpy(r->error+r->error_len,data,n);r->error_len+=n;r->error[r->error_len]=0;
+        pthread_mutex_unlock(&r->lock);return n;
+    }
     if(r->ticket.begun&&r->ticket.scope>=0){
         if(r->sse){
             if(!r->stream_observation&&!r->observation_overflow){
@@ -225,15 +232,21 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
         if(pthread_create(&r->worker,NULL,upstream,r)){json_decref(body);return error_reply(c,503);}
         r->started=true;
         pthread_mutex_lock(&r->lock);while(!r->headers&&!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
-        status=r->status;bool cancel=r->cancel,headers=r->headers;sse=r->sse;uint64_t retry_after=r->retry_after_ms;pthread_mutex_unlock(&r->lock);
+        /* A 400 may report a context-window overflow: read its (bounded) body. */
+        if(!r->cancel&&r->headers&&r->status==400)while(!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
+        status=r->status;bool cancel=r->cancel,headers=r->headers;sse=r->sse;uint64_t retry_after=r->retry_after_ms;
+        bool overflow=headers&&status==400&&!r->error_overflow&&rc_provider_context_overflow(r->error,r->error_len);
+        pthread_mutex_unlock(&r->lock);
         if(!cancel&&headers&&status>=200&&status<300)break;
         /* A cancelled exchange (client gone, deadline) says nothing about the
          * destination and is never retried. */
         if(cancel){json_decref(body);return error_reply(c,502);}
-        rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),headers?status:0,retry_after);
-        if(attempt>=rc_gateway_max_retries(rt)||!rc_gateway_failover(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket,headers?status:0)){json_decref(body);return error_reply(c,502);}
+        /* A context overflow is the request's size, not the destination's health. */
+        if(!overflow)rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),headers?status:0,retry_after);
+        bool retryable=overflow||!headers||status==401||status==404||status==408||status==429||status>=500;
+        if(!retryable||attempt>=rc_gateway_max_retries(rt)||!rc_gateway_failover(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket,headers?status:0,overflow)){json_decref(body);return error_reply(c,502);}
         pthread_join(r->worker,NULL);r->started=false;
-        pthread_mutex_lock(&r->lock);r->status=0;r->headers=r->done=r->failed=r->sse=false;r->retry_after_ms=0;r->head=r->count=0;pthread_mutex_unlock(&r->lock);
+        pthread_mutex_lock(&r->lock);r->status=0;r->headers=r->done=r->failed=r->sse=false;r->retry_after_ms=0;r->head=r->count=0;r->error_len=0;r->error_overflow=false;pthread_mutex_unlock(&r->lock);
     }
     rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),status,0);
     json_decref(body);

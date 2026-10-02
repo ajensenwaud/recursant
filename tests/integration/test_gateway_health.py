@@ -24,7 +24,8 @@ call = sessions.call
 
 class FailSink(base.ContextSink):
     """server.fail: model -> {'status': int (0 = close without a response),
-    'retry_after': str or None, 'times': int or None (None = always)}."""
+    'retry_after': str or None, 'times': int or None (None = always),
+    'payload': error body bytes (optional)}."""
     def do_POST(self):
         raw = self.rfile.read(int(self.headers['Content-Length']))
         body = json.loads(raw)
@@ -38,7 +39,7 @@ class FailSink(base.ContextSink):
             self.send_response(rule['status'])
             if rule.get('retry_after') is not None: self.send_header('Retry-After', rule['retry_after'])
             self.send_header('Content-Type', 'application/json')
-            payload = b'{"error":{"message":"scripted failure"}}'
+            payload = rule.get('payload', b'{"error":{"message":"scripted failure"}}')
             self.send_header('Content-Length', str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)

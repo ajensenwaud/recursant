@@ -69,6 +69,9 @@ struct scope {
      * class for that step (offline replay 2026-10-01: gpt-4.1-mini repeated
      * gpt-4.1's move on 1 of 24 such steps). Cleared after that step. */
     bool awaiting_delegates;
+    /* A provider reported a context overflow on a candidate with this
+     * context_limit: later turns need a larger window. */
+    uint64_t context_floor;
 };
 /* Advisory harness telemetry: session -> role. Bounded, expiring, never
  * continuity or placement authority. */
@@ -812,17 +815,20 @@ static int candidate_of(rc_runtime *rt,struct rc_gateway_context *g,rc_endpoint 
 static bool cooling(const struct rc_gateway_context *g,size_t i,uint64_t now) {
     return g->health.on&&g->outcome[i].until>now;
 }
-/* Health failover target for an automatic request leaving candidate `from`:
- * the baseline when `from` is not the baseline, otherwise the cheapest
+/* Failover target for an automatic request leaving candidate `from`: the
+ * baseline when `from` is not the baseline, otherwise the cheapest
  * escalation-qualified candidate (never a cheaper tier the operator has not
- * qualified for recovery). It must be healthy, have capacity, declare the
- * session's requirements, satisfy a restricted session, and pass final M2 for
- * this exact request on its own trust class. count = none. */
-static size_t failover_target(rc_runtime *rt,struct rc_gateway_context *g,const struct scope *s,bool restricted,json_t *body,size_t from,uint64_t now) {
+ * qualified for recovery). larger_than > 0 (context overflow): the baseline or
+ * an escalation candidate whose context_limit exceeds it. It must be healthy,
+ * have capacity, declare the session's requirements, satisfy a restricted
+ * session, and pass final M2 for this exact request on its own trust class.
+ * count = none. */
+static size_t failover_target(rc_runtime *rt,struct rc_gateway_context *g,const struct scope *s,bool restricted,json_t *body,size_t from,uint64_t larger_than,uint64_t now) {
     bool from_baseline=g->candidates[from].alias_index==g->baseline;size_t best=g->count;double best_cost=0;
     for(size_t i=0;i<g->count;i++){
         if(i==from||cooling(g,i,now)||(g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i]))continue;
-        if(from_baseline?!(g->candidates[i].qualified_tasks&RC_TASK_RECOVERY):g->candidates[i].alias_index!=g->baseline)continue;
+        bool base=g->candidates[i].alias_index==g->baseline,recovery=(g->candidates[i].qualified_tasks&RC_TASK_RECOVERY)!=0;
+        if(larger_than?(g->candidates[i].context_limit<=larger_than||!(base||recovery)):(from_baseline?!recovery:!base))continue;
         rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];rc_endpoint ep=a->endpoint;
         if(restricted&&ep!=RC_ENDPOINT_PRIVATE)continue;
         if(s&&g->candidates[i].alias_index!=g->baseline&&((g->cap_known[i]&s->requirements)!=s->requirements||
@@ -838,8 +844,8 @@ static size_t failover_target(rc_runtime *rt,struct rc_gateway_context *g,const 
 }
 /* Move an automatic request off candidate `from` (caller holds the lock).
  * Rewrites body model and endpoint; false when no target exists. */
-static bool fail_over(rc_runtime *rt,struct rc_gateway_context *g,struct scope *s,int scope,bool restricted,json_t *body,rc_endpoint *endpoint,size_t from,const char *cause,uint64_t now) {
-    size_t to=failover_target(rt,g,s,restricted,body,from,now);
+static bool fail_over(rc_runtime *rt,struct rc_gateway_context *g,struct scope *s,int scope,bool restricted,json_t *body,rc_endpoint *endpoint,size_t from,uint64_t larger_than,const char *cause,uint64_t now) {
+    size_t to=failover_target(rt,g,s,restricted,body,from,larger_than,now);
     rc_alias *a=to<g->count?&rt->config.aliases[g->candidates[to].alias_index]:NULL;
     fprintf(stderr,"route_failover scope=%d from=%s to=%s cause=%s\n",scope,rt->config.aliases[g->candidates[from].alias_index].from,a?a->from:"none",cause);
     if(!a||json_object_set_new(body,"model",json_string(a->model)))return false;
@@ -868,7 +874,7 @@ void rc_gateway_outcome(rc_runtime *rt,rc_endpoint endpoint,const char *model,lo
 unsigned rc_gateway_max_retries(const rc_runtime *rt) {
     return rt->gateway&&rt->gateway->health.on?(unsigned)rt->gateway->health.max_retries:0;
 }
-bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket,long status) {
+bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket,long status,bool context) {
     struct rc_gateway_context *g=rt->gateway;
     if(!g||!g->health.on||!g->active||!automatic||!ticket->begun||ticket->finished)return false;
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();bool moved=false;
@@ -877,8 +883,10 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     /* A pinned session is never moved (same rule as M2 placement). */
     if(from>=0&&!(s&&s->pinned)){
         bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
-        char cause[32];if(status)snprintf(cause,sizeof cause,"status:%ld",status);else strcpy(cause,"transport");
-        moved=fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,cause,now);
+        char cause[32];if(context)strcpy(cause,"context");else if(status)snprintf(cause,sizeof cause,"status:%ld",status);else strcpy(cause,"transport");
+        uint64_t limit=context?g->candidates[from].context_limit:0;
+        moved=fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,limit,cause,now);
+        if(moved&&s&&limit>s->context_floor)s->context_floor=limit;
     }
     if(moved){
         const char *model=json_string_value(json_object_get(body,"model"));
@@ -987,6 +995,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 prompt_est=rc_estimate_prompt_tokens(&last,appended,tokens);tokens=prompt_est;
             }
             if(output_bound(body,&max_tokens)){tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=structural=false;
+            if(s->context_floor&&tokens<=s->context_floor)tokens=s->context_floor+1;
             output_est=rc_estimate_output_tokens(max_tokens,g->expected_output);
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
             rc_signal_scope facts={.completed_turns=s->turns};
@@ -1037,9 +1046,19 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             rc_selection selected={.alias_index=g->baseline,.reason=RC_SELECT_BASELINE};
             /* Shadow proposal failure has no dispatch authority. Mandatory
              * scope continuity and final M2 below apply in either mode. */
-            bool placed=false;
-            if(baseline_permitted){if(rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}}
-            else {
+            bool placed=false;const char *placement="compliance";
+            size_t base=0;while(base<g->count&&g->candidates[base].alias_index!=g->baseline)base++;
+            if(baseline_permitted&&base<g->count&&g->candidates[base].context_limit<tokens){
+                /* The baseline cannot hold this request: the cheapest permitted
+                 * escalation-qualified candidate that can, instead of refusing. */
+                size_t to=g->count;
+                for(size_t i=0;i<g->count;i++)
+                    if(i!=base&&quotes[i].permitted&&(g->candidates[i].qualified_tasks&RC_TASK_RECOVERY)&&g->candidates[i].context_limit>=tokens&&
+                       (to==g->count||quotes[i].expected_task_cost<quotes[to].expected_task_cost))to=i;
+                if(to<g->count){selected.alias_index=g->candidates[to].alias_index;placed=true;placement="context";}
+            }
+            if(!placed&&baseline_permitted){if(rc_select(g->registry,quotes,g->count,&req,&selected)!=RC_SELECT_OK&&g->active){status=403;goto done;}}
+            else if(!placed){
                 /* M2 vetoes the baseline for this exact request: place it on a
                  * permitted candidate that can continue the session instead of
                  * leaving the final gate to reject a mid-session redirect. */
@@ -1055,7 +1074,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                     size_t n=strlen(classes);snprintf(classes+n,sizeof classes-n,"%s%s",n?"+":"",rc_task_name(bit));
                 }
                 char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s class=%s reason=%s chosen=%s est_prompt=%llu est_out=%llu costs=",
-                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",placed?"compliance":reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
+                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",placed?placement:reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
                 for(size_t i=0;i<g->count&&used>0&&(size_t)used<sizeof line;i++)
                     used+=snprintf(line+used,sizeof line-(size_t)used,"%s%s:%.9g%s",i?",":"",rt->config.aliases[g->candidates[i].alias_index].from,quotes[i].expected_task_cost,quotes[i].permitted?"":"(denied)");
                 fprintf(stderr,"%s\n",line);
@@ -1070,7 +1089,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     if(automatic&&g->active&&g->health.on&&!(s&&s->pinned&&s->owner)){
         int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
         bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
-        if(from>=0&&cooling(g,(size_t)from,now))fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,"cooldown",now);
+        if(from>=0&&cooling(g,(size_t)from,now))fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,0,"cooldown",now);
     }
     /* Explicit scoped aliases are never silently retargeted by authority.
      * Run final M2, then reject a conflict instead of changing the alias. */
