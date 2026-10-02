@@ -72,6 +72,9 @@ struct scope {
     /* A provider reported a context overflow on a candidate with this
      * context_limit: later turns need a larger window. */
     uint64_t context_floor;
+    /* Reasoning field family the router added to the current request (0 =
+     * none); removed again if the request fails over. */
+    int reasoning_added;
 };
 /* Advisory harness telemetry: session -> role. Bounded, expiring, never
  * continuity or placement authority. */
@@ -81,6 +84,7 @@ struct hint {char session[RC_ATTEMPT_TOKEN_SIZE];uint64_t at;bool delegated,set;
  * row shares its full key (same tombstone horizon as the ledger). */
 struct physical {rc_attempt_headers headers;rc_attempt_id id;int scope;bool complete,in_use,settled;uint64_t begun;};
 struct outcome {uint64_t window,requests,failures,until;};
+enum {EFFORT_NONE,EFFORT_OPENAI,EFFORT_OPENROUTER,EFFORT_VLLM_THINKING};
 struct rc_gateway_context {
     pthread_mutex_t lock;
     bool active;
@@ -109,6 +113,11 @@ struct rc_gateway_context {
      * Never moves a pinned session and never crosses final M2. */
     struct {bool on;uint64_t cooldown_ms,min_requests,max_retries;double ratio;} health;
     struct outcome outcome[RC_SELECTOR_MAX_CANDIDATES];
+    /* context.reasoning "signals" (default off): a downshifted step asks its
+     * destination for the candidate's low effort, an escalated step for its
+     * high effort, in the family's own field. Never overrides the harness. */
+    bool reasoning;
+    struct {int family;char low[RC_EFFORT_BYTES+1],high[RC_EFFORT_BYTES+1];} efforts_by_signal[RC_SELECTOR_MAX_CANDIDATES];
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
@@ -143,7 +152,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||judge||health||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||judge||health||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -163,6 +172,9 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     g->implicit=eq(o,"sessions","request");
     if(json_object_get(o,"reasoning_text")&&!eq(o,"reasoning_text","drop")&&!eq(o,"reasoning_text","pin"))return false;
     g->drop_reasoning=eq(o,"reasoning_text","drop");
+    if(json_object_get(o,"reasoning")&&!eq(o,"reasoning","signals")&&!eq(o,"reasoning","off"))return false;
+    g->reasoning=eq(o,"reasoning","signals");
+    if(g->reasoning&&!g->signals)return false;
     json_t *health=json_object_get(o,"health");
     if(health){
         json_t *ratio=json_object_get(health,"failure_ratio"),*retries=json_object_get(health,"max_retries");
@@ -200,8 +212,29 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     bool found=false;
     for(size_t i=0;i<g->count;i++) {
         json_t *v=json_array_get(list,i);const char *a=token(v,"alias",128);
-        if(!keys(v,"|alias||quality_evidence||qualified_tasks||escalation||context_limit||expected_task_cost||price||capabilities||max_inflight|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
+        if(!keys(v,"|alias||quality_evidence||qualified_tasks||escalation||context_limit||expected_task_cost||price||capabilities||max_inflight||reasoning|")||!a||!token(v,"quality_evidence",128)||!alias(rt,a,&g->candidates[i].alias_index)||!integer(v,"context_limit",100000000,&g->candidates[i].context_limit))return false;
         if(json_object_get(v,"max_inflight")&&!integer(v,"max_inflight",1024,&g->max_inflight[i]))return false;
+        /* reasoning: {family, low, high}. "vllm-thinking" (private only) sets
+         * chat_template_kwargs.enable_thinking; "openai" reasoning_effort;
+         * "openrouter" reasoning.effort, with at least one token. */
+        json_t *effort=json_object_get(v,"reasoning");
+        if(effort){
+            const char *family=token(effort,"family",32);int f=EFFORT_NONE;
+            if(family&&!strcmp(family,"openai"))f=EFFORT_OPENAI;
+            else if(family&&!strcmp(family,"openrouter"))f=EFFORT_OPENROUTER;
+            else if(family&&!strcmp(family,"vllm-thinking"))f=EFFORT_VLLM_THINKING;
+            if(!f)return false;
+            g->efforts_by_signal[i].family=f;
+            if(f==EFFORT_VLLM_THINKING){
+                if(!keys(effort,"|family|")||rt->config.aliases[g->candidates[i].alias_index].endpoint!=RC_ENDPOINT_PRIVATE)return false;
+            }else{
+                if(!keys(effort,"|family||low||high|"))return false;
+                const char *low=token(effort,"low",RC_EFFORT_BYTES),*high=token(effort,"high",RC_EFFORT_BYTES);
+                if((json_object_get(effort,"low")&&!low)||(json_object_get(effort,"high")&&!high)||(!low&&!high))return false;
+                if(low)strcpy(g->efforts_by_signal[i].low,low);
+                if(high)strcpy(g->efforts_by_signal[i].high,high);
+            }
+        }
         json_t *caps=json_object_get(v,"capabilities");
         if(caps){
             if(!keys(caps,"|tool_history||function_tools||parallel_tools||stream_tools||nested_tool_schemas||reasoning_effort|"))return false;
@@ -815,6 +848,20 @@ static int candidate_of(rc_runtime *rt,struct rc_gateway_context *g,rc_endpoint 
 static bool cooling(const struct rc_gateway_context *g,size_t i,uint64_t now) {
     return g->health.on&&g->outcome[i].until>now;
 }
+/* Adds candidate i's low/high reasoning effort in its family's field unless
+ * the request already carries a reasoning control. Returns the family added. */
+static int add_effort(struct rc_gateway_context *g,size_t i,json_t *body,bool high) {
+    int f=g->efforts_by_signal[i].family;const char *t=high?g->efforts_by_signal[i].high:g->efforts_by_signal[i].low;
+    if(!f||json_object_get(body,"reasoning_effort")||json_object_get(body,"reasoning")||json_object_get(body,"chat_template_kwargs"))return EFFORT_NONE;
+    int failed=f==EFFORT_VLLM_THINKING?json_object_set_new(body,"chat_template_kwargs",json_pack("{s:b}","enable_thinking",high)):
+        !t[0]?-1:f==EFFORT_OPENAI?json_object_set_new(body,"reasoning_effort",json_string(t)):
+        json_object_set_new(body,"reasoning",json_pack("{s:s}","effort",t));
+    return failed?EFFORT_NONE:f;
+}
+static void remove_effort(json_t *body,int family) {
+    static const char *const fields[]={NULL,"reasoning_effort","reasoning","chat_template_kwargs"};
+    if(family>EFFORT_NONE&&family<=EFFORT_VLLM_THINKING)json_object_del(body,fields[family]);
+}
 /* Failover target for an automatic request leaving candidate `from`: the
  * baseline when `from` is not the baseline, otherwise the cheapest
  * escalation-qualified candidate (never a cheaper tier the operator has not
@@ -882,6 +929,8 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
     /* A pinned session is never moved (same rule as M2 placement). */
     if(from>=0&&!(s&&s->pinned)){
+        /* The failed destination's reasoning field is not the target's. */
+        if(s&&s->reasoning_added){remove_effort(body,s->reasoning_added);s->reasoning_added=EFFORT_NONE;}
         bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
         char cause[32];if(context)strcpy(cause,"context");else if(status)snprintf(cause,sizeof cause,"status:%ld",status);else strcpy(cause,"transport");
         uint64_t limit=context?g->candidates[from].context_limit:0;
@@ -929,6 +978,9 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         for(size_t i=0;i<SCOPES;i++)if(g->scopes[i].open&&!g->scopes[i].implicit&&(!strcmp(g->scopes[i].task,h->invocation.values[0])||!strcmp(g->scopes[i].session,h->invocation.values[1]))){status=403;goto done;}
     }
     int slot=-1;
+    /* context.reasoning: 1 = low (downshift), 2 = high (escalation), for the
+     * selected alias effort_alias only. */
+    int effort_step=0;size_t effort_alias=0;
     if(h->generation[0]||h->branch[0]||h->invalid) {
         slot=scope_find(g,h->generation,h->branch);
         if(h->invalid||slot<0){status=403;goto done;}
@@ -938,7 +990,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     }
     else if(g->implicit&&automatic&&(slot=implicit_scope(g,body,h,now))>=0)s=&g->scopes[slot];
     if(s) {
-        ticket->scope=slot;
+        ticket->scope=slot;s->reasoning_added=EFFORT_NONE;
         uint32_t required=s->requirements,own=0;char effort[RC_EFFORT_BYTES+1];
         bool options=request_options(body,&own,effort);
         if(s->implicit)s->seen_messages=json_array_size(json_object_get(body,"messages"));
@@ -1080,6 +1132,9 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 fprintf(stderr,"%s\n",line);
             }
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
+            if(g->active&&g->reasoning&&!placed&&!s->pinned){
+                effort_step=selected.reason==RC_SELECT_ESCALATE?2:selected.reason==RC_SELECT_CHEAPEST?1:0;effort_alias=selected.alias_index;
+            }
         }
     }
     /* Health: an automatic request is not sent to a cooling candidate when a
@@ -1107,6 +1162,13 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             *endpoint=RC_ENDPOINT_PRIVATE;
             if(json_object_set_new(body,"model",json_string(rt->config.private_model))){status=500;goto done;}
         }
+    }
+    /* Reasoning effort for the step, before the final gate classifies the
+     * exact outgoing object (a cooldown move to another alias cancels it). */
+    if(s&&effort_step){
+        int i=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
+        if(i>=0&&g->candidates[i].alias_index==effort_alias&&(s->reasoning_added=add_effort(g,(size_t)i,body,effort_step==2)))
+            fprintf(stderr,"route_effort scope=%d chosen=%s effort=%s\n",ticket->scope,rt->config.aliases[effort_alias].from,effort_step==2?"high":"low");
     }
     if(rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)){status=403;goto done;}
     const char *model=json_string_value(json_object_get(body,"model"));

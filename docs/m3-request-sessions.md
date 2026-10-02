@@ -176,3 +176,29 @@ Every candidate already declares `context_limit`. Two additions:
   4 KiB and never logged.
 - Only transport failures, 401, 404, 408, 429, 5xx and context overflow are retried; any
   other 4xx is returned as before.
+
+## Reasoning effort from signals (`context.reasoning`)
+
+`"off"` (default) | `"signals"` (requires `signals: "on"`). Modelled on vLLM Semantic
+Router's per-decision `use_reasoning` / `reasoning_effort` (`extproc/req_filter_reason.go`),
+but driven by our signals rather than prompt classification.
+
+Each candidate may declare `reasoning: {"family": ..., "low": token, "high": token}`:
+
+| family | field the router sets | notes |
+|---|---|---|
+| `openai` | `reasoning_effort: <token>` | at least one of low/high |
+| `openrouter` | `reasoning: {"effort": <token>}` | at least one of low/high |
+| `vllm-thinking` | `chat_template_kwargs: {"enable_thinking": false/true}` | private aliases only; no tokens (GLM, Qwen) |
+
+- A step the selector downshifts on a signal class (`reason=cheapest`) gets the
+  destination's `low`; an escalation (`reason=escalate`) gets its `high`. Baseline,
+  compliance and context placements, pinned sessions and requests without a session are
+  left untouched. Evidence line: `route_effort scope= chosen= effort=low|high`.
+- Never overrides the harness: a request that already carries `reasoning_effort` is left
+  as is (`reasoning` or `chat_template_kwargs` from a harness already pin the session).
+- Added before the final M2 gate, so compliance classifies the exact outgoing object.
+  `chat_template_kwargs` is not an inspectable field for M2, which is why that family is
+  private-only. If the request fails over, the added field is removed first.
+- Not modelled: providers that invalidate the prompt cache when the thinking setting
+  changes (Anthropic). None of the current candidates do.
