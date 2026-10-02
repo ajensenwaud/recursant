@@ -134,6 +134,8 @@ struct rc_gateway_context {
      * minute (single client key). Final M2 decides "permitted" as always. */
     struct {double session_usd,downshift_at;uint64_t session_requests,rpm;} budget;
     uint64_t rpm_window,rpm_count;
+    bool quiet_headers; /* context.decision_headers "off" */
+    uint64_t decisions;  /* decision id counter */
     struct {int family;char low[RC_EFFORT_BYTES+1],high[RC_EFFORT_BYTES+1];} efforts_by_signal[RC_SELECTOR_MAX_CANDIDATES];
     /* context.housekeeping: harness auxiliary calls (session titles,
      * compaction summaries) recognised by the opening of their first message
@@ -176,7 +178,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||budgets||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||budgets||decision_headers||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -201,6 +203,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(g->reasoning&&!g->signals)return false;
     if(json_object_get(o,"repeat_escalation")&&!eq(o,"repeat_escalation","on")&&!eq(o,"repeat_escalation","off"))return false;
     g->repeat=eq(o,"repeat_escalation","on");
+    if(json_object_get(o,"decision_headers")&&!eq(o,"decision_headers","on")&&!eq(o,"decision_headers","off"))return false;
+    g->quiet_headers=eq(o,"decision_headers","off");
     if(g->repeat&&!g->signals)return false;
     json_t *health=json_object_get(o,"health");
     if(health){
@@ -995,6 +999,9 @@ void rc_gateway_outcome(rc_runtime *rt,rc_endpoint endpoint,const char *model,lo
     }
     pthread_mutex_unlock(&g->lock);
 }
+bool rc_gateway_decision_headers(const rc_runtime *rt) {
+    return rt->gateway&&!rt->gateway->quiet_headers;
+}
 unsigned rc_gateway_max_retries(const rc_runtime *rt) {
     return rt->gateway&&rt->gateway->health.on?(unsigned)rt->gateway->health.max_retries:0;
 }
@@ -1016,9 +1023,11 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     }
     if(moved){
         const char *model=json_string_value(json_object_get(body,"model"));
+        ticket->reason="failover";ticket->costed=false;
         if(s){s->endpoint=*endpoint;strcpy(s->model,model);}
         if(ticket->capacity>=0&&(size_t)ticket->capacity<g->count&&g->inflight[ticket->capacity])g->inflight[ticket->capacity]--;
         ticket->capacity=-1;int to=candidate_of(rt,g,*endpoint,model);
+        if(to>=0)snprintf(ticket->chosen,sizeof ticket->chosen,"%s",rt->config.aliases[g->candidates[to].alias_index].from);
         if(to>=0&&g->max_inflight[to]){g->inflight[to]++;ticket->capacity=to;}
     }
     pthread_mutex_unlock(&g->lock);return moved;
@@ -1057,6 +1066,8 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     }
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
+    snprintf(ticket->decision,sizeof ticket->decision,"%016llx",(unsigned long long)(g->boot^(++g->decisions*UINT64_C(0x9e3779b97f4a7c15))));
+    ticket->reason=automatic?"baseline":"fixed";ticket->costed=false;ticket->chosen[0]=0;
     if(g->budget.rpm){
         if(!g->rpm_count||now-g->rpm_window>=60000){g->rpm_window=now;g->rpm_count=0;}
         if(g->rpm_count>=g->budget.rpm){fprintf(stderr,"budget_exhausted kind=requests_per_minute limit=%llu\n",(unsigned long long)g->budget.rpm);status=429;goto done;}
@@ -1086,8 +1097,10 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     /* Housekeeping: never a session (a title call opens with the user's first
      * message and would otherwise be matched against the conversation). A
      * restricted label wins. */
-    else if(automatic&&g->active&&(marker=housekeeping_marker(g,body))>=0&&!labelled(g,h)&&housekeeping_place(rt,g,body,endpoint))
+    else if(automatic&&g->active&&(marker=housekeeping_marker(g,body))>=0&&!labelled(g,h)&&housekeeping_place(rt,g,body,endpoint)){
+        ticket->reason="housekeeping";
         fprintf(stderr,"route_housekeeping chosen=%s marker=%d\n",rt->config.aliases[g->candidates[g->housekeeping_candidate].alias_index].from,marker);
+    }
     else if(g->implicit&&automatic&&(slot=implicit_scope(g,body,h,now))>=0)s=&g->scopes[slot];
     if(s) {
         ticket->scope=slot;s->reasoning_added=EFFORT_NONE;
@@ -1128,7 +1141,8 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             *endpoint=s->endpoint;if(json_object_set_new(body,"model",json_string(s->model))){status=500;goto done;}
             /* A pinned session is never moved, by M3 or by M2: if M2 vetoes
              * its owner for this request, the final gate below rejects. */
-            if(g->signals)fprintf(stderr,"route_decision scope=%d mode=%s class=none reason=pin\n",ticket->scope,g->active?"active":"shadow");
+            ticket->reason="pin";
+            if(g->signals)fprintf(stderr,"route_decision scope=%d mode=%s class=none reason=pin\ndecision_id scope=%d id=%s\n",ticket->scope,g->active?"active":"shadow",ticket->scope,ticket->decision);
         }
         else if(automatic) {
             rc_context_snapshot snapshot;bool usable=rc_context_get(g->contexts,&s->key,now,&snapshot)==RC_CONTEXT_OK&&snapshot.has_interpretation&&snapshot.revision==s->interpretation.revision&&exact(g,s->evidence_row,now)&&s->evidence_row==s->last_row;
@@ -1243,7 +1257,14 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                     ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",placed?placement:reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
                 for(size_t i=0;i<g->count&&used>0&&(size_t)used<sizeof line;i++)
                     used+=snprintf(line+used,sizeof line-(size_t)used,"%s%s:%.9g%s",i?",":"",rt->config.aliases[g->candidates[i].alias_index].from,quotes[i].expected_task_cost,quotes[i].permitted?"":"(denied)");
-                fprintf(stderr,"%s\n",line);
+                /* The id goes on its own line: route_decision's format is
+                 * parsed by tests and the benchmark analysers. */
+                fprintf(stderr,"%s\ndecision_id scope=%d id=%s\n",line,ticket->scope,ticket->decision);
+            }
+            if(g->active){
+                static const char *names[]={"baseline","cheapest","pin","escalate"};
+                ticket->reason=placed?placement:names[selected.reason];
+                for(size_t i=0;g->priced&&i<g->count;i++)if(g->candidates[i].alias_index==selected.alias_index){ticket->cost=quotes[i].expected_task_cost;ticket->costed=true;}
             }
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
             if(g->active&&g->reasoning&&!placed&&!s->pinned){
@@ -1258,7 +1279,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     if(automatic&&g->active&&g->health.on&&!(s&&s->pinned&&s->owner)){
         int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
         bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
-        if(from>=0&&cooling(g,(size_t)from,now))fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,0,"cooldown",now);
+        if(from>=0&&cooling(g,(size_t)from,now)&&fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,0,"cooldown",now)){ticket->reason="cooldown";ticket->costed=false;}
     }
     /* Explicit scoped aliases are never silently retargeted by authority.
      * Run final M2, then reject a conflict instead of changing the alias. */
@@ -1275,6 +1296,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         else {
             *endpoint=RC_ENDPOINT_PRIVATE;
             if(json_object_set_new(body,"model",json_string(rt->config.private_model))){status=500;goto done;}
+            ticket->reason="restricted";ticket->costed=false;
         }
     }
     /* Reasoning effort for the step, before the final gate classifies the
@@ -1313,6 +1335,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             if(!s->pending||(tools&&!s->pending_tools))s->pinned=true;
         }
     }
+    {int i=candidate_of(rt,g,*endpoint,model);snprintf(ticket->chosen,sizeof ticket->chosen,"%s",i>=0?rt->config.aliases[g->candidates[i].alias_index].from:model?model:"");}
     /* Count every dispatch to a capacity-limited candidate's model, scoped or
      * not and however it was chosen; released in rc_gateway_finish. */
     for(size_t i=0;model&&i<g->count;i++){

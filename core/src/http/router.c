@@ -211,7 +211,10 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     /* M2 hard gate: final provider object, before serialization and any network. */
     rc_gateway_headers headers_in={0};
     if(rt->gateway)MHD_get_connection_values(c,MHD_HEADER_KIND,collect_header,&headers_in);
+    struct timespec routing_start,routing_end;clock_gettime(CLOCK_MONOTONIC,&routing_start);
     unsigned denial=rc_gateway_prepare(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket);
+    clock_gettime(CLOCK_MONOTONIC,&routing_end);
+    long long routing_us=(long long)(routing_end.tv_sec-routing_start.tv_sec)*1000000+(routing_end.tv_nsec-routing_start.tv_nsec)/1000;
     if(denial){json_decref(body);return error_reply(c,denial);}
     /* Final (trust, model) after M2/context selects exactly one provider whose
      * trust equals the final M2 trust class; anything else fails closed. */
@@ -249,9 +252,20 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
         pthread_mutex_lock(&r->lock);r->status=0;r->headers=r->done=r->failed=r->sse=false;r->retry_after_ms=0;r->head=r->count=0;r->error_len=0;r->error_overflow=false;pthread_mutex_unlock(&r->lock);
     }
     rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),status,0);
+    const char *used=json_string_value(json_object_get(body,"model"));char model_used[129];snprintf(model_used,sizeof model_used,"%s",used?used:"");
     json_decref(body);
     struct MHD_Response *response=MHD_create_response_from_callback(MHD_SIZE_UNKNOWN,16384,read_response,r,NULL);if(!response)return MHD_NO;
     MHD_add_response_header(response,"Content-Type",sse?"text/event-stream":"application/json");
+    if(rc_gateway_decision_headers(rt)){
+        /* Model names and decision labels only: no content. */
+        char number[32];
+        MHD_add_response_header(response,"X-Recursant-Model",model_used);
+        if(r->ticket.reason)MHD_add_response_header(response,"X-Recursant-Decision",r->ticket.reason);
+        if(r->ticket.chosen[0])MHD_add_response_header(response,"X-Recursant-Chosen",r->ticket.chosen);
+        if(r->ticket.decision[0])MHD_add_response_header(response,"X-Recursant-Decision-Id",r->ticket.decision);
+        if(r->ticket.costed){snprintf(number,sizeof number,"%.6f",r->ticket.cost);MHD_add_response_header(response,"X-Recursant-Cost-USD",number);}
+        snprintf(number,sizeof number,"%lld",routing_us>0?routing_us:0);MHD_add_response_header(response,"X-Recursant-Routing-Us",number);
+    }
     enum MHD_Result result=MHD_queue_response(c,(unsigned)status,response);MHD_destroy_response(response);return result;
 }
 int rc_router_serve(rc_runtime *rt){

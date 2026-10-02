@@ -256,3 +256,15 @@ moves work to cheaper destinations before it refuses anything.
   60 s window; beyond it, 429.
 - Sessions are per process and in memory, so a session's budget ends with the session
   (idle reclaim or restart). Persistence belongs with the Postgres application layer.
+
+## Decision headers (`context.decision_headers`)
+
+`"on"` (default with a context section) | `"off"`. Every routed 2xx response carries:
+`X-Recursant-Model` (the model actually used), `X-Recursant-Decision` (`baseline`,
+`cheapest`, `escalate`, `pin`, `compliance`, `context`, `budget`, `housekeeping`,
+`cooldown`, `failover`, `restricted`, `fixed` for an explicit alias), `X-Recursant-Chosen`
+(the candidate alias), `X-Recursant-Cost-USD` (the estimated turn cost, priced registries
+only, not set after a failover or cooldown move), `X-Recursant-Routing-Us` (time spent in
+routing, including a judge call) and `X-Recursant-Decision-Id`. The id also appears on a
+`decision_id scope= id=` line after the `route_decision` line, whose format is unchanged.
+Modelled on vLLM Semantic Router's `x-vsr-*` headers. No content is ever included.

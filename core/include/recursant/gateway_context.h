@@ -16,8 +16,12 @@ typedef struct {
     char generation[33], branch[64];
     bool invalid;
 } rc_gateway_headers;
-/* capacity: candidate index whose in-flight count this dispatch holds, or -1. */
-typedef struct { rc_attempt_id id; int scope, row; bool begun, finished; int capacity; } rc_gateway_ticket;
+/* capacity: candidate index whose in-flight count this dispatch holds, or -1.
+ * decision..costed: evidence for the response's decision headers (decision id
+ * also in the route_decision line; reason; chosen alias or model; estimated
+ * USD cost when the registry is priced). */
+typedef struct { rc_attempt_id id; int scope, row; bool begun, finished; int capacity;
+    char decision[17], chosen[129]; const char *reason; double cost; bool costed; } rc_gateway_ticket;
 void rc_gateway_header(rc_gateway_headers *, const char *, const char *);
 unsigned rc_gateway_prepare(rc_runtime *, json_t *, bool automatic,
     const rc_gateway_headers *, rc_endpoint *, rc_gateway_ticket *);
@@ -27,6 +31,8 @@ void rc_gateway_poll(rc_runtime *);
 /* context.health. Outcome of one dispatch to (trust, model): 2xx, an upstream
  * status, or 0 for a transport failure; retry_after_ms from Retry-After. */
 void rc_gateway_outcome(rc_runtime *, rc_endpoint, const char *model, long status, uint64_t retry_after_ms);
+/* context.decision_headers (default on with a gateway). */
+bool rc_gateway_decision_headers(const rc_runtime *);
 /* Retries the router may make after failures that reached no client byte. */
 unsigned rc_gateway_max_retries(const rc_runtime *);
 /* Moves a failed automatic request (same ticket) to a healthy permitted
