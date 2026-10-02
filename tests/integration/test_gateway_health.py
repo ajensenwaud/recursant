@@ -218,6 +218,56 @@ class GatewayHealthTests(unittest.TestCase):
             self.assertEqual(self.models(sink).count('frontier'), 3)
             self.assertEqual(self.models(sink).count('strong-physical'), 5)
 
+    @staticmethod
+    def adopted(text):
+        """A conversation first seen mid-way: adopted pinned at the baseline."""
+        return [{'role': 'user', 'content': text},
+                {'role': 'assistant', 'content': None, 'tool_calls': [call(1)]},
+                {'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'}]
+
+    def test_m_pinned_session_fails_over_and_stays_pinned_on_the_target(self):
+        with self.router(self.setup) as (p, sink):
+            history = self.adopted('resumed elsewhere')
+            sink.fail = {'frontier': {'status': 503, 'times': 1}}
+            sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            self.assertEqual(self.send(p, history), 200)
+            self.assertEqual(self.models(sink), ['frontier', 'strong-physical'])
+            # Still pinned (continuity unknown), now to the model that answered.
+            history.append({'role': 'tool', 'tool_call_id': 'call-2', 'content': 'ok'})
+            sink.envelope = {'message': {'tool_calls': [call(3)]}}
+            n = len(sink.seen)
+            self.assertEqual(self.send(p, history), 200)
+            self.assertEqual(self.models(sink, n), ['strong-physical'])
+
+    def test_n_pinned_session_leaves_a_cooling_owner(self):
+        with self.router(self.setup) as (p, sink):
+            sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            one = self.adopted('first resumed conversation')
+            self.assertEqual(self.send(p, one), 200)       # pinned to frontier
+            sink.fail = {'frontier': {'status': 429, 'times': 1}}
+            self.assertEqual(self.send(p, self.first('other job')), 200)   # cools frontier
+            one.append({'role': 'tool', 'tool_call_id': 'call-2', 'content': 'ok'})
+            sink.envelope = {'message': {'tool_calls': [call(3)]}}
+            n = len(sink.seen)
+            self.assertEqual(self.send(p, one), 200)
+            self.assertEqual(self.models(sink, n), ['strong-physical'])
+        self.assertIn(' cause=cooldown', self.lines(sink, 'route_failover ')[-1])
+
+    def test_o_pinned_private_session_never_fails_over_public(self):
+        def edit(c, s):
+            sessions.GatewaySessionTests.compliant(c, s)
+            c['context']['health'] = {}
+            s.RequestHandlerClass = FailSink
+            s.fail = {}
+        with self.router(edit) as (p, sink):
+            history = self.adopted('email alice@example.com about it')
+            sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            self.assertEqual(self.send(p, history), 200)
+            sink.fail = {'physical': {'status': 503}}
+            history.append({'role': 'tool', 'tool_call_id': 'call-2', 'content': 'ok'})
+            self.assertEqual(self.send(p, history), 502)
+            self.assertFalse([x for x in sink.seen if x[0] == PUBLIC_PATH])
+
     def test_l_strict_health_configuration(self):
         cfg0 = {'listen': {'host': '127.0.0.1', 'port': 12345},
                 'private': {'url': 'http://127.0.0.1:1/v1', 'model': 'physical'},

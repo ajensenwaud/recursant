@@ -1011,8 +1011,10 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();bool moved=false;
     struct scope *s=ticket->scope>=0?&g->scopes[ticket->scope]:NULL;
     int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
-    /* A pinned session is never moved (same rule as M2 placement). */
-    if(from>=0&&!(s&&s->pinned)){
+    /* A pinned session may move here (Anders, 2026-10-02): its request is
+     * complete and final M2 still vets the target. It stays pinned, now to
+     * the target. M2 itself never moves a pinned session. */
+    if(from>=0){
         /* The failed destination's reasoning field is not the target's. */
         if(s&&s->reasoning_added){remove_effort(body,s->reasoning_added);s->reasoning_added=EFFORT_NONE;}
         bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
@@ -1276,10 +1278,11 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
      * failover target exists (otherwise it goes anyway: cooldown never
      * refuses on its own). Before the requested destination is fixed, so
      * the final checks below treat it like any other selection. */
-    if(automatic&&g->active&&g->health.on&&!(s&&s->pinned&&s->owner)){
+    bool health_moved=false;
+    if(automatic&&g->active&&g->health.on){
         int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
         bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
-        if(from>=0&&cooling(g,(size_t)from,now)&&fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,0,"cooldown",now)){ticket->reason="cooldown";ticket->costed=false;}
+        if(from>=0&&cooling(g,(size_t)from,now)&&fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,0,"cooldown",now)){ticket->reason="cooldown";ticket->costed=false;health_moved=true;}
     }
     /* Explicit scoped aliases are never silently retargeted by authority.
      * Run final M2, then reject a conflict instead of changing the alias. */
@@ -1318,7 +1321,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         if(!model||strlen(model)>128){status=403;goto done;}
         if((!automatic||(s->requirements&&s->owner))&&(*endpoint!=requested_endpoint||strcmp(model,requested_model))){status=403;goto done;}
         if(!automatic&&s->requirements&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
-        if(s->pinned&&s->owner&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
+        if(s->pinned&&s->owner&&!health_moved&&(*endpoint!=s->endpoint||strcmp(model,s->model))){status=403;goto done;}
         s->endpoint=*endpoint;strcpy(s->model,model);s->owner=true;s->inflight=true;s->active=now;s->awaiting_delegates=false;
         rc_tool_boundary_free(s->boundary);s->boundary=NULL;
         json_decref(s->observed_calls);s->observed_calls=NULL;memset(s->callback_seen,0,sizeof s->callback_seen);

@@ -24,9 +24,11 @@ Green: CTest 32/32 normal (Release) and 32/32 ASan/UBSan (Debug), in recursant-v
 
 ## Deviations from the plan
 
-- Pinned sessions are not moved on failure. The plan said to break the pin; the code and
-  `test_h_pinned_public_session_is_rejected_not_moved` make "a pinned session is never
-  moved" a reviewed invariant, so this is left for Anders to decide.
+- Pinned sessions: first left unmoved (a reviewed invariant). Anders decided on
+  2026-10-02 that they may fail over; tests `test_m`/`test_n`/`test_o` in
+  `test_gateway_health.py` (a pinned session fails over and stays pinned to the target; a
+  cooling owner is left; a pinned private session never fails over public). The M2 rule
+  `test_h_pinned_public_session_is_rejected_not_moved` is unchanged.
 - No same-model backoff when there is no failover target: the error is returned and the
   harness's own retry (Hermes has one) applies, rather than stacking two backoffs.
 - Off by default so existing configs are unchanged. The benchmark config is not changed.

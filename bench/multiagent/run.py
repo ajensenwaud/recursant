@@ -54,11 +54,13 @@ CAPS = {'tool_history': True, 'function_tools': True, 'parallel_tools': True, 's
 PII = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+|ACCOUNT-[0-9]{4,}")
 
 
-def router_config(judge=None, local_cost=False):
+def router_config(judge=None, local_cost=False, local_thinking=True):
     """One config for both routed arms. Endpoints/keys are rewritten per episode.
     local_cost: also offer the private GPU for routine steps (zero public cost), one
     request at a time (max_inflight 1), with streamed reasoning text dropped so a
-    session that used it keeps routing."""
+    session that used it keeps routing.
+    local_thinking=False (with local_cost): signal-downshifted steps on the private GPU run
+    with GLM thinking off (context.reasoning "signals", family vllm-thinking)."""
     context = {
         'mode': 'active', 'tenant': 'local', 'project': 'evaluation', 'source_key_env': 'M3_EPISODE_SOURCE',
         'auto_alias': 'auto', 'baseline_alias': 'baseline', 'ttl_ms': 180000,
@@ -82,6 +84,9 @@ def router_config(judge=None, local_cost=False):
         local = context['candidates'][2]
         local.update(qualified_tasks=['tool_followup_ok', 'final_answer'], max_inflight=1,
                      quality_evidence='UNQUALIFIED-CANDIDATE-UNDER-TEST-local-cost-v1')
+        if not local_thinking:
+            context['reasoning'] = 'signals'
+            local['reasoning'] = {'family': 'vllm-thinking'}
     return {
         'listen': {'host': '127.0.0.1', 'port': 1},
         'providers': [{'name': 'gx10', 'trust': 'private', 'url': 'http://127.0.0.1/v1', 'adapter': 'openai-compatible'},

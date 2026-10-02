@@ -152,7 +152,10 @@ continuity rules below.
   (`max_inflight`), declare the session's requirements, be private for a restricted
   session, and pass final M2 for the exact request on its own trust class. So private data
   never fails over to a public provider.
-- Not moved: pinned sessions (as for M2 placement) and explicit aliases. Their failures
+- Pinned sessions do fail over (Anders, 2026-10-02): the request is complete and valid for
+  any model, final M2 still vets the target, and the session stays pinned, now to the
+  model that answered. M2 itself still never moves a pinned session (a pinned public
+  session that gains PII is refused). Explicit aliases are not moved; their failures
   still feed the health window.
 - Shadow mode records outcomes but never moves a request.
 - Evidence lines: `route_failover scope= from= to= cause=status:N|transport|cooldown` and
