@@ -126,3 +126,34 @@ session. `"drop"` accepts string `reasoning` / `reasoning_content` deltas (vLLM-
 models such as the local GLM stream them) and leaves them out of the replayable message;
 the exact replay of the next request still decides continuity. Structured or encrypted
 reasoning always pins. Without `"drop"`, every session moved to the local GLM pinned there.
+
+## Deployment health (`context.health`)
+
+Absent = off (behaviour unchanged). `"health": {}` turns it on with defaults
+`{"cooldown_ms": 5000, "failure_ratio": 0.5, "min_requests": 5, "max_retries": 2}`.
+Modelled on LiteLLM's cooldowns (`router_utils/cooldown_handlers.py`), with the M2 and
+continuity rules below.
+
+- Every dispatch to a candidate's model records its outcome in a 60 s window. A transport
+  failure, 401, 404, 408 or 429 cools the candidate down at once, for `cooldown_ms` or the
+  upstream `Retry-After` (seconds form, capped at 60 s), whichever is longer. Other 5xx
+  cool it down only when failures exceed `failure_ratio` of at least `min_requests`
+  requests in the window. 4xx request errors are not failures.
+- A cooling candidate is not offered for cost routing. An automatic request whose
+  destination is cooling is moved to a failover target before dispatch; with no target it
+  goes anyway (cooldown never refuses on its own).
+- A failure that reached no client byte (an error status, or no response headers) is
+  retried up to `max_retries` times on a failover target, with the same attempt ticket:
+  the failed exchange is not a turn and does not pin the session. A failure after the
+  response started streaming is passed to the client as before. A cancelled exchange
+  (client gone, deadline) is never retried and says nothing about the destination.
+- Failover target: the baseline when the failed candidate is not the baseline; otherwise
+  the cheapest candidate marked `escalation: true`. It must be healthy, have capacity
+  (`max_inflight`), declare the session's requirements, be private for a restricted
+  session, and pass final M2 for the exact request on its own trust class. So private data
+  never fails over to a public provider.
+- Not moved: pinned sessions (as for M2 placement) and explicit aliases. Their failures
+  still feed the health window.
+- Shadow mode records outcomes but never moves a request.
+- Evidence lines: `route_failover scope= from= to= cause=status:N|transport|cooldown` and
+  `health_cooldown candidate= status= ms=`.

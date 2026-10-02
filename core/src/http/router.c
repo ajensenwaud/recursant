@@ -34,6 +34,7 @@ typedef struct {
     char observation[65536];size_t observed;bool observation_overflow;
     rc_response_observer *stream_observation;
     bool strict_stream; /* resolved provider's adapter lacks OpenRouter accounting */
+    uint64_t retry_after_ms; /* upstream Retry-After (seconds form), capped */
 } request;
 static void stop_server(int sig){(void)sig;stopping=1;}
 static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char *text,const char *type){
@@ -60,6 +61,11 @@ static size_t header(char *data,size_t size,size_t nmemb,void *ctx){
     pthread_mutex_lock(&r->lock);
     if(n>5&&!memcmp(data,"HTTP/",5)){
         char *space=memchr(data,' ',n);r->status=space?strtol(space+1,NULL,10):0;
+    }
+    if(n>12&&n<64&&!strncasecmp(data,"Retry-After:",12)){
+        char tmp[64];memcpy(tmp,data+12,n-12);tmp[n-12]=0;char *end;long seconds=strtol(tmp,&end,10);
+        while(*end==' '||*end=='\r'||*end=='\n')end++;
+        if(!*end&&seconds>0)r->retry_after_ms=seconds>60?60000:(uint64_t)seconds*1000;
     }
     if(n>=19&&!strncasecmp(data,"Content-Type:",13) && n<256){char tmp[256];memcpy(tmp,data,n);tmp[n]=0;r->sse=strstr(tmp,"text/event-stream")!=NULL;}
     if(n==2&&data[0]=='\r'&&data[1]=='\n'&&r->status>=200){r->headers=true;pthread_cond_broadcast(&r->changed);}
@@ -196,27 +202,41 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     json_t *rewritten=json_string(physical);
     if(!rewritten || json_object_set_new(body,"model",rewritten)!=0){json_decref(body);return error_reply(c,500);}
     /* M2 hard gate: final provider object, before serialization and any network. */
-    rc_gateway_headers headers={0};
-    if(rt->gateway)MHD_get_connection_values(c,MHD_HEADER_KIND,collect_header,&headers);
-    unsigned denial=rc_gateway_prepare(rt,body,automatic,&headers,&r->endpoint,&r->ticket);
+    rc_gateway_headers headers_in={0};
+    if(rt->gateway)MHD_get_connection_values(c,MHD_HEADER_KIND,collect_header,&headers_in);
+    unsigned denial=rc_gateway_prepare(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket);
     if(denial){json_decref(body);return error_reply(c,denial);}
     /* Final (trust, model) after M2/context selects exactly one provider whose
      * trust equals the final M2 trust class; anything else fails closed. */
     if(r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC){json_decref(body);return error_reply(c,403);}
-    r->provider=rc_runtime_dispatch_provider(rt,r->endpoint,json_string_value(json_object_get(body,"model")));
-    if(r->provider==RC_PROVIDER_NONE){json_decref(body);return error_reply(c,403);}
-    /* The stream observer accepts only the dialect of the adapter that will
-     * produce it; unknown adapters get the strict OpenAI shape. */
-    const rc_provider_adapter *adapter=rc_provider_adapter_find(rt->config.providers[r->provider].adapter);
-    r->strict_stream=!adapter||!adapter->accepts_openrouter_accounting;
-    r->payload=json_dumps(body,JSON_COMPACT);json_decref(body);if(!r->payload)return error_reply(c,500);
     const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
-    if(!info || (r->downstream_fd=dup(info->connect_fd))<0)return error_reply(c,503);
-    if(pthread_create(&r->worker,NULL,upstream,r))return error_reply(c,503);
-    r->started=true;
-    pthread_mutex_lock(&r->lock);while(!r->headers&&!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
-    long status=r->status;bool failed=r->cancel||!r->headers;bool sse=r->sse;pthread_mutex_unlock(&r->lock);
-    if(failed||status<200||status>=300)return error_reply(c,502);
+    if(!info || (r->downstream_fd=dup(info->connect_fd))<0){json_decref(body);return error_reply(c,503);}
+    /* context.health: a failure that reached no client byte (error status or
+     * no response headers) may be retried on a failover target. */
+    long status=0;bool sse=false;
+    for(unsigned attempt=0;;attempt++){
+        r->provider=rc_runtime_dispatch_provider(rt,r->endpoint,json_string_value(json_object_get(body,"model")));
+        if(r->provider==RC_PROVIDER_NONE){json_decref(body);return error_reply(c,403);}
+        /* The stream observer accepts only the dialect of the adapter that will
+         * produce it; unknown adapters get the strict OpenAI shape. */
+        const rc_provider_adapter *adapter=rc_provider_adapter_find(rt->config.providers[r->provider].adapter);
+        r->strict_stream=!adapter||!adapter->accepts_openrouter_accounting;
+        free(r->payload);r->payload=json_dumps(body,JSON_COMPACT);if(!r->payload){json_decref(body);return error_reply(c,500);}
+        if(pthread_create(&r->worker,NULL,upstream,r)){json_decref(body);return error_reply(c,503);}
+        r->started=true;
+        pthread_mutex_lock(&r->lock);while(!r->headers&&!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
+        status=r->status;bool cancel=r->cancel,headers=r->headers;sse=r->sse;uint64_t retry_after=r->retry_after_ms;pthread_mutex_unlock(&r->lock);
+        if(!cancel&&headers&&status>=200&&status<300)break;
+        /* A cancelled exchange (client gone, deadline) says nothing about the
+         * destination and is never retried. */
+        if(cancel){json_decref(body);return error_reply(c,502);}
+        rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),headers?status:0,retry_after);
+        if(attempt>=rc_gateway_max_retries(rt)||!rc_gateway_failover(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket,headers?status:0)){json_decref(body);return error_reply(c,502);}
+        pthread_join(r->worker,NULL);r->started=false;
+        pthread_mutex_lock(&r->lock);r->status=0;r->headers=r->done=r->failed=r->sse=false;r->retry_after_ms=0;r->head=r->count=0;pthread_mutex_unlock(&r->lock);
+    }
+    rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),status,0);
+    json_decref(body);
     struct MHD_Response *response=MHD_create_response_from_callback(MHD_SIZE_UNKNOWN,16384,read_response,r,NULL);if(!response)return MHD_NO;
     MHD_add_response_header(response,"Content-Type",sse?"text/event-stream":"application/json");
     enum MHD_Result result=MHD_queue_response(c,(unsigned)status,response);MHD_destroy_response(response);return result;

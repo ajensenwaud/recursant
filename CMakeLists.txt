@@ -244,6 +244,10 @@ if(BUILD_TESTING)
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_capacity.py -v)
       set_tests_properties(gateway_capacity_integration PROPERTIES TIMEOUT 180
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      add_test(NAME gateway_health_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_health.py -v)
+      set_tests_properties(gateway_health_integration PROPERTIES TIMEOUT 180
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME hermes_observer
                COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
                        ${CMAKE_SOURCE_DIR}/deploy/hermes -p "test_*.py" -v)

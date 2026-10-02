@@ -24,4 +24,13 @@ unsigned rc_gateway_prepare(rc_runtime *, json_t *, bool automatic,
 void rc_gateway_finish(rc_runtime *, rc_gateway_ticket *, bool complete,
     bool sse, const char *response, size_t length, const rc_response_observer *);
 void rc_gateway_poll(rc_runtime *);
+/* context.health. Outcome of one dispatch to (trust, model): 2xx, an upstream
+ * status, or 0 for a transport failure; retry_after_ms from Retry-After. */
+void rc_gateway_outcome(rc_runtime *, rc_endpoint, const char *model, long status, uint64_t retry_after_ms);
+/* Retries the router may make after failures that reached no client byte. */
+unsigned rc_gateway_max_retries(const rc_runtime *);
+/* Moves a failed automatic request (same ticket) to a healthy permitted
+ * failover target: rewrites body model and endpoint. False = no move. */
+bool rc_gateway_failover(rc_runtime *, json_t *body, bool automatic, const rc_gateway_headers *,
+    rc_endpoint *, rc_gateway_ticket *, long status);
 #endif

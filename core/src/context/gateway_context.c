@@ -77,6 +77,7 @@ struct hint {char session[RC_ATTEMPT_TOKEN_SIZE];uint64_t at;bool delegated,set;
  * freed when settled, expired, not referenced by any open scope, and no live
  * row shares its full key (same tombstone horizon as the ledger). */
 struct physical {rc_attempt_headers headers;rc_attempt_id id;int scope;bool complete,in_use,settled;uint64_t begun;};
+struct outcome {uint64_t window,requests,failures,until;};
 struct rc_gateway_context {
     pthread_mutex_t lock;
     bool active;
@@ -98,6 +99,13 @@ struct rc_gateway_context {
      * ignores it (private data waits for the private model rather than going
      * public). */
     uint64_t max_inflight[RC_SELECTOR_MAX_CANDIDATES], inflight[RC_SELECTOR_MAX_CANDIDATES];
+    /* context.health (absent = off): per-candidate outcomes in a 60 s window
+     * and a cooldown deadline. A cooling candidate is not offered for cost
+     * routing and an automatic request is moved off it before dispatch or
+     * after a failure that reached no client byte (rc_gateway_failover).
+     * Never moves a pinned session and never crosses final M2. */
+    struct {bool on;uint64_t cooldown_ms,min_requests,max_retries;double ratio;} health;
+    struct outcome outcome[RC_SELECTOR_MAX_CANDIDATES];
     char efforts[RC_SELECTOR_MAX_CANDIDATES][RC_EFFORT_MAX][RC_EFFORT_BYTES+1];size_t effort_count[RC_SELECTOR_MAX_CANDIDATES];
     rc_candidate_registry *registry;
     struct scope scopes[SCOPES];
@@ -132,7 +140,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||judge||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||judge||health||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -152,6 +160,18 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     g->implicit=eq(o,"sessions","request");
     if(json_object_get(o,"reasoning_text")&&!eq(o,"reasoning_text","drop")&&!eq(o,"reasoning_text","pin"))return false;
     g->drop_reasoning=eq(o,"reasoning_text","drop");
+    json_t *health=json_object_get(o,"health");
+    if(health){
+        json_t *ratio=json_object_get(health,"failure_ratio"),*retries=json_object_get(health,"max_retries");
+        g->health.on=true;g->health.cooldown_ms=5000;g->health.min_requests=5;g->health.max_retries=2;g->health.ratio=0.5;
+        if(!keys(health,"|cooldown_ms||failure_ratio||min_requests||max_retries|")||
+           (json_object_get(health,"cooldown_ms")&&!integer(health,"cooldown_ms",600000,&g->health.cooldown_ms))||
+           (json_object_get(health,"min_requests")&&!integer(health,"min_requests",1000,&g->health.min_requests))||
+           (ratio&&(!json_is_number(ratio)||json_number_value(ratio)<=0||json_number_value(ratio)>1))||
+           (retries&&(!json_is_integer(retries)||json_integer_value(retries)<0||json_integer_value(retries)>4)))return false;
+        if(ratio)g->health.ratio=json_number_value(ratio);
+        if(retries)g->health.max_retries=(uint64_t)json_integer_value(retries);
+    }
     /* context.judge: {provider, model, url, timeout_ms, routine_min,
      * difficulty_max}. Public-trust provider (its resolved key is borrowed);
      * requires signals on. Absent = off. */
@@ -781,6 +801,94 @@ static size_t compliant_candidate(rc_runtime *rt,struct rc_gateway_context *g,co
     }
     return best;
 }
+/* Candidate serving exactly (trust, model), or -1. */
+static int candidate_of(rc_runtime *rt,struct rc_gateway_context *g,rc_endpoint endpoint,const char *model) {
+    for(size_t i=0;model&&i<g->count;i++){
+        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];
+        if(a->endpoint==endpoint&&!strcmp(a->model,model))return (int)i;
+    }
+    return -1;
+}
+static bool cooling(const struct rc_gateway_context *g,size_t i,uint64_t now) {
+    return g->health.on&&g->outcome[i].until>now;
+}
+/* Health failover target for an automatic request leaving candidate `from`:
+ * the baseline when `from` is not the baseline, otherwise the cheapest
+ * escalation-qualified candidate (never a cheaper tier the operator has not
+ * qualified for recovery). It must be healthy, have capacity, declare the
+ * session's requirements, satisfy a restricted session, and pass final M2 for
+ * this exact request on its own trust class. count = none. */
+static size_t failover_target(rc_runtime *rt,struct rc_gateway_context *g,const struct scope *s,bool restricted,json_t *body,size_t from,uint64_t now) {
+    bool from_baseline=g->candidates[from].alias_index==g->baseline;size_t best=g->count;double best_cost=0;
+    for(size_t i=0;i<g->count;i++){
+        if(i==from||cooling(g,i,now)||(g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i]))continue;
+        if(from_baseline?!(g->candidates[i].qualified_tasks&RC_TASK_RECOVERY):g->candidates[i].alias_index!=g->baseline)continue;
+        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];rc_endpoint ep=a->endpoint;
+        if(restricted&&ep!=RC_ENDPOINT_PRIVATE)continue;
+        if(s&&g->candidates[i].alias_index!=g->baseline&&((g->cap_known[i]&s->requirements)!=s->requirements||
+           (g->cap_supported[i]&s->requirements)!=s->requirements||!candidate_effort(g,i,s->effort)))continue;
+        json_t *probe=json_deep_copy(body);
+        bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
+            (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
+        json_decref(probe);
+        double cost=g->costs[i].priced?g->costs[i].price.input_per_mtok:g->costs[i].fixed;
+        if(ok&&(best==g->count||cost<best_cost)){best=i;best_cost=cost;}
+    }
+    return best;
+}
+/* Move an automatic request off candidate `from` (caller holds the lock).
+ * Rewrites body model and endpoint; false when no target exists. */
+static bool fail_over(rc_runtime *rt,struct rc_gateway_context *g,struct scope *s,int scope,bool restricted,json_t *body,rc_endpoint *endpoint,size_t from,const char *cause,uint64_t now) {
+    size_t to=failover_target(rt,g,s,restricted,body,from,now);
+    rc_alias *a=to<g->count?&rt->config.aliases[g->candidates[to].alias_index]:NULL;
+    fprintf(stderr,"route_failover scope=%d from=%s to=%s cause=%s\n",scope,rt->config.aliases[g->candidates[from].alias_index].from,a?a->from:"none",cause);
+    if(!a||json_object_set_new(body,"model",json_string(a->model)))return false;
+    *endpoint=a->endpoint;return true;
+}
+void rc_gateway_outcome(rc_runtime *rt,rc_endpoint endpoint,const char *model,long status,uint64_t retry_after_ms) {
+    struct rc_gateway_context *g=rt->gateway;if(!g||!g->health.on||!model)return;
+    pthread_mutex_lock(&g->lock);uint64_t now=now_ms();int i=candidate_of(rt,g,endpoint,model);
+    if(i>=0){
+        struct outcome *o=&g->outcome[i];
+        if(!o->requests||now-o->window>=60000){o->window=now;o->requests=0;o->failures=0;}
+        o->requests++;
+        /* 0 = transport failure. Rate limits, auth, unknown model and
+         * timeouts cool down at once; other 5xx only past the failure ratio. */
+        bool immediate=!status||status==401||status==404||status==408||status==429;
+        if(immediate||status>=500){
+            o->failures++;
+            if(immediate||(o->requests>=g->health.min_requests&&(double)o->failures>g->health.ratio*(double)o->requests)){
+                uint64_t span=retry_after_ms>g->health.cooldown_ms?retry_after_ms:g->health.cooldown_ms;o->until=now+span;
+                fprintf(stderr,"health_cooldown candidate=%s status=%ld ms=%llu\n",rt->config.aliases[g->candidates[i].alias_index].from,status,(unsigned long long)span);
+            }
+        }
+    }
+    pthread_mutex_unlock(&g->lock);
+}
+unsigned rc_gateway_max_retries(const rc_runtime *rt) {
+    return rt->gateway&&rt->gateway->health.on?(unsigned)rt->gateway->health.max_retries:0;
+}
+bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket,long status) {
+    struct rc_gateway_context *g=rt->gateway;
+    if(!g||!g->health.on||!g->active||!automatic||!ticket->begun||ticket->finished)return false;
+    pthread_mutex_lock(&g->lock);uint64_t now=now_ms();bool moved=false;
+    struct scope *s=ticket->scope>=0?&g->scopes[ticket->scope]:NULL;
+    int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
+    /* A pinned session is never moved (same rule as M2 placement). */
+    if(from>=0&&!(s&&s->pinned)){
+        bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
+        char cause[32];if(status)snprintf(cause,sizeof cause,"status:%ld",status);else strcpy(cause,"transport");
+        moved=fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,cause,now);
+    }
+    if(moved){
+        const char *model=json_string_value(json_object_get(body,"model"));
+        if(s){s->endpoint=*endpoint;strcpy(s->model,model);}
+        if(ticket->capacity>=0&&(size_t)ticket->capacity<g->count&&g->inflight[ticket->capacity])g->inflight[ticket->capacity]--;
+        ticket->capacity=-1;int to=candidate_of(rt,g,*endpoint,model);
+        if(to>=0&&g->max_inflight[to]){g->inflight[to]++;ticket->capacity=to;}
+    }
+    pthread_mutex_unlock(&g->lock);return moved;
+}
 unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket) {
     struct rc_gateway_context *g=rt->gateway;ticket->scope=-1;ticket->row=-1;ticket->capacity=-1;
     if(!g)return rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)?403:0;
@@ -915,7 +1023,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
                     (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
                 if(g->candidates[i].alias_index==g->baseline)baseline_permitted=quotes[i].permitted;
-                else if(g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i])quotes[i].permitted=false;
+                else if((g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i])||cooling(g,i,now))quotes[i].permitted=false;
                 /* A destination must declare every scope requirement,
                  * including the exact reasoning_effort token. The baseline
                  * stays usable as owner without declarations. */
@@ -954,6 +1062,15 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             }
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
         }
+    }
+    /* Health: an automatic request is not sent to a cooling candidate when a
+     * failover target exists (otherwise it goes anyway: cooldown never
+     * refuses on its own). Before the requested destination is fixed, so
+     * the final checks below treat it like any other selection. */
+    if(automatic&&g->active&&g->health.on&&!(s&&s->pinned&&s->owner)){
+        int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
+        bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
+        if(from>=0&&cooling(g,(size_t)from,now))fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,"cooldown",now);
     }
     /* Explicit scoped aliases are never silently retargeted by authority.
      * Run final M2, then reject a conflict instead of changing the alias. */
