@@ -221,9 +221,13 @@ def validate_allocation_limits(config):
 
 def settle(budget, call):
     """Replace a completed call's worst-case reservation with its provider-billed
-    cost. Unknown/unbilled cost keeps the full reservation (never under-counts)."""
+    cost. Unknown/unbilled public cost keeps the full reservation (never under-counts).
+    A private call runs on our own hardware and is never billed: its reservation is
+    released in full (ma1-localthink, 2026-10-03: 80 unreleased GLM reservations held
+    US$0.80 and refused the run's last episode)."""
     cost=call.get('cost_usd')
-    if call.get('endpoint')!='public' or type(cost) not in (int,float) or not math.isfinite(cost) or cost<0: return
+    if call.get('endpoint')=='private': cost=0.0
+    elif call.get('endpoint')!='public' or type(cost) not in (int,float) or not math.isfinite(cost) or cost<0: return
     reserved=Decimal(call['liability_reserved_usd']); actual=Decimal(str(cost))
     if actual>=reserved: return
     with budget['lock']:

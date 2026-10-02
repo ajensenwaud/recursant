@@ -119,6 +119,10 @@ class LiveProtocolTests(unittest.TestCase):
                   {'endpoint':'public','liability_reserved_usd':'0.3','cost_usd':0.5},
                   {'endpoint':'private','liability_reserved_usd':'0','cost_usd':0.0}):
             before=b['reserved']; settle(b,c); self.assertEqual(b['reserved'],before)
+        # A private (own hardware) call is never billed: its whole reservation is released.
+        for cost in (None, 0.0):
+            before=b['reserved']; c={'endpoint':'private','liability_reserved_usd':'0.08','cost_usd':cost}
+            settle(b,c); self.assertEqual(b['reserved'],before-Decimal('0.08')); self.assertEqual(c['liability_settled_usd'],'0.0')
         validate_allocation_limits({'allocation_id':'D','paid_cap_usd':20.0,'request_cap':1200})
         for bad in ({'allocation_id':'D','paid_cap_usd':20.01,'request_cap':1},{'allocation_id':'D','paid_cap_usd':1,'request_cap':1201},
                     {'allocation_id':'X','paid_cap_usd':1,'request_cap':1},{'paid_cap_usd':10,'request_cap':1}):
