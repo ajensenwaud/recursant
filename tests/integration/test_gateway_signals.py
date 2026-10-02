@@ -125,6 +125,17 @@ class GatewaySignalsTests(unittest.TestCase):
             _, _, models = self.tool_loop(p, sink, ['error', 'failed'])
             self.assertEqual(models, ['frontier', 'frontier', 'frontier'])
 
+    def test_c_repeated_identical_calls_escalate_when_enabled(self):
+        # Fixture calls are identical (name f, arguments {}): the third one is a
+        # repeat loop. Off by default.
+        for on, last in ((False, 'physical'), (True, 'strong-physical')):
+            def edit(c, s, on=on):
+                self.setup(c, s, strong=True)
+                if on: c['context']['repeat_escalation'] = 'on'
+            with self.subTest(on=on), self.router(edit) as (p, sink):
+                _, _, models = self.tool_loop(p, sink, ['ok', 'ok', 'ok'])
+                self.assertEqual(models, ['frontier', 'physical', 'physical', last])
+
     def test_d_pii_in_tool_result_final_m2_wins(self):
         def edit(c, s):
             self.setup(c, s, strong=True)
@@ -204,7 +215,10 @@ class GatewaySignalsTests(unittest.TestCase):
         class S: pass
         self.setup(cfg0, S(), strong=True)
         cand = lambda c, i=1: c['context']['candidates'][i]
-        bad = [lambda c: c['context'].update(signals='auto'),
+        bad = [lambda c: c['context'].update(repeat_escalation=True),
+               lambda c: c['context'].update(repeat_escalation='yes'),
+               lambda c: c['context'].update(repeat_escalation='on', signals='off'),
+               lambda c: c['context'].update(signals='auto'),
                lambda c: c['context'].update(signals=True),
                lambda c: c['context'].update(signals='ON'),
                lambda c: cand(c).update(qualified_tasks=['tool_followup_ok', 'tool_followup_ok']),
@@ -217,6 +231,8 @@ class GatewaySignalsTests(unittest.TestCase):
                lambda c: cand(c, 2).update(escalation='true'),
                lambda c: cand(c, 2).update(escalation=1)]
         good = [lambda c: None,
+                lambda c: c['context'].update(repeat_escalation='on'),
+                lambda c: c['context'].update(repeat_escalation='off'),
                 lambda c: c['context'].update(signals='off'),
                 lambda c: c['context'].pop('signals'),
                 lambda c: cand(c).update(qualified_tasks=['format_simple', 'tool_followup_ok', 'final_answer']),

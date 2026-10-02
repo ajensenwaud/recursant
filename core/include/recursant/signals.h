@@ -49,8 +49,17 @@
 #define RC_SIGNALS_MAX_MESSAGES 4096u
 #define RC_SIGNALS_WINDOW 3u
 #define RC_SIGNALS_SCAN_BYTES 4096u
+/* Repeat loop (opt-in, context.repeat_escalation): the newest tool call
+ * (name + arguments, compared as compact sorted-key JSON, or as text when not
+ * JSON) made at least REPEAT_MIN times among the last REPEAT_WINDOW calls is a
+ * stuck agent: RECOVERY, whatever its results say. Not applied when the last
+ * results are harness rejections (those rules decide). Allocates bounded
+ * canonical copies of at most REPEAT_WINDOW call arguments. */
+#define RC_SIGNALS_REPEAT_WINDOW 6u
+#define RC_SIGNALS_REPEAT_MIN 3u
 typedef struct {
     uint64_t completed_turns; /* physical turns completed in this scope */
+    bool repeat_escalation;   /* apply the repeat-loop rule */
 } rc_signal_scope;
 uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope);
 /* True when an EXECUTED failed tool result is inside the inspected window

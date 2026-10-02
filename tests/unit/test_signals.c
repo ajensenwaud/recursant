@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", __func__, __LINE__, #x); exit(1); } } while (0)
-static const rc_signal_scope ONE={1};
+static const rc_signal_scope ONE={.completed_turns=1};
 static json_t *load(const char *text) {
     json_error_t e; json_t *v=json_loads(text,0,&e);
     if (!v) { fprintf(stderr,"fixture: %s\n",e.text); exit(1); }
@@ -52,7 +52,7 @@ static void followup_and_final(void) {
     /* Parallel successful results. */
     CHECK(classify("{\"messages\":[" USER("s") ",{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[]}," RESULT("a","ok") "," RESULT("b","done") "]," TOOLS "}",&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);
     /* First physical turn in the scope never gets a structured class. */
-    const rc_signal_scope zero={0};
+    const rc_signal_scope zero={.completed_turns=0};
     CHECK(classify(ok,&zero)==0);
     CHECK(classify(ok,NULL)==0);
     /* Not a tool follow-up: trailing user or assistant message. */
@@ -244,7 +244,59 @@ static void rejected_invocations(void) {
 #undef REJ
 #undef OKE
 }
+#define CALLA(id,name,args) "{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"" id "\",\"type\":\"function\",\"function\":{\"name\":\"" name "\",\"arguments\":\"" args "\"}}]}"
+static void repeat_loop(void) {
+    /* context.repeat_escalation: the newest call (name + canonical arguments)
+     * made >= RC_SIGNALS_REPEAT_MIN times among the last RC_SIGNALS_REPEAT_WINDOW
+     * calls is a stuck agent: escalate, whatever its results say. */
+    const rc_signal_scope on={.completed_turns=1,.repeat_escalation=true};
+    const char *three="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2","ok") "," CALL("c3") "," RESULT("c3","ok") "]," TOOLS "}";
+    CHECK(classify(three,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);   /* off: unchanged */
+    CHECK(classify(three,&on)==RC_TASK_RECOVERY);
+    const char *two="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2","ok") "]," TOOLS "}";
+    CHECK(classify(two,&on)==RC_TASK_TOOL_FOLLOWUP_OK);
+    /* Key order does not matter; values and names do. */
+    const char *reordered="{\"messages\":[" USER("s") ","
+        CALLA("c1","run","{\\\"a\\\":1,\\\"b\\\":2}") "," RESULT("c1","ok") ","
+        CALLA("c2","run","{\\\"b\\\":2,\\\"a\\\":1}") "," RESULT("c2","ok") ","
+        CALLA("c3","run","{\\\"a\\\": 1, \\\"b\\\": 2}") "," RESULT("c3","ok") "]," TOOLS "}";
+    CHECK(classify(reordered,&on)==RC_TASK_RECOVERY);
+    const char *values="{\"messages\":[" USER("s") ","
+        CALLA("c1","run","{\\\"a\\\":1}") "," RESULT("c1","ok") ","
+        CALLA("c2","run","{\\\"a\\\":2}") "," RESULT("c2","ok") ","
+        CALLA("c3","run","{\\\"a\\\":1}") "," RESULT("c3","ok") "]," TOOLS "}";
+    CHECK(classify(values,&on)==RC_TASK_TOOL_FOLLOWUP_OK);
+    const char *names="{\"messages\":[" USER("s") ","
+        CALLA("c1","read","{}") "," RESULT("c1","ok") ","
+        CALLA("c2","list","{}") "," RESULT("c2","ok") ","
+        CALLA("c3","read","{}") "," RESULT("c3","ok") "]," TOOLS "}";
+    CHECK(classify(names,&on)==RC_TASK_TOOL_FOLLOWUP_OK);
+    /* Only the last six calls count. */
+    const char *old="{\"messages\":[" USER("s") ","
+        CALLA("c1","run","{}") "," RESULT("c1","ok") "," CALLA("c2","run","{}") "," RESULT("c2","ok") ","
+        CALLA("c3","x1","{}") "," RESULT("c3","ok") "," CALLA("c4","x2","{}") "," RESULT("c4","ok") ","
+        CALLA("c5","x3","{}") "," RESULT("c5","ok") "," CALLA("c6","x4","{}") "," RESULT("c6","ok") ","
+        CALLA("c7","x5","{}") "," RESULT("c7","ok") "," CALLA("c8","run","{}") "," RESULT("c8","ok") "]," TOOLS "}";
+    CHECK(classify(old,&on)==RC_TASK_TOOL_FOLLOWUP_OK);
+    /* Unparseable arguments compare as text. */
+    const char *raw="{\"messages\":[" USER("s") ","
+        CALLA("c1","run","not json") "," RESULT("c1","ok") "," CALLA("c2","run","not json") "," RESULT("c2","ok") ","
+        CALLA("c3","run","not json") "," RESULT("c3","ok") "]," TOOLS "}";
+    CHECK(classify(raw,&on)==RC_TASK_RECOVERY);
+    /* A trailing harness rejection stays neutral (rejection rules decide). */
+    const char *rej="{\"messages\":[" USER("s") "," CALL("c1") "," RESULT("c1","ok") "," CALL("c2") "," RESULT("c2","ok") "," CALL("c3") "," RESULT("c3","{\\\"error\\\": \\\"bad arguments\\\"}") "]," TOOLS "}";
+    CHECK(classify(rej,&on)==RC_TASK_TOOL_FOLLOWUP_OK);
+    /* Parallel calls in one turn count individually. */
+    const char *parallel="{\"messages\":[" USER("s") ",{\"role\":\"assistant\",\"content\":null,\"tool_calls\":["
+        "{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}},"
+        "{\"id\":\"b\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}},"
+        "{\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]},"
+        RESULT("a","ok") "," RESULT("b","ok") "," RESULT("c","ok") "]," TOOLS "}";
+    CHECK(classify(parallel,&on)==RC_TASK_RECOVERY);
+}
+#undef CALLA
 int main(void) {
+    repeat_loop();
     rejected_invocations();
     structured_envelopes();
     structured_payloads();

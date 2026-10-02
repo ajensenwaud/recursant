@@ -226,3 +226,13 @@ creating a context checkpoint.", `agent/context_compressor.py`). `markers` repla
 Three consecutive unusable judge answers (timeout, error, garbage) stop the judge being
 asked for `judge.breaker_ms` (default 30000, 100 to 600000); signals decide meanwhile.
 Evidence line: `judge_breaker state=open failures=3 ms=`.
+
+## Repeat loop (`context.repeat_escalation`)
+
+`"off"` (default) | `"on"` (requires `signals: "on"`). Modelled on LiteLLM's stall
+detector (`complexity_router/stall_detector.py`). When the newest tool call (name plus
+arguments compared as compact sorted-key JSON) appears at least 3 times among the last 6
+calls, the step is classed `recovery` (escalate), whatever its results say. Not applied
+when the last results are harness rejections: those rules decide, so rejections stay
+neutral. Off by default because existing configurations and fixtures repeat identical
+calls legitimately.

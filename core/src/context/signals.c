@@ -1,4 +1,6 @@
 #include "recursant/signals.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 /* Deterministic, bounded structured-signal classifier (see signals.h).
  *
@@ -149,6 +151,37 @@ static bool rejected_call(const char *text, size_t length) {
     for (size_t k=j+1; k+1<length; ++k) if (text[k]=='\n'||text[k]=='['||text[k]==']') return false;
     return true;
 }
+/* "name\x1f" + compact sorted-key arguments (raw text when not JSON, or when
+ * larger than the envelope bound). NULL when the call has no name/arguments
+ * or on allocation failure. Caller frees. */
+static char *call_key(json_t *call) {
+    json_t *f=json_object_get(call,"function"), *a=json_object_get(f,"arguments");
+    const char *name=json_string_value(json_object_get(f,"name")), *args=json_string_value(a);
+    if (!name || !args) return NULL;
+    char *canon=NULL;
+    if (json_string_length(a)<=(size_t)64*RC_SIGNALS_SCAN_BYTES) {
+        json_error_t error; json_t *v=json_loadb(args,json_string_length(a),JSON_DECODE_ANY,&error);
+        if (v) { canon=json_dumps(v,JSON_COMPACT|JSON_SORT_KEYS|JSON_ENCODE_ANY); json_decref(v); }
+    }
+    const char *use=canon?canon:args; size_t n=strlen(name)+strlen(use)+2;
+    char *key=malloc(n);
+    if (key) snprintf(key,n,"%s\x1f%s",name,use);
+    free(canon); return key;
+}
+static bool stalled(json_t *messages, size_t n) {
+    char *keys[RC_SIGNALS_REPEAT_WINDOW]={0}; unsigned k=0; bool ok=true;
+    for (size_t i=n; ok && i-- > 0 && k<RC_SIGNALS_REPEAT_WINDOW;) {
+        json_t *m=json_array_get(messages,i);
+        if (!role_is(m,"assistant")) continue;
+        json_t *calls=json_object_get(m,"tool_calls");
+        for (size_t c=json_array_size(calls); c-- > 0 && k<RC_SIGNALS_REPEAT_WINDOW;)
+            if (!(keys[k++]=call_key(json_array_get(calls,c)))) { ok=false; break; }
+    }
+    unsigned same=0;
+    for (unsigned i=0; ok && i<k; ++i) if (!strcmp(keys[i],keys[0])) ++same;
+    for (unsigned i=0; i<k; ++i) free(keys[i]);
+    return ok && same>=RC_SIGNALS_REPEAT_MIN;
+}
 static uint64_t classify(json_t *body, const rc_signal_scope *scope, bool *executed_failure) {
     *executed_failure=false;
     if (!json_is_object(body) || !scope || !scope->completed_turns) return 0;
@@ -184,6 +217,7 @@ static uint64_t classify(json_t *body, const rc_signal_scope *scope, bool *execu
     *executed_failure=failed_any;
     if (!seen || rejected>RC_SIGNALS_MAX_REJECTIONS) return 0;
     if (run>=2) return RC_TASK_RECOVERY;
+    if (scope->repeat_escalation && !rejected && stalled(messages,n)) return RC_TASK_RECOVERY;
     if (failed_any) return 0;
     return offered ? RC_TASK_TOOL_FOLLOWUP_OK : RC_TASK_FINAL_ANSWER;
 }
@@ -191,7 +225,7 @@ uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {
     bool failed; return classify(body,scope,&failed);
 }
 bool rc_signals_recent_failure(json_t *body) {
-    rc_signal_scope one={1}; bool failed; (void)classify(body,&one,&failed); return failed;
+    rc_signal_scope one={.completed_turns=1}; bool failed; (void)classify(body,&one,&failed); return failed;
 }
 bool rc_task_qualifiable(const char *name, uint64_t *bit) {
     if (!name || !bit) return false;

@@ -124,6 +124,7 @@ struct rc_gateway_context {
      * destination for the candidate's low effort, an escalated step for its
      * high effort, in the family's own field. Never overrides the harness. */
     bool reasoning;
+    bool repeat; /* context.repeat_escalation "on": signals' repeat-loop rule */
     struct {int family;char low[RC_EFFORT_BYTES+1],high[RC_EFFORT_BYTES+1];} efforts_by_signal[RC_SELECTOR_MAX_CANDIDATES];
     /* context.housekeeping: harness auxiliary calls (session titles,
      * compaction summaries) recognised by the opening of their first message
@@ -166,7 +167,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||judge||health||housekeeping||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -189,6 +190,9 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(json_object_get(o,"reasoning")&&!eq(o,"reasoning","signals")&&!eq(o,"reasoning","off"))return false;
     g->reasoning=eq(o,"reasoning","signals");
     if(g->reasoning&&!g->signals)return false;
+    if(json_object_get(o,"repeat_escalation")&&!eq(o,"repeat_escalation","on")&&!eq(o,"repeat_escalation","off"))return false;
+    g->repeat=eq(o,"repeat_escalation","on");
+    if(g->repeat&&!g->signals)return false;
     json_t *health=json_object_get(o,"health");
     if(health){
         json_t *ratio=json_object_get(health,"failure_ratio"),*retries=json_object_get(health,"max_retries");
@@ -1006,7 +1010,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
      * of this exact request (the judge provider is public egress). */
     rc_judge_result judged={.ok=false};bool asked=false;
     if(g->judge.enabled&&automatic&&g->active){
-        rc_signal_scope one={1};
+        rc_signal_scope one={.completed_turns=1};
         if(!rc_signals_classify(body,&one)&&!rc_signals_recent_failure(body)){
             json_t *probe=json_deep_copy(body);rc_alias *b=&rt->config.aliases[g->baseline];rc_endpoint ep=b->endpoint;
             bool pub=probe&&!json_object_set_new(probe,"model",json_string(b->model))&&
@@ -1118,7 +1122,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
             if(s->context_floor&&tokens<=s->context_floor)tokens=s->context_floor+1;
             output_est=rc_estimate_output_tokens(max_tokens,g->expected_output);
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
-            rc_signal_scope facts={.completed_turns=s->turns};
+            rc_signal_scope facts={.completed_turns=s->turns,.repeat_escalation=g->repeat};
             uint64_t signal=structural?rc_signals_classify(body,&facts):0;
             uint64_t escalation=signal==RC_TASK_RECOVERY?RC_TASK_RECOVERY:0;if(escalation)signal=0;
             /* Judge advice only fills an unclassified structural turn; never
