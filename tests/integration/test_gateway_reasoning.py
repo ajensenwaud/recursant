@@ -82,23 +82,34 @@ class GatewayReasoningTests(unittest.TestCase):
         self.assertEqual(steps[1], ('physical', {'reasoning': {'effort': 'low'}}))
 
     def test_d_harness_effort_is_never_overridden(self):
+        """The harness's own field is kept as sent. An OpenAI-style reasoning_effort
+        (Hermes sends one on every request) does not control GLM's thinking switch,
+        so a routine GLM step still turns thinking off; an escalation to an
+        OpenAI-family model keeps the harness's value."""
         def edit(c, s):
             self.setup(c, s)
             for cand in c['context']['candidates']:
                 cand.setdefault('capabilities', {})['reasoning_effort'] = ['low', 'medium', 'high']
+        results = ['ok', 'Traceback (most recent call last): boom', 'ERROR: command failed, exit code 2']
         with self.router(edit) as (p, sink):
-            history = self.first('job one')
+            history = self.first('job one'); sent = []
             sink.envelope = {'message': {'tool_calls': [call(1)]}}
-            body = self.body(history, reasoning_effort='medium')
-            code, raw, _ = self.request(p, body=body)
-            self.assertEqual(code, 200)
-            history.append(json.loads(raw)['choices'][0]['message'])
-            history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'})
-            sink.envelope = {'message': {'tool_calls': [call(2)]}}
-            self.assertEqual(self.request(p, body=self.body(history, reasoning_effort='medium'))[0], 200)
-            self.assertEqual(sink.seen[-1][2]['model'], 'physical')
-            self.assertEqual(self.sent(sink), {'reasoning_effort': 'medium'})
-        self.assertEqual(self.lines(sink, 'route_effort '), [])
+            for i in range(len(results) + 1):
+                if i:
+                    history.append({'role': 'tool', 'tool_call_id': 'call-%d' % i, 'content': results[i - 1]})
+                    sink.envelope = {'message': {'tool_calls': [call(i + 1)]}}
+                code, raw, _ = self.request(p, body=self.body(history, reasoning_effort='medium'))
+                self.assertEqual(code, 200)
+                history.append(json.loads(raw)['choices'][0]['message'])
+                sent.append((sink.seen[-1][2]['model'], self.sent(sink)))
+        self.assertEqual(sent, [
+            ('frontier', {'reasoning_effort': 'medium'}),
+            ('physical', {'reasoning_effort': 'medium', 'chat_template_kwargs': {'enable_thinking': False}}),
+            ('frontier', {'reasoning_effort': 'medium'}),
+            ('strong-physical', {'reasoning_effort': 'medium'})])
+        effort = self.lines(sink, 'route_effort ')
+        self.assertEqual(len(effort), 1)
+        self.assertIn(' chosen=alias effort=low', effort[0])
 
     def test_e_failover_removes_the_failed_destinations_field(self):
         with self.router(lambda c, s: self.setup(c, s, health_on=True)) as (p, sink):

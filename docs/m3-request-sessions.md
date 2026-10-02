@@ -198,8 +198,11 @@ Each candidate may declare `reasoning: {"family": ..., "low": token, "high": tok
   destination's `low`; an escalation (`reason=escalate`) gets its `high`. Baseline,
   compliance and context placements, pinned sessions and requests without a session are
   left untouched. Evidence line: `route_effort scope= chosen= effort=low|high`.
-- Never overrides the harness: a request that already carries `reasoning_effort` is left
-  as is (`reasoning` or `chat_template_kwargs` from a harness already pin the session).
+- Never overrides the harness's control for that destination: an OpenAI or OpenRouter
+  destination is left alone when the request carries `reasoning_effort` or `reasoning`;
+  a vLLM thinking destination only when it carries `chat_template_kwargs`. Hermes sends
+  `reasoning_effort` on every request, which GLM ignores, so it does not block GLM's
+  thinking switch. The harness's own fields are always forwarded unchanged.
 - Added before the final M2 gate, so compliance classifies the exact outgoing object.
   `chat_template_kwargs` is not an inspectable field for M2, which is why that family is
   private-only. If the request fails over, the added field is removed first.

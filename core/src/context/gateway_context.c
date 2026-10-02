@@ -1049,11 +1049,16 @@ static bool housekeeping_place(rc_runtime *rt,struct rc_gateway_context *g,json_
     if(!ok||json_object_set_new(body,"model",json_string(a->model)))return false;
     *endpoint=a->endpoint;return true;
 }
-/* Adds candidate i's low/high reasoning effort in its family's field unless
- * the request already carries a reasoning control. Returns the family added. */
+/* Adds candidate i's low/high reasoning effort in its family's field unless the
+ * request already sets that destination's own control. A harness's OpenAI-style
+ * reasoning_effort does not control a vLLM thinking switch (Hermes sends
+ * reasoning_effort on every request; ma1-localthink, 2026-10-03, added nothing).
+ * Returns the family added. */
 static int add_effort(struct rc_gateway_context *g,size_t i,json_t *body,bool high) {
     int f=g->efforts_by_signal[i].family;const char *t=high?g->efforts_by_signal[i].high:g->efforts_by_signal[i].low;
-    if(!f||json_object_get(body,"reasoning_effort")||json_object_get(body,"reasoning")||json_object_get(body,"chat_template_kwargs"))return EFFORT_NONE;
+    bool set=f==EFFORT_VLLM_THINKING?json_object_get(body,"chat_template_kwargs")!=NULL:
+        json_object_get(body,"reasoning_effort")||json_object_get(body,"reasoning");
+    if(!f||set)return EFFORT_NONE;
     int failed=f==EFFORT_VLLM_THINKING?json_object_set_new(body,"chat_template_kwargs",json_pack("{s:b}","enable_thinking",high)):
         !t[0]?-1:f==EFFORT_OPENAI?json_object_set_new(body,"reasoning_effort",json_string(t)):
         json_object_set_new(body,"reasoning",json_pack("{s:s}","effort",t));

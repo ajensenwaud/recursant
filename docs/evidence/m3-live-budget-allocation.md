@@ -61,3 +61,5 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - D-ma1: Anders approved up to US$12. Pilot US$2.127, stopped main US$0.552, main US$7.232, smoke on Hermes fb67154 US$0.591. Total US$10.501.
 - D-ma2: Anders approved up to US$14 (re-run on Hermes fb67154). Main US$8.443; offline Jev scoring US$0.087. Total US$8.530.
 - See docs/evidence/m3-multiagent.md and docs/evidence/m3-judge-offline.md.
+- D-ma2 later runs (2026-10-01/03): sig US$1.134, localcost US$1.420, mini counterfactuals
+  US$0.698, localthink US$1.129. D-ma2 total US$12.911 of US$14; remainder US$1.089.
