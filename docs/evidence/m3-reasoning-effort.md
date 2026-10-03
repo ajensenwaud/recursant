@@ -36,7 +36,7 @@ Paired, per question:
   cheaper than the default, and faster.
 - gpt-6-luna none vs high: only high right 112, only none right 31. A real gap of 8.3
   points, largest in engineering (+23), law (+17), physics (+14), economics (+13) and maths
-  (+10); none in health and history.
+  (+10); little or none in health (0) and history (+1).
 
 ## Can the encoder pick which luna questions need high effort?
 
