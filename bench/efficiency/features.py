@@ -63,28 +63,37 @@ def features(req):
     return f
 
 
-def pairs():
+PAIR_FILES = (('mini-counterfactual-ma2.jsonl', 'mini'), ('mini-counterfactual-helpers.jsonl', 'mini'),
+              ('glm-counterfactual.jsonl', 'glm'), ('mini-counterfactual-e1.jsonl', 'mini'))
+
+
+def pairs(files=PAIR_FILES):
     """(features, label, group, meta) for every counterfactual pair whose step is found."""
     out = []
-    for path, model in (('mini-counterfactual-ma2.jsonl', 'mini'), ('mini-counterfactual-helpers.jsonl', 'mini'), ('glm-counterfactual.jsonl', 'glm')):
+    for path, model in files:
+        if not (LIVE / path).exists(): continue
         for line in open(LIVE / path):
             row = json.loads(line)
             lit = lambda v: ast.literal_eval(v) if isinstance(v, str) else v
             big = [c['name'] for c in lit(row['big']) or []]
             small = [c['name'] for c in lit(row['mini']) or []] if row.get('mini') is not None else None
             if small is None: continue
-            found = None
-            for run in ('ma1-main3', 'ma1-sig', 'ma1-localcost'):
+            found = found_run = None
+            for run in ([row['run']] if row.get('run') else ('ma1-main3', 'ma1-sig', 'ma1-localcost')):
                 ts = traces(run, row['episode'])
                 if not ts or int(row['index']) >= len(ts): continue
                 t = ts[int(row['index'])]
                 if recorded_move(t.get('response'))[:1] == big[:1]:
-                    found = t; break
+                    found = t; found_run = run; break
             if not found: continue
             same = (big[:1] == small[:1]) and (row.get('big_final') == row.get('mini_final'))
+            tgt = lambda calls: [tuple(c['target']) if isinstance(c.get('target'), list) else c.get('target') for c in (lit(calls) or [])[:1]]
             meta = {'model': model, 'group': row['group'], 'old': row.get('old'), 'new': row.get('new'),
-                    'big': big[:1], 'small': small[:1]}
-            out.append((features(request_of(found)), float(same), row['episode'].rsplit('-r', 1)[0], meta))
+                    'big': big[:1], 'small': small[:1], 'file': path, 'key': (found_run, row['episode'], int(row['index'])),
+                    'same_target': float(same and tgt(row['big']) == tgt(row['mini']))}
+            # Group by task (not task+repeat+arm: rsplit('-r') split at '-routed'/'-request' and leaked
+            # the same task into training).
+            out.append((features(request_of(found)), float(same), re.sub(r'-r\d+-.*$', '', row['episode']), meta))
     return out
 
 

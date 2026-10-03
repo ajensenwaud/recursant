@@ -63,3 +63,10 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
 - See docs/evidence/m3-multiagent.md and docs/evidence/m3-judge-offline.md.
 - D-ma2 later runs (2026-10-01/03): sig US$1.134, localcost US$1.420, mini counterfactuals
   US$0.698, localthink US$1.129. D-ma2 total US$12.911 of US$14; remainder US$1.089.
+
+## E-ml (2026-10-03): efficiency-model training pairs (phase 3, ml-guided-routing)
+- Anders approved option C on 2026-10-03 ("continue with C, B first"), which includes phase 3 at about US$3.
+- Spend: offline replay of recorded gpt-4.1 steps to openai/gpt-4.1-mini (`bench/efficiency/replay.py`),
+  hard cap US$3.00 on provider usage.cost plus in-flight reserve. PII tasks excluded. No routing, no live tasks.
+- Result: 1,339 pairs, actual US$2.886, 0 errors (`.hermes/runtime/m3-live/mini-counterfactual-e1.jsonl`).
+  See docs/evidence/m3-efficiency-model.md.
