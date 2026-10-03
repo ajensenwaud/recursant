@@ -34,6 +34,7 @@ def main():
     ap.add_argument('--private-url'); ap.add_argument('--limit', type=int)
     ap.add_argument('--reserve', type=float, default=0.02); ap.add_argument('--shuffle', action='store_true')
     ap.add_argument('--thinking', choices=('on', 'off'), default='off'); ap.add_argument('--style', choices=('brief', 'direct'), default='brief'); ap.add_argument('--max-tokens', type=int, default=1024)
+    ap.add_argument('--effort', choices=('none', 'minimal', 'low', 'medium', 'high'), help='public reasoning models: OpenRouter reasoning.effort (default: the provider default)')
     a = ap.parse_args()
     items = [json.loads(l) for l in open(ITEMS)]
     if a.limit: items = items[:a.limit]
@@ -58,6 +59,7 @@ def main():
         try:
             body = {'model': a.model, 'messages': messages(item, a.style), 'max_tokens': a.max_tokens, 'temperature': 0}
             if not private: body['provider'] = {'allow_fallbacks': False}
+            if not private and a.effort: body['reasoning'] = {'effort': a.effort}
             else: body['chat_template_kwargs'] = {'enable_thinking': a.thinking == 'on'}
             req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
             start = time.time()
@@ -67,6 +69,7 @@ def main():
                 msg = ans['choices'][0]['message']
                 rec.update(text=msg.get('content') or '', secs=round(time.time() - start, 2), reasoning_chars=len(msg.get('reasoning_content') or msg.get('reasoning') or ''),
                            prompt_tokens=u.get('prompt_tokens'), completion_tokens=u.get('completion_tokens'),
+                           reasoning_tokens=(u.get('completion_tokens_details') or {}).get('reasoning_tokens'),
                            cost=0.0 if private else float(u.get('cost') or 0))
             except Exception as e:
                 rec.update(error=type(e).__name__, cost=None if private else a.reserve)

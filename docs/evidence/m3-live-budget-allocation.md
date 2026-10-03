@@ -101,3 +101,18 @@ US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10
   hard cap on provider usage.cost plus in-flight reserve. Probe spend US$0.0034.
 - Spent: gpt-6-luna US$0.1487, gpt-6.1-sol US$1.5250, probe US$0.0034; total US$1.6771 of
   the approved US$10. 980 answers each, 0 errors.
+
+## F-effort (2026-10-04): reasoning effort on public reasoning models
+- Anders, 2026-10-04: "OK please continue with that" (the reasoning-effort arm, quoted as a
+  few dollars). Same 980 MMLU-Pro questions, brief-working prompt, OpenRouter
+  `reasoning.effort`, max 16,384 output tokens.
+- Probe (5 questions per setting, 30 calls): US$0.0107.
+- gpt-6.1-sol rejects effort "none" (HTTP error, nothing billed), so its low arm is "low".
+- Arms and hard caps: gpt-6-luna effort none (US$0.40) and high (US$0.40); gpt-6.1-sol effort
+  low (US$1.20) and high (US$3.00). Total cap US$5.00.
+- gpt-6.1-sol low stopped at its US$1.20 cap after 698 questions (US$1.0505; the 5-question
+  probe under-estimated the per-question cost). Its cap is raised to US$1.60 to finish the 980;
+  the total stays within the US$5.00 cap (luna US$0.25 actual, sol high capped at US$3.00 but
+  tracking about US$1.90).
+- Spent: gpt-6-luna none US$0.0444, high US$0.2048; gpt-6.1-sol low US$1.3660, high
+  US$2.0272; probe US$0.0107. Total US$3.6531 of the US$5.00 cap. 980 answers per arm, 0 errors.
