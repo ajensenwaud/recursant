@@ -80,6 +80,12 @@ stays off.
   at about 4x the median latency. Configure it as a constant score:
   `"prompt": {"weights": {"bias": 5}, "vocab": {}, "simple_min": 0.5}` and qualify the
   economy and/or local candidate for `simple_prompt`.
+- Full example config (`config/recursant.agent.example.json`): questions go to the own GPU
+  first (price 0 wins the cost check), with thinking off as measured, and fall back to
+  gpt-4.1-mini when the GPU is at `max_inflight` (4, the gx10 server's parallel slots) or
+  unhealthy. Smoke-tested against a stub: first question local, of two concurrent ones at
+  max_inflight 1 the second went to economy. The quickstart config uses gpt-4.1-mini only,
+  since a new user's local model is unknown.
 - The trained classifier is not shipped: it adds cost and no accuracy here. The mechanism
   stays for operators whose model pair has a real capability gap (for example a small local
   model against a frontier model on hard reasoning), where wording may predict failure; the
