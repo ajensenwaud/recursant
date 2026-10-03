@@ -19,8 +19,12 @@ SYSTEM = {
 }
 
 
-def messages(item):
-    return [{'role': 'system', 'content': SYSTEM[item['kind']]}, {'role': 'user', 'content': item['question']}]
+DIRECT = {'mc': "Answer the multiple-choice question with only the letter of the correct option, nothing else."}
+
+
+def messages(item, style='brief'):
+    system = (DIRECT if style == 'direct' else SYSTEM)[item['kind']]
+    return [{'role': 'system', 'content': system}, {'role': 'user', 'content': item['question']}]
 
 
 def main():
@@ -29,7 +33,7 @@ def main():
     ap.add_argument('--cap', type=float, default=0.0); ap.add_argument('--workers', type=int, default=6)
     ap.add_argument('--private-url'); ap.add_argument('--limit', type=int)
     ap.add_argument('--reserve', type=float, default=0.02); ap.add_argument('--shuffle', action='store_true')
-    ap.add_argument('--thinking', choices=('on', 'off'), default='off'); ap.add_argument('--max-tokens', type=int, default=1024)
+    ap.add_argument('--thinking', choices=('on', 'off'), default='off'); ap.add_argument('--style', choices=('brief', 'direct'), default='brief'); ap.add_argument('--max-tokens', type=int, default=1024)
     a = ap.parse_args()
     items = [json.loads(l) for l in open(ITEMS)]
     if a.limit: items = items[:a.limit]
@@ -52,7 +56,7 @@ def main():
             state['inflight'] += 1
         rec = {'id': item['id'], 'model': a.model}
         try:
-            body = {'model': a.model, 'messages': messages(item), 'max_tokens': a.max_tokens, 'temperature': 0}
+            body = {'model': a.model, 'messages': messages(item, a.style), 'max_tokens': a.max_tokens, 'temperature': 0}
             if not private: body['provider'] = {'allow_fallbacks': False}
             else: body['chat_template_kwargs'] = {'enable_thinking': a.thinking == 'on'}
             req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
