@@ -6,7 +6,7 @@ import json, os, re, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ITEMS = {json.loads(l)['id']: json.loads(l) for l in open(ROOT / '.hermes/runtime/prompt/single.jsonl')}
+ITEMS = {json.loads(l)['id']: json.loads(l) for l in open(Path(os.environ.get('RC_PROMPT_ITEMS', ROOT / '.hermes/runtime/prompt/single.jsonl')))}
 RUNNER = r'''
 import json, os, subprocess, sys
 out = {}

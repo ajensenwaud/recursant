@@ -8,6 +8,7 @@
 #include "recursant/judge.h"
 #include "recursant/efficiency.h"
 #include "recursant/prompt.h"
+#include "recursant/classifier.h"
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
@@ -833,10 +834,10 @@ static bool opening(json_t *messages,uint64_t *anchor,bool *start,const char **f
 /* Does this request continue the session's last completed exchange? Exact for
  * live sessions (tool-boundary replay or history prefix); a pinned session
  * has no history left and only needs the conversation to have grown. */
-static bool continues(const struct scope *s,json_t *messages,const char *wire,size_t length) {
+static bool continues(const struct scope *s,json_t *messages) {
     size_t n=json_array_size(messages),prior=json_array_size(s->history);
     if(s->pinned)return n>s->seen_messages;
-    if(s->boundary)return rc_tool_boundary_replay(s->boundary,wire,length)==RC_TOOL_COMPLETE;
+    if(s->boundary)return rc_tool_boundary_replay_json(s->boundary,messages)==RC_TOOL_COMPLETE;
     if(!s->history||n<=prior)return false;
     for(size_t i=0;i<prior;i++)if(!json_equal(json_array_get(messages,i),json_array_get(s->history,i)))return false;
     return true;
@@ -882,15 +883,13 @@ static int implicit_scope(struct rc_gateway_context *g,json_t *body,const rc_gat
     if(!opening(messages,&anchor,&start,&first))return -1;
     const char *ident=(h->invocation.mask&2u)&&!h->invocation.invalid?h->invocation.values[1]:"";
     if(!start){
-        char *wire=json_dumps(messages,JSON_COMPACT);if(!wire)return -1;
-        size_t length=strlen(wire);int found=-1;
+        int found=-1;
         for(int i=0;i<SCOPES;i++){
             struct scope *s=&g->scopes[i];
-            if(!s->open||!s->implicit||s->anchor!=anchor||strcmp(s->ident,ident)||!continues(s,messages,wire,length))continue;
+            if(!s->open||!s->implicit||s->anchor!=anchor||strcmp(s->ident,ident)||!continues(s,messages))continue;
             /* Prefer an exact (unpinned) continuation, then the most recent. */
             if(found<0||(g->scopes[found].pinned&&!s->pinned)||(g->scopes[found].pinned==s->pinned&&s->active>g->scopes[found].active))found=i;
         }
-        free(wire);
         if(found>=0)return g->scopes[found].inflight?-1:found;
     }
     int slot=-1;size_t used=0;
@@ -927,7 +926,7 @@ static size_t compliant_candidate(rc_runtime *rt,struct rc_gateway_context *g,co
         rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];rc_endpoint ep=a->endpoint;
         if((g->cap_known[i]&required)!=required||(g->cap_supported[i]&required)!=required||!candidate_effort(g,i,effort)||
            g->candidates[i].context_limit<tokens||(s->private_only&&ep!=RC_ENDPOINT_PRIVATE))continue;
-        json_t *probe=json_deep_copy(body);
+        json_t *probe=json_copy(body);
         bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
             (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
         json_decref(probe);
@@ -1065,7 +1064,7 @@ static int housekeeping_marker(const struct rc_gateway_context *g,json_t *body) 
  * this exact request on its own trust class; otherwise the ordinary path. */
 static bool housekeeping_place(rc_runtime *rt,struct rc_gateway_context *g,json_t *body,rc_endpoint *endpoint) {
     rc_alias *a=&rt->config.aliases[g->candidates[g->housekeeping_candidate].alias_index];rc_endpoint ep=a->endpoint;
-    json_t *probe=json_deep_copy(body);
+    json_t *probe=json_copy(body);
     bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
         (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
     json_decref(probe);
@@ -1109,7 +1108,7 @@ static size_t failover_target(rc_runtime *rt,struct rc_gateway_context *g,const 
         if(restricted&&ep!=RC_ENDPOINT_PRIVATE)continue;
         if(s&&g->candidates[i].alias_index!=g->baseline&&((g->cap_known[i]&s->requirements)!=s->requirements||
            (g->cap_supported[i]&s->requirements)!=s->requirements||!candidate_effort(g,i,s->effort)))continue;
-        json_t *probe=json_deep_copy(body);
+        json_t *probe=json_copy(body);
         bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
             (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
         json_decref(probe);
@@ -1182,7 +1181,17 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     }
     pthread_mutex_unlock(&g->lock);return moved;
 }
+static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket);
+/* Probes are shallow copies (json_copy): only their top-level "model" (and the
+ * gate's own "provider") ever change. The content scan runs once, here, before
+ * the gateway lock; every gate inside prepare reuses it (rc_compliance_memo). */
 unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket) {
+    if(rt->gateway&&rc_dispatch_gate==rc_compliance_gate)rc_compliance_memo_begin(rt,body);
+    unsigned status=prepare(rt,body,automatic,h,endpoint,ticket);
+    rc_compliance_memo_end();
+    return status;
+}
+static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket) {
     struct rc_gateway_context *g=rt->gateway;ticket->scope=-1;ticket->row=-1;ticket->capacity=-1;
     if(!g)return rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)?403:0;
     /* Optional judge, asked BEFORE the gateway lock (it blocks up to its
@@ -1193,7 +1202,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
     if(g->judge.enabled&&automatic&&g->active){
         rc_signal_scope one={.completed_turns=1};
         if(!rc_signals_classify(body,&one)&&!rc_signals_recent_failure(body)){
-            json_t *probe=json_deep_copy(body);rc_alias *b=&rt->config.aliases[g->baseline];rc_endpoint ep=b->endpoint;
+            json_t *probe=json_copy(body);rc_alias *b=&rt->config.aliases[g->baseline];rc_endpoint ep=b->endpoint;
             bool pub=probe&&!json_object_set_new(probe,"model",json_string(b->model))&&
                 (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==RC_ENDPOINT_PUBLIC;
             json_decref(probe);
@@ -1280,8 +1289,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
         }
         required|=own;
         if(!s->pinned&&s->boundary){
-            char *wire=json_dumps(json_object_get(body,"messages"),JSON_COMPACT);
-            rc_tool_status replay=wire?rc_tool_boundary_replay(s->boundary,wire,strlen(wire)):RC_TOOL_NOMEM;free(wire);
+            rc_tool_status replay=rc_tool_boundary_replay_json(s->boundary,json_object_get(body,"messages"));
             if(replay==RC_TOOL_INCOMPLETE&&!s->implicit){status=409;goto done;}
             if(replay!=RC_TOOL_COMPLETE)s->pinned=true;
             required|=rc_tool_boundary_requirements(s->boundary);
@@ -1301,7 +1309,13 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
              * never receives a class or escalation. */
             bool structural=g->signals&&!s->pinned;
             for(size_t i=0;i<g->rows_used;i++)if(g->rows[i].in_use&&same_headers(&h->invocation,&g->rows[i].headers))usable=structural=false;
-            char *wire=json_dumps(body,JSON_COMPACT);uint64_t tokens=wire?strlen(wire):0;free(wire);
+            /* Request bytes: legacy registries' raw size and the estimate when
+             * no usage is observed yet; a continuing priced session uses observed
+             * usage plus the appended messages only, so the whole body is not
+             * serialized again (agent requests are hundreds of KiB). */
+            bool continuing=g->priced&&s->usage.known&&json_array_size(json_object_get(body,"messages"))>=s->usage_messages;
+            uint64_t tokens=0;
+            if(!continuing){char *wire=json_dumps(body,JSON_COMPACT);tokens=wire?strlen(wire):0;free(wire);}
             /* Priced registries: ESTIMATED tokens (observed usage + appended
              * bytes/4, else request bytes/4). Legacy registries keep raw bytes. */
             uint64_t prompt_est=0,output_est=0,max_tokens=0;
@@ -1313,6 +1327,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                     char *m=json_dumps(json_array_get(messages,i),JSON_COMPACT);
                     if(!m){last.known=false;break;}appended+=strlen(m);free(m);
                 }
+                if(!last.known&&continuing){char *wire=json_dumps(body,JSON_COMPACT);tokens=wire?strlen(wire):0;free(wire);}
                 prompt_est=rc_estimate_prompt_tokens(&last,appended,tokens);tokens=prompt_est;
             }
             if(output_bound(body,&max_tokens)){tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=structural=false;
@@ -1371,7 +1386,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                     if(c<0){status=500;goto done;}
                     quotes[i].expected_task_cost=c;
                 }
-                json_t *probe=json_deep_copy(body);rc_endpoint ep=a->endpoint;
+                json_t *probe=json_copy(body);rc_endpoint ep=a->endpoint;
                 if(!probe||json_object_set_new(probe,"model",json_string(a->model))){json_decref(probe);status=500;goto done;}
                 quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
                     (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);

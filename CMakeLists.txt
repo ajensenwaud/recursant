@@ -277,6 +277,10 @@ if(BUILD_TESTING)
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_prompt.py -v)
       set_tests_properties(gateway_prompt_integration PROPERTIES TIMEOUT 120
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      add_test(NAME gateway_compliance_memo_integration COMMAND ${Python3_EXECUTABLE}
+        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_compliance_memo.py -v)
+      set_tests_properties(gateway_compliance_memo_integration PROPERTIES TIMEOUT 120
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
       add_test(NAME native_profile_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_native_profile.py -v)
       set_tests_properties(native_profile_integration PROPERTIES TIMEOUT 180

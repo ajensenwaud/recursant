@@ -66,6 +66,13 @@ rc_tool_status rc_tool_boundary_capture(const char *history_json, size_t history
     const char *assistant_json, size_t assistant_len, rc_tool_boundary **out);
 rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *boundary,
     const char *messages_json, size_t messages_len);
+/* Same check on an already parsed messages array (the request body is parsed
+ * once, with duplicate keys rejected). Identical result to replaying its
+ * compact serialization, without serializing and re-parsing; the byte bound is
+ * the caller's request-body limit. */
+struct json_t;
+rc_tool_status rc_tool_boundary_replay_json(const rc_tool_boundary *boundary,
+    struct json_t *messages);
 uint32_t rc_tool_boundary_requirements(const rc_tool_boundary *boundary);
 /* Explicit known + supported bits from qualified registry, not inference or
  * defaults. Necessary protocol gate only; M2, quality, cost, context and scoped

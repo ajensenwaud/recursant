@@ -11,13 +11,13 @@ sent to the economy model, the policy's accuracy against always-baseline, and it
   - leave-one-source-out: train without a whole benchmark, test on it (does it generalise
     to a kind of question it never saw?).
 usage: python3 -m bench.prompt.train ECONOMY.graded.jsonl BASELINE.graded.jsonl [--out weights.json]"""
-import argparse, json, math, random
+import argparse, json, os, math, random
 from collections import Counter, defaultdict
 from pathlib import Path
 from bench.prompt.features import DENSE, features, score
 
 ROOT = Path(__file__).resolve().parents[2]
-ITEMS = {json.loads(l)['id']: json.loads(l) for l in open(ROOT / '.hermes/runtime/prompt/single.jsonl')}
+ITEMS = {json.loads(l)['id']: json.loads(l) for l in open(Path(os.environ.get('RC_PROMPT_ITEMS', ROOT / '.hermes/runtime/prompt/single.jsonl')))}
 MIN_DF, VOCAB_MAX = 3, 20000
 
 

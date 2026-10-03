@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ITEMS = ROOT / '.hermes/runtime/prompt/single.jsonl'
+ITEMS = Path(os.environ.get('RC_PROMPT_ITEMS', ROOT / '.hermes/runtime/prompt/single.jsonl'))
 SYSTEM = {
     'mc': "Answer the multiple-choice question. Think briefly if you need to, then end with a final line 'Answer: <letter>'.",
     'number': "Solve the problem. Show brief working, then end with a final line 'Answer: <number>'.",
@@ -29,6 +29,7 @@ def main():
     ap.add_argument('--cap', type=float, default=0.0); ap.add_argument('--workers', type=int, default=6)
     ap.add_argument('--private-url'); ap.add_argument('--limit', type=int)
     ap.add_argument('--reserve', type=float, default=0.02); ap.add_argument('--shuffle', action='store_true')
+    ap.add_argument('--thinking', choices=('on', 'off'), default='off'); ap.add_argument('--max-tokens', type=int, default=1024)
     a = ap.parse_args()
     items = [json.loads(l) for l in open(ITEMS)]
     if a.limit: items = items[:a.limit]
@@ -51,16 +52,16 @@ def main():
             state['inflight'] += 1
         rec = {'id': item['id'], 'model': a.model}
         try:
-            body = {'model': a.model, 'messages': messages(item), 'max_tokens': 1024, 'temperature': 0}
+            body = {'model': a.model, 'messages': messages(item), 'max_tokens': a.max_tokens, 'temperature': 0}
             if not private: body['provider'] = {'allow_fallbacks': False}
-            else: body['chat_template_kwargs'] = {'enable_thinking': False}   # fast mode for single questions
+            else: body['chat_template_kwargs'] = {'enable_thinking': a.thinking == 'on'}
             req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
             start = time.time()
             try:
                 with urllib.request.urlopen(req, timeout=600) as resp: ans = json.loads(resp.read())
                 u = ans.get('usage') or {}
                 msg = ans['choices'][0]['message']
-                rec.update(text=msg.get('content') or '', secs=round(time.time() - start, 2),
+                rec.update(text=msg.get('content') or '', secs=round(time.time() - start, 2), reasoning_chars=len(msg.get('reasoning_content') or msg.get('reasoning') or ''),
                            prompt_tokens=u.get('prompt_tokens'), completion_tokens=u.get('completion_tokens'),
                            cost=0.0 if private else float(u.get('cost') or 0))
             except Exception as e:

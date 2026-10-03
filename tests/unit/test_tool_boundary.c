@@ -9,6 +9,18 @@ static void replay_text(char *buf, size_t n, const char *tail) {
 }
 #include <jansson.h>
 #include <stdlib.h>
+/* Every string replay below is also checked through the parsed-tree variant
+ * (the gateway's path): identical status whenever the bytes parse. */
+static rc_tool_status checked_replay(const rc_tool_boundary *b, const char *m, size_t n) {
+    rc_tool_status status = (rc_tool_boundary_replay)(b, m, n);
+    if (b && m && n <= RC_TOOL_MAX_BYTES) {
+        json_t *v = json_loadb(m, n, JSON_REJECT_DUPLICATES, NULL);
+        if (v) assert(rc_tool_boundary_replay_json(b, v) == status);
+        json_decref(v);
+    }
+    return status;
+}
+#define rc_tool_boundary_replay checked_replay
 static void rejected(json_t *h, json_t *a) {
     char *hs=json_dumps(h,JSON_COMPACT), *as=json_dumps(a,JSON_COMPACT);
     rc_tool_boundary *b=NULL;

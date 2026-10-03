@@ -136,10 +136,20 @@ static bool assistant_equal(json_t *replayed, json_t *observed) {
     }
     return true;
 }
+static rc_tool_status replay_tree(const rc_tool_boundary *b, json_t *v);
 rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *b, const char *m, size_t n) {
     if (!b || !m) return RC_TOOL_INVALID;
     if (n > RC_TOOL_MAX_BYTES) return RC_TOOL_LIMIT;
     json_t *v = json_loadb(m, n, JSON_REJECT_DUPLICATES, NULL);
+    rc_tool_status status = replay_tree(b, v);
+    json_decref(v);
+    return status;
+}
+rc_tool_status rc_tool_boundary_replay_json(const rc_tool_boundary *b, json_t *messages) {
+    if (!b || !messages) return RC_TOOL_INVALID;
+    return replay_tree(b, messages);
+}
+static rc_tool_status replay_tree(const rc_tool_boundary *b, json_t *v) {
     size_t count = json_array_size(b->history);
     json_t *calls = json_object_get(b->assistant,"tool_calls");
     size_t nc = json_array_size(calls), total = json_array_size(v);
@@ -162,6 +172,5 @@ rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *b, const char *m,
         if (!ok || j==nc || seen[j]) { ok=false; break; }
         seen[j]=true;
     }
-    json_decref(v);
     return !ok ? RC_TOOL_INVALID : total==count+1+nc ? RC_TOOL_COMPLETE : RC_TOOL_INCOMPLETE;
 }

@@ -9,18 +9,20 @@ usage: python3 bench/perf/overhead.py ROUTER_BINARY CONFIG [--requests 2000] [--
 import argparse, http.client, http.server, json, os, socket, socketserver, statistics, subprocess, sys, threading, time
 from concurrent.futures import ThreadPoolExecutor
 
-ANSWER = json.dumps({'id': 'x', 'object': 'chat.completion', 'model': 'm', 'choices': [
-    {'index': 0, 'message': {'role': 'assistant', 'content': None, 'tool_calls': [
-        {'id': 'call-next', 'type': 'function', 'function': {'name': 'terminal', 'arguments': '{"command":"ls"}'}}]},
-     'finish_reason': 'tool_calls'}], 'usage': {'prompt_tokens': 100, 'completion_tokens': 10, 'total_tokens': 110}}).encode()
+def answer(call_id):
+    return json.dumps({'id': 'x', 'object': 'chat.completion', 'model': 'm', 'choices': [
+        {'index': 0, 'message': {'role': 'assistant', 'content': None, 'tool_calls': [
+            {'id': call_id, 'type': 'function', 'function': {'name': 'terminal', 'arguments': '{"command":"ls"}'}}]},
+         'finish_reason': 'tool_calls'}], 'usage': {'prompt_tokens': 100, 'completion_tokens': 10, 'total_tokens': 110}}).encode()
 
 
 class Stub(http.server.BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'; disable_nagle_algorithm = True   # one write per reply, no delayed-ACK stall
     def do_POST(self):
-        self.rfile.read(int(self.headers['Content-Length']))
+        body = self.rfile.read(int(self.headers['Content-Length']))
+        out = answer('call-s%d' % body.count(b'"role":"tool"') if b'"role":"tool"' in body else 'call-s0')
         self.send_response(200); self.send_header('Content-Type', 'application/json')
-        self.send_header('Content-Length', str(len(ANSWER))); self.end_headers(); self.wfile.write(ANSWER)
+        self.send_header('Content-Length', str(len(out))); self.end_headers(); self.wfile.write(out)
     def log_message(self, *a): pass
 
 
@@ -94,6 +96,31 @@ def main():
             print('%-8s %8.2fms %8.2fms %8.2fms %8.2fms %12.0f %8dus' % (
                 '%dKiB' % (size >> 10), pct(d, .5), pct(r, .5), pct(r, .5) - pct(d, .5), pct(r, .99) - pct(d, .99), rps,
                 statistics.median(us) if us else -1))
+        # Agent loops: each session grows one tool call and result per step, as a real
+        # harness does, so the router sees continuing sessions (usage known, history
+        # replayed) rather than fresh conversations.
+        steps = int(os.environ.get('PERF_LOOP_STEPS', '40'))
+        sessions = max(1, a.concurrency)
+        def loop(k):
+            c = http.client.HTTPConnection('127.0.0.1', port, timeout=60); c.connect()
+            c.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            msgs = conversation(0, 1000 + k)['messages'][:2]; out = []
+            for i in range(1, steps + 1):
+                body = {'model': 'auto', 'messages': msgs, 'tools': TOOLS, 'tool_choice': 'auto', 'max_tokens': 1024}
+                t = time.perf_counter(); c.request('POST', '/v1/chat/completions', json.dumps(body), auth)
+                r = c.getresponse(); r.read()
+                if r.status != 200: raise SystemExit('loop status %d' % r.status)
+                out.append(((time.perf_counter() - t) * 1e3, int(r.getheader('X-Recursant-Routing-Us') or -1), len(json.dumps(body))))
+                cid = 'call-s%d' % (i - 1)   # what the stub answered (tool results so far)
+                msgs = msgs + [{'role': 'assistant', 'content': None, 'tool_calls': [
+                    {'id': cid, 'type': 'function', 'function': {'name': 'terminal', 'arguments': '{"command":"ls"}'}}]},
+                    {'role': 'tool', 'tool_call_id': cid, 'content': ('line %d of output\n' % i) * 300}]
+            return out
+        with ThreadPoolExecutor(sessions) as ex: res = [x for r in ex.map(loop, range(sessions)) for x in r]
+        last = [x for x in res if x[2] > 0.8 * max(y[2] for y in res)]
+        print('agent loop: %d sessions x %d steps; final request ~%d KiB; routing p50 %d us (last 20%% of steps %d us); total p50 %.2f ms'
+              % (sessions, steps, max(x[2] for x in res) >> 10, statistics.median(x[1] for x in res),
+                 statistics.median(x[1] for x in last), statistics.median(x[0] for x in res)))
     finally:
         router.terminate(); router.wait()
 

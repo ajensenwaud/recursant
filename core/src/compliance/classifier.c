@@ -81,6 +81,8 @@ void rc_compliance_free(rc_runtime *r) {
 }
 
 static verdict scan(scanner *,json_t *,unsigned);
+static bool inspectable_controls(json_t *body,const char *controls);
+static bool inspectable_content(json_t *body);
 static verdict rules(scanner *s,const char *text,size_t n) {
     for(size_t i=0;i<s->policy->count;i++) {
         if(++s->matches>MAX_MATCHES)return UNKNOWN;
@@ -190,13 +192,9 @@ static bool function_definition(json_t *f) {
 /* controls: the destination adapter's provider-control allowlist, or NULL
  * when a "provider" object is an unknown (uninspectable) field there. */
 static bool inspectable(json_t *body,const char *controls) {
-    if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider|"))return false;
-    json_t *provider=json_object_get(body,"provider");
-    if(provider) {
-        if(!controls||!known_keys(provider,controls))return false;
-        json_t *fallbacks=json_object_get(provider,"allow_fallbacks");
-        if(fallbacks && !json_is_boolean(fallbacks))return false;
-    }
+    return inspectable_controls(body,controls)&&inspectable_content(body);
+}
+static bool inspectable_content(json_t *body) {
     json_t *messages=json_object_get(body,"messages");
     if(!json_is_array(messages))return false;
     size_t i;json_t *message;
@@ -237,7 +235,90 @@ static bool inspectable(json_t *body,const char *controls) {
     }
     return true;
 }
+/* inspectable() split: the destination-independent part (messages, tools,
+ * functions) and the per-destination part (top-level keys, provider controls). */
+static bool inspectable_content(json_t *body);
+static bool inspectable_controls(json_t *body,const char *controls) {
+    if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider|"))return false;
+    json_t *provider=json_object_get(body,"provider");
+    if(provider) {
+        if(!controls||!known_keys(provider,controls))return false;
+        json_t *fallbacks=json_object_get(provider,"allow_fallbacks");
+        if(fallbacks && !json_is_boolean(fallbacks))return false;
+    }
+    return true;
+}
+#define MEMO_KEYS 64
+static _Thread_local struct {
+    bool active;size_t n;const char *keys[MEMO_KEYS];json_t *values[MEMO_KEYS];
+    verdict content;bool structure;size_t nodes,bytes,matches;
+} memo;
+static bool varying(const char *key){return !strcmp(key,"model")||!strcmp(key,"provider");}
+static bool memo_matches(json_t *body) {
+    if(!memo.active||!json_is_object(body))return false;
+    size_t n=0;const char *key;json_t *value;
+    json_object_foreach(body,key,value){
+        if(varying(key))continue;
+        if(n>=memo.n)return false;
+        size_t i=0;while(i<memo.n&&strcmp(memo.keys[i],key))i++;
+        if(i==memo.n||memo.values[i]!=value)return false;
+        n++;
+    }
+    return n==memo.n;
+}
+static bool scanner_open(scanner *s,const rc_runtime *r,budget *memory,pcre2_general_context **gc) {
+    *gc=pcre2_general_context_create(bounded_alloc,bounded_free,memory);
+    *s=(scanner){.policy=r->compliance_policy,.agent=r->agent_text};
+    s->md=*gc?pcre2_match_data_create(1,*gc):NULL;
+    s->mc=*gc?pcre2_match_context_create(*gc):NULL;
+    if(!s->md||!s->mc)return false;
+    pcre2_set_match_limit(s->mc,10000);pcre2_set_depth_limit(s->mc,100);pcre2_set_heap_limit(s->mc,1024);
+    return true;
+}
+static void scanner_close(scanner *s,pcre2_general_context *gc) {
+    pcre2_match_data_free(s->md);pcre2_match_context_free(s->mc);pcre2_general_context_free(gc);
+}
+/* Same order and budgets as scan() over the object, restricted to keys. */
+static verdict scan_keys(scanner *s,json_t *body,bool want_varying) {
+    if(++s->nodes>MAX_NODES)return UNKNOWN;
+    const char *key;json_t *child;
+    json_object_foreach(body,key,child) {
+        if(varying(key)!=want_varying)continue;
+        verdict r=text_scan(s,key,strlen(key),1);if(r!=CLEAN)return r;
+        r=scan(s,child,1);if(r!=CLEAN)return r;
+    }
+    return CLEAN;
+}
+void rc_compliance_memo_begin(const rc_runtime *r,json_t *body) {
+    memo.active=false;
+    if(!r||!r->compliance_enabled||!r->compliance_policy||!r->content_scanning||!json_is_object(body))return;
+    size_t n=0;const char *key;json_t *value;
+    json_object_foreach(body,key,value){if(varying(key))continue;if(n==MEMO_KEYS)return;memo.keys[n]=key;memo.values[n]=value;n++;}
+    budget memory={.limit=PCRE_BUDGET};pcre2_general_context *gc;scanner s;
+    if(!scanner_open(&s,r,&memory,&gc)){scanner_close(&s,gc);return;}
+    memo.content=scan_keys(&s,body,false);
+    memo.nodes=s.nodes;memo.bytes=s.bytes;memo.matches=s.matches;
+    scanner_close(&s,gc);
+    memo.structure=inspectable_content(body);
+    memo.n=n;memo.active=true;
+}
+void rc_compliance_memo_end(void){memo.active=false;}
 static verdict classify(const rc_runtime *r,json_t *body,const char *controls) {
+    if(r->content_scanning&&memo_matches(body)) {
+        verdict result=memo.content;
+        if(result==CLEAN) {
+            budget memory={.limit=PCRE_BUDGET};pcre2_general_context *gc;scanner s;
+            if(!scanner_open(&s,r,&memory,&gc))result=REGEX_ERROR;
+            else{
+                /* scan_keys counts the object node again; memo.nodes already has it. */
+                s.nodes=memo.nodes-1;s.bytes=memo.bytes;s.matches=memo.matches;
+                result=scan_keys(&s,body,true);
+            }
+            scanner_close(&s,gc);
+        }
+        if(result==CLEAN&&!(memo.structure&&inspectable_controls(body,controls)))result=UNKNOWN;
+        return result;
+    }
     /* Temporary operator switch: content text scanning off means only the
      * structural contract decides (unknown fields, non-text parts, provider
      * controls). UNSCANNED is not CLEAN: it is reported distinctly. */
