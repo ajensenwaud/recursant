@@ -1,0 +1,23 @@
+{
+ "weights": {
+  "bias": 1.370552,
+  "last_failed": -0.60981,
+  "fails_in_last3": 0.051826,
+  "failure_run": 0.491567,
+  "log_messages": -0.180605,
+  "log_tool_results": 0.111416,
+  "log_last_len": -0.140168,
+  "subagent": -0.742371,
+  "repeat_last_call": -0.067365,
+  "no_tools_offered": 0.0,
+  "last_call_terminal": 0.560723,
+  "last_call_read_file": 0.518752,
+  "last_call_write_file": 1.223269,
+  "last_call_patch": 0.684674,
+  "last_call_search_files": -0.194499,
+  "last_call_execute_code": 0.759993,
+  "last_call_delegate_task": -0.524188
+ },
+ "downshift_min": 0.8,
+ "veto_below": 0.8
+}

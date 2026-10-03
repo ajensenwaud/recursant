@@ -9,6 +9,9 @@ from pathlib import Path
 LIVE = Path(__file__).resolve().parents[2] / '.hermes/runtime/m3-live'
 FAIL = re.compile(r'Traceback \(most recent call last\)|FAILED|ERROR:|Error:|AssertionError|"exit_code": [1-9]|"success": false|"error": "[^"]')
 TOOLS = ['terminal', 'read_file', 'write_file', 'patch', 'search_files', 'execute_code', 'delegate_task']
+# Feature order shared with the router (core/include/recursant/efficiency.h).
+KEYS = ['bias', 'last_failed', 'fails_in_last3', 'failure_run', 'log_messages', 'log_tool_results', 'log_last_len',
+        'subagent', 'repeat_last_call', 'no_tools_offered'] + ['last_call_' + t for t in TOOLS]
 _cache = {}
 
 

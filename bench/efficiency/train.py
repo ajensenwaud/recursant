@@ -4,7 +4,7 @@ Score = AUC: how well the predicted probability separates steps where the cheape
 agrees with gpt-4.1 from steps where it does not (0.5 = coin flip, 1.0 = perfect). Compared
 with today's rule (the step's signal class) on the same steps.
 usage: python3 -m bench.efficiency.train"""
-import math
+import json, math
 from collections import defaultdict
 from bench.efficiency.features import pairs
 
@@ -87,8 +87,21 @@ def policies(scores, labels, strict, metas, data, tasks):
         show('rule OR model >= %.1f (add)' % t, [k for k in idx if rule[k] or scores[k] >= t])
 
 
+def export(path, exclude):
+    """Fit on every pair except the excluded tasks and write a context.efficiency section."""
+    from bench.efficiency.features import KEYS
+    data = [r for r in pairs() if r[2] not in exclude]
+    w = fit(data)
+    section = {'weights': {k: round(w.get(k, 0.0), 6) for k in KEYS}, 'downshift_min': 0.8, 'veto_below': 0.8}
+    with open(path, 'w') as f: json.dump(section, f, indent=1); f.write('\n')
+    print('trained on %d pairs from %d tasks (excluded %d tasks) -> %s' % (len(data), len({r[2] for r in data}), len(exclude), path))
+
+
 def main():
     import sys
+    if sys.argv[1:2] == ['--export']:
+        exclude = set(sys.argv[4].split(',')) if sys.argv[3:4] == ['--exclude'] else set()
+        return export(sys.argv[2], exclude)
     from bench.efficiency.features import PAIR_FILES
     files = PAIR_FILES[:3] if sys.argv[1:] == ['old'] else PAIR_FILES   # 'old' = the 362 pairs before phase 3
     data = pairs(files)

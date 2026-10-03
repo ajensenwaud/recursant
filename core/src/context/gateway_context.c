@@ -6,6 +6,7 @@
 #include "recursant/cost.h"
 #include "recursant/signals.h"
 #include "recursant/judge.h"
+#include "recursant/efficiency.h"
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
@@ -158,6 +159,8 @@ struct rc_gateway_context {
     rc_context_registry *contexts;rc_interpreter *worker;
     /* Optional synchronous per-turn judge (context.judge). Advisory only. */
     rc_judge_config judge;
+    /* Optional efficiency model (context.efficiency). Advisory only, local. */
+    rc_efficiency_config efficiency;
 };
 static bool keys(json_t *o,const char *allowed) {
     if(!json_is_object(o))return false;
@@ -183,7 +186,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||efficiency||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -243,6 +246,10 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
             .routine_min=json_number_value(rm),.difficulty_max=json_number_value(dm)};
         strcpy(g->judge.url,json_string_value(url));strcpy(g->judge.model,jmodel);
     }
+    /* context.efficiency: {weights, downshift_min, veto_below}. Requires
+     * signals on. Absent = off. */
+    json_t *efficiency=json_object_get(o,"efficiency");
+    if(efficiency&&(!g->signals||!rc_efficiency_configure(efficiency,&g->efficiency)))return false;
     if(!strcmp(automatic,rt->config.private_model)||(rt->config.public_model&&!strcmp(automatic,rt->config.public_model)))return false;
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(automatic,rt->config.aliases[i].from)||!strcmp(automatic,rt->config.aliases[i].model))return false;
     json_t *list=json_object_get(o,"candidates");g->count=json_array_size(list);
@@ -1303,6 +1310,19 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
              * a pinned/private-only scope, recovery, or the first turn. */
             const char *judge_verdict=asked?(judged.ok?(rc_judge_routine(&g->judge,&judged)?"routine":"hard"):"unavailable"):NULL;
             if(asked&&structural&&!signal&&!escalation&&s->turns&&!s->private_only&&rc_judge_routine(&g->judge,&judged))signal=RC_TASK_TOOL_FOLLOWUP_OK;
+            /* Efficiency model: adds a downshift on an unclassified turn after
+             * the first (p >= downshift_min) or removes one the signals or the
+             * judge gave (p < veto_below). Never a pinned or private-only
+             * scope or a recovery turn; selection and final M2 still decide. */
+            if(g->efficiency.enabled&&structural&&!escalation&&!s->private_only){
+                double p=rc_efficiency_score(&g->efficiency,body);const char *action="none";
+                if(p>=0){
+                    action="keep";
+                    if(signal&&p<g->efficiency.veto_below){signal=0;action="veto";}
+                    else if(!signal&&s->turns&&p>=g->efficiency.downshift_min){signal=RC_TASK_TOOL_FOLLOWUP_OK;action="add";}
+                }
+                fprintf(stderr,"efficiency scope=%d p=%.3f action=%s\n",ticket->scope,p,action);
+            }
             /* First turn of a delegated session (subagent): its own class,
              * used only by candidates the operator qualified for it. */
             if(structural&&!signal&&!escalation&&!s->turns&&s->delegated)signal=RC_TASK_DELEGATED_START;

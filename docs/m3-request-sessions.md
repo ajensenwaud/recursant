@@ -294,3 +294,24 @@ The shadow's answer is discarded; it never changes the primary and never feeds h
   sorted-key JSON), so equal hashes mean the shadow proposed the same call. Paired labels
   for the self-improvement engine (M4).
 - Spends money on public shadows: set `usd_cap` from an approved allocation.
+
+## Efficiency model (`context.efficiency`)
+
+`{"weights": {name: number}, "downshift_min", "veto_below"}`, absent = off; requires
+`signals: "on"`. A logistic regression over 16 facts the request already carries (last tool
+called, last result failed, failures in a row, conversation length, sub-agent, repeated call,
+tools offered), predicting the chance that the economy model makes the same next move as the
+baseline. Trained offline by `bench/efficiency/train.py --export FILE [--exclude tasks]`,
+which writes this section (`docs/evidence/m3-efficiency-model.md`).
+
+- Sits in the judge's slot, after the signals and the judge: at `p >= downshift_min`
+  (0.5 to 1) it adds the `tool_followup_ok` class to an unclassified turn after the first; at
+  `p < veto_below` (0 to `downshift_min`, default 0 = never) it removes a downshift class the
+  signals or the judge gave. Never scores a recovery turn, a pinned or private-only session;
+  the orchestrator hold, qualification, capability gates, the cost check and final M2 still
+  decide.
+- Local arithmetic, microseconds, no egress. Weight names are strict (`bias` required; the
+  others are the feature names in `core/include/recursant/efficiency.h`), each within +-100.
+- Features equal the training features exactly: `bench/efficiency/parity.py` compares the C
+  and Python features on every recorded request (4,034 requests, 0 differences).
+- Evidence line: `efficiency scope= p= action=add|veto|keep|none`; no content.

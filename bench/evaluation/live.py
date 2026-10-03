@@ -203,7 +203,10 @@ ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200),
              'D-ma1':(Decimal('12'),2000),
              # D-ma2: multi-agent re-run on upstream Hermes fb67154 (terminal heartbeat bug fixed),
              # Anders approved up to US$14 on 2026-10-01.
-             'D-ma2':(Decimal('14'),2000)}
+             'D-ma2':(Decimal('14'),2000),
+             # E-ml-live: live check of the efficiency model (signals vs signals + model),
+             # Anders approved about US$2 on 2026-10-03.
+             'E-ml-live':(Decimal('2'),800)}
 
 
 def validate_allocation_limits(config):
