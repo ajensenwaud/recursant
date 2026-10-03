@@ -72,6 +72,16 @@ static void config(void) {
         "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'agent_turns':'yes'}",
         "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'extra':1}",
         "{'weights':{'bias':1},'vocab':[],'simple_min':0.8}",
+        /* Encoder sections: strict shape; a model that cannot load fails the config. */
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':[]}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'vocab':'v','weights':[1]}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'m','weights':[1]}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'m','vocab':'v','weights':[]}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'m','vocab':'v','weights':[101]}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'m','vocab':'v','weights':[1],'threads':0}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'m','vocab':'v','weights':[1],'threads':17}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'m','vocab':'v','weights':[1],'extra':1}}",
+        "{'weights':{'bias':1},'vocab':{},'simple_min':0.8,'encoder':{'model':'/nonexistent.onnx','vocab':'/nonexistent.txt','weights':[1]}}",
         "[]"};
     rc_prompt_config c;
     for(size_t i=0;i<sizeof bad/sizeof *bad;i++){json_t *s=load(bad[i]);CHECK(!rc_prompt_configure(s,&c));json_decref(s);}

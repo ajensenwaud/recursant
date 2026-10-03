@@ -10,7 +10,12 @@ sent to the economy model, the policy's accuracy against always-baseline, and it
   - random: 5-fold over all questions;
   - leave-one-source-out: train without a whole benchmark, test on it (does it generalise
     to a kind of question it never saw?).
-usage: python3 -m bench.prompt.train ECONOMY.graded.jsonl BASELINE.graded.jsonl [--out weights.json]"""
+With --embeddings (bench/prompt/embed_dump.c output: the router's own encoder embedding
+of each question) the model is the dense features plus one weight per embedding dimension,
+and no bag of words; --out then writes an "encoder" section whose model and vocabulary
+paths come from --encoder-dir.
+usage: python3 -m bench.prompt.train ECONOMY.graded.jsonl BASELINE.graded.jsonl
+         [--embeddings EMB.jsonl --encoder-dir DIR] [--out weights.json]"""
 import argparse, json, os, math, random
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -21,6 +26,9 @@ ITEMS = {json.loads(l)['id']: json.loads(l) for l in open(Path(os.environ.get('R
 MIN_DF, VOCAB_MAX = 3, 20000
 
 
+EMB = {}
+
+
 def load(econ, base):
     e = {json.loads(l)['id']: json.loads(l) for l in open(econ)}
     b = {json.loads(l)['id']: json.loads(l) for l in open(base)}
@@ -28,6 +36,8 @@ def load(econ, base):
     for i in sorted(set(e) & set(b)):
         if e[i]['correct'] is None or b[i]['correct'] is None: continue
         d, toks = features(ITEMS[i]['question'])
+        if EMB: toks = []
+        d = dict(d); d.update(('e%d' % k, x) for k, x in enumerate(EMB.get(i, ())))
         rows.append(dict(id=i, source=ITEMS[i]['source'], dense=d, toks=toks,
                          y=1.0 if (e[i]['correct'] or not b[i]['correct']) else 0.0,
                          ec=e[i]['correct'], bc=b[i]['correct'],
@@ -38,7 +48,7 @@ def load(econ, base):
 def fit(rows, l2=1e-3, epochs=40, lr=0.3, seed=1):
     df = Counter(t for r in rows for t in r['toks'])
     vocab = [t for t, c in df.most_common(VOCAB_MAX) if c >= MIN_DF]
-    w = {k: 0.0 for k in DENSE}; v = {t: 0.0 for t in vocab}
+    w = {k: 0.0 for k in rows[0]['dense']}; v = {t: 0.0 for t in vocab}
     gw = defaultdict(lambda: 1e-8); gv = defaultdict(lambda: 1e-8)
     rnd = random.Random(seed); order = list(range(len(rows)))
     # Standardise nothing: dense features are already small (logs and fractions).
@@ -53,7 +63,16 @@ def fit(rows, l2=1e-3, epochs=40, lr=0.3, seed=1):
             for t in toks:
                 grad = g + l2 * v[t]; gv[t] += grad * grad; v[t] -= lr * grad / math.sqrt(gv[t])
     v = {t: round(x, 6) for t, x in v.items() if abs(x) >= 1e-4}
-    return {'weights': {k: round(x, 6) for k, x in w.items()}, 'vocab': v}
+    m = {'weights': {k: round(x, 6) for k, x in w.items() if k in DENSE}, 'vocab': v}
+    if EMB: m['encoder'] = {'weights': [round(w['e%d' % k], 6) for k in range(len(w) - len(DENSE))]}
+    return m
+
+
+def model_score(m, r):
+    if 'encoder' not in m: return score(m, ITEMS[r['id']]['question'])
+    z = sum(m['weights'].get(k, 0.0) * x for k, x in r['dense'].items() if k in DENSE)
+    z += sum(wk * x for wk, x in zip(m['encoder']['weights'], EMB[r['id']]))
+    return 1 / (1 + math.exp(-max(-30, min(30, z))))
 
 
 def auc(scores, labels):
@@ -92,20 +111,26 @@ def report(name, rows, scores):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('economy'); ap.add_argument('baseline'); ap.add_argument('--out')
+    ap.add_argument('--embeddings'); ap.add_argument('--encoder-dir')
+    ap.add_argument('--group', default='source', help='item field for the leave-one-group-out split')
     a = ap.parse_args()
+    if a.embeddings:
+        for l in open(a.embeddings):
+            r = json.loads(l); EMB[r['id']] = r['emb']
+    for i in ITEMS.values(): i['source'] = i.get(a.group, i.get('source'))
     rows = load(a.economy, a.baseline)
     print('%d paired questions; safe-to-downshift %.1f%%' % (len(rows), 100 * sum(r['y'] for r in rows) / len(rows)))
     rnd = random.Random(7); idx = list(range(len(rows))); rnd.shuffle(idx)
     scores = [0.0] * len(rows)
     for f in range(5):
         test = set(idx[f::5]); m = fit([r for i, r in enumerate(rows) if i not in test])
-        for i in test: scores[i] = score(m, ITEMS[rows[i]['id']]['question'])
+        for i in test: scores[i] = model_score(m, rows[i])
     report('random 5-fold', rows, scores)
     lo = [0.0] * len(rows)
     for src in sorted({r['source'] for r in rows}):
         m = fit([r for r in rows if r['source'] != src])
         for i, r in enumerate(rows):
-            if r['source'] == src: lo[i] = score(m, ITEMS[r['id']]['question'])
+            if r['source'] == src: lo[i] = model_score(m, r)
     report('leave-one-source-out', rows, lo)
     print('\n   by held-out source at threshold 0.8:')
     by = defaultdict(list)
@@ -116,7 +141,11 @@ def main():
         print('   %-14s n=%3d  to economy %4.0f%%  accuracy %.1f%% vs %.1f%%  cost %3.0f%%'
               % (src, len(rs), 100 * share, 100 * acc, 100 * b, 100 * cost / max(1e-9, sum(r['bcost'] for r in rs))))
     if a.out:
-        m = fit(rows); json.dump(m, open(a.out, 'w'), indent=0, sort_keys=True)
+        m = fit(rows)
+        if EMB:
+            d = a.encoder_dir or 'MODEL_DIR'
+            m['encoder'] = {'model': d + '/model.onnx', 'vocab': d + '/vocab.txt', 'threads': 1, **m['encoder']}
+        json.dump(m, open(a.out, 'w'), indent=0, sort_keys=True)
         print('\nwrote %s: %d vocabulary weights' % (a.out, len(m['vocab'])))
 
 

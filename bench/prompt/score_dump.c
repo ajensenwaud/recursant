@@ -1,6 +1,8 @@
 /* Parity helper: score every line of a JSONL file ({"text": ...}) with a prompt-classifier
  * config (argv[1], the JSON section) using the router's own code; print one score per line.
- * Build: cc -O2 -Icore/include bench/prompt/score_dump.c core/src/context/prompt.c -ljansson -lm */
+ * Build: cc -O2 -Icore/include bench/prompt/score_dump.c core/src/context/prompt.c core/src/context/encoder.c
+ *   core/src/context/wordpiece.c -ljansson -lm  (add -DRECURSANT_WITH_ENCODER and the libonnxruntime
+ *   cflags for configs with an "encoder" section) */
 #include "recursant/prompt.h"
 #include <stdio.h>
 #include <stdlib.h>

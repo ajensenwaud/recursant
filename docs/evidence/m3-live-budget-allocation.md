@@ -90,3 +90,14 @@ classifier); paid runs under his standing approval of 2026-10-02 ("You are allow
 US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10 (no cost).
 - Result: gpt-4.1 US$1.373, gpt-4.1-mini US$0.320, probe US$0.001 (US$1.694 total); GLM unbilled.
   See docs/evidence/m3-prompt-classifier.md.
+
+## F-pair (2026-10-04): current model pair on MMLU-Pro for the encoder switch
+- Anders, 2026-10-04: "OK to do that" (up to US$10 for a cheap current model and a frontier
+  model on about 500 MMLU-Pro questions).
+- Probe (3 questions each): gpt-6-luna about US$0.00006 and gpt-6.1-sol about US$0.001 per
+  question, so the whole 980-question set (the one GLM answered) fits in about US$1.10,
+  well inside the approved US$10. Run on all 980 with the brief-working prompt via
+  `bench/prompt/ask.py`: openai/gpt-6-luna (cap US$1.00) and openai/gpt-6.1-sol (cap US$4.00),
+  hard cap on provider usage.cost plus in-flight reserve. Probe spend US$0.0034.
+- Spent: gpt-6-luna US$0.1487, gpt-6.1-sol US$1.5250, probe US$0.0034; total US$1.6771 of
+  the approved US$10. 980 answers each, 0 errors.

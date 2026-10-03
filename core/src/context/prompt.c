@@ -1,6 +1,8 @@
 #include "recursant/prompt.h"
+#include "recursant/encoder.h"
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -39,15 +41,38 @@ static bool token_ok(const char *k) {
     return true;
 }
 void rc_prompt_destroy(rc_prompt_config *c) {
-    if(!c||!c->vocab)return;
+    if(!c)return;
+    rc_encoder_free(c->encoder);c->encoder=NULL;free(c->encoder_weights);c->encoder_weights=NULL;c->encoder_dim=0;
+    if(!c->vocab)return;
     free(c->vocab->keys);free(c->vocab->weights);free(c->vocab->slots);free(c->vocab);c->vocab=NULL;
+}
+static bool encoder_configure(json_t *s, rc_prompt_config *c) {
+    if(!json_is_object(s))return false;
+    const char *key;json_t *v;
+    json_object_foreach(s,key,v)
+        if(strcmp(key,"model")&&strcmp(key,"vocab")&&strcmp(key,"threads")&&strcmp(key,"weights"))return false;
+    json_t *model=json_object_get(s,"model"),*vocab=json_object_get(s,"vocab"),*threads=json_object_get(s,"threads"),*w=json_object_get(s,"weights");
+    if(!json_is_string(model)||!json_is_string(vocab)||!json_is_array(w)||!json_array_size(w))return false;
+    if(threads&&(!json_is_integer(threads)||json_integer_value(threads)<1||json_integer_value(threads)>16))return false;
+    size_t n=json_array_size(w);
+    double *weights=malloc(n*sizeof *weights);if(!weights)return false;
+    for(size_t i=0;i<n;i++)if(!weight(json_array_get(w,i),&weights[i])){free(weights);return false;}
+    char err[256];
+    rc_encoder *enc=rc_encoder_load(json_string_value(model),json_string_value(vocab),threads?(int)json_integer_value(threads):1,err,sizeof err);
+    if(!enc){fprintf(stderr,"context.prompt.encoder: %s\n",err);free(weights);return false;}
+    if(rc_encoder_dim(enc)!=n){
+        fprintf(stderr,"context.prompt.encoder: %zu weights for a %zu-dimensional model\n",n,rc_encoder_dim(enc));
+        rc_encoder_free(enc);free(weights);return false;
+    }
+    c->encoder=enc;c->encoder_weights=weights;c->encoder_dim=n;
+    return true;
 }
 bool rc_prompt_configure(json_t *s, rc_prompt_config *out) {
     if(!json_is_object(s)||!out)return false;
     rc_prompt_config c;memset(&c,0,sizeof c);
     const char *key;json_t *v;
     json_object_foreach(s,key,v)
-        if(strcmp(key,"weights")&&strcmp(key,"vocab")&&strcmp(key,"simple_min")&&strcmp(key,"agent_turns"))return false;
+        if(strcmp(key,"weights")&&strcmp(key,"vocab")&&strcmp(key,"simple_min")&&strcmp(key,"agent_turns")&&strcmp(key,"encoder"))return false;
     json_t *w=json_object_get(s,"weights"),*vocab=json_object_get(s,"vocab"),*min=json_object_get(s,"simple_min"),*agent=json_object_get(s,"agent_turns");
     if(!json_is_object(w)||!json_is_object(vocab)||!json_is_number(min))return false;
     if(agent&&!json_is_boolean(agent))return false;
@@ -74,7 +99,10 @@ bool rc_prompt_configure(json_t *s, rc_prompt_config *out) {
         size_t i=hash(key,len)&t->mask;while(t->slots[i])i=(i+1)&t->mask;
         t->slots[i]=(uint32_t)(e+1);
     }
-    c.vocab=t;c.enabled=true;*out=c;
+    c.vocab=t;
+    json_t *enc=json_object_get(s,"encoder");
+    if(enc&&!encoder_configure(enc,&c)){rc_prompt_destroy(&c);return false;}
+    c.enabled=true;*out=c;
     return true;
 }
 
@@ -115,6 +143,11 @@ double rc_prompt_score_text(const rc_prompt_config *c, const char *text, size_t 
             if(e>=0&&!(seen[e/8]&(1u<<(e%8)))){seen[e/8]|=(unsigned char)(1u<<(e%8));z+=c->vocab->weights[e];}
         }
         i=j;
+    }
+    if(c->encoder){
+        float e[1024];
+        if(c->encoder_dim>sizeof e/sizeof *e||!rc_encoder_embed(c->encoder,text,n,e))return -1;
+        for(size_t i=0;i<c->encoder_dim;i++)z+=c->encoder_weights[i]*(double)e[i];
     }
     return 1.0/(1.0+exp(-z));
 }

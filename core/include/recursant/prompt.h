@@ -27,17 +27,31 @@ extern const char *const rc_prompt_names[RC_PROMPT_DENSE];
 #define RC_PROMPT_TOKEN_MAX 32u
 #define RC_PROMPT_VOCAB_MAX 20000u
 typedef struct rc_prompt_vocab rc_prompt_vocab;
+typedef struct rc_encoder rc_encoder;
 typedef struct {
     bool enabled;
     bool agent_turns;      /* also classify a user message in a request that offers tools */
     double simple_min;     /* 0.5..1 */
     double weights[RC_PROMPT_DENSE];
     rc_prompt_vocab *vocab;
+    rc_encoder *encoder;   /* optional local encoder (recursant/encoder.h) */
+    double *encoder_weights;
+    size_t encoder_dim;
 } rc_prompt_config;
 /* Strict parse of {"weights": {dense name: number}, "vocab": {token: number},
- * "simple_min": x, "agent_turns": bool}. "bias" required; vocabulary keys
- * [a-z0-9]{1,32}, at most RC_PROMPT_VOCAB_MAX; every weight finite, |w| <= 100.
- * On success allocates the vocabulary (rc_prompt_destroy frees it). */
+ * "simple_min": x, "agent_turns": bool, "encoder": {...}}. "bias" required;
+ * vocabulary keys [a-z0-9]{1,32}, at most RC_PROMPT_VOCAB_MAX; every weight
+ * finite, |w| <= 100. On success allocates the vocabulary (rc_prompt_destroy
+ * frees it).
+ *
+ * Optional "encoder": {"model": ONNX path, "vocab": vocab.txt path,
+ * "threads": 1-16 (default 1), "weights": [one number per embedding
+ * dimension]}: the question's L2-normalized encoder embedding adds
+ * dot(weights, embedding) to the score (bench/prompt/train.py --embeddings).
+ * The model is loaded at configuration time; a missing library or model, or a
+ * weight count that differs from the model's dimension, fails the config with
+ * the reason on stderr. If an embedding fails at run time the turn is not
+ * classified (no "simple_prompt"), so failures never route cheaper. */
 bool rc_prompt_configure(json_t *section, rc_prompt_config *out);
 void rc_prompt_destroy(rc_prompt_config *cfg);
 /* Dense features of a text (bytes). Returns the number of tokens. */

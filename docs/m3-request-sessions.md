@@ -341,3 +341,27 @@ predicting the chance that the economy model answers as well as the baseline. Tr
   vocabulary entries, each weight within +-100, keys `[a-z0-9]{1,32}`.
 - C and Python score identically: `bench/prompt/parity.py`.
 - Evidence line: `prompt scope= p= action=add|keep|none`; no content.
+
+### Local encoder (`context.prompt.encoder`, optional)
+
+`{"model": "DIR/model.onnx", "vocab": "DIR/vocab.txt", "threads": 1-16, "weights": [...]}`,
+absent = off. Adds a small local language model's view of the question to the same score:
+the question's L2-normalized embedding from BAAI/bge-small-en-v1.5 (33M parameters, MIT
+licence, 384 numbers) times one trained weight per number. Reads the same text as the word
+features; nothing leaves the host.
+
+- Build: `-DRECURSANT_ENCODER=ON` with ONNX Runtime headers (`libonnxruntime-dev`). The library
+  is loaded at run time (`RECURSANT_ONNXRUNTIME` overrides its path), so the default binary
+  and configs without an encoder have no new dependency. Model: `bench/prompt/fetch_encoder.sh`
+  (pinned revision, sha256-checked).
+- The tokenizer is ours (`core/src/context/wordpiece.c`) and matches the Hugging Face tokenizer
+  on all fixture texts, including accents, CJK, Korean, control characters and long words; the
+  embedding matches PyTorch to cosine 0.99999 (`tests/unit/test_wordpiece.c`,
+  `tests/unit/test_encoder.c`, fixture `tests/fixtures/encoder-bge-small.jsonl`).
+- Fails closed: a missing library or model, or a weight count that differs from the model,
+  rejects the config with the reason on stderr; an embedding that fails at run time leaves the
+  turn unclassified (never cheaper).
+- Cost: about 10-70 ms of CPU per fresh question, depending on its length and `threads`; only
+  fresh user questions are embedded, never tool-result turns.
+- Trained by `bench/prompt/train.py --embeddings` on embeddings from `bench/prompt/embed_dump.c`
+  (the router's own encoder), evidence `docs/evidence/m3-encoder-classifier.md`.
