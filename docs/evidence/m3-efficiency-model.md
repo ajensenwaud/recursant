@@ -72,3 +72,6 @@ often does not.
 Build the model into the router off by default (`context.efficiency`, weights in config),
 used in the judge's slot (below compliance and continuity, never overriding a pin), at
 p >= 0.8. Then one live comparison: signals vs signals + model on the final-d and lh1b tasks.
+
+Done 2026-10-03 (ecd1427 + live check, `m3-efficiency-live.md`): no saving live (+4% cost,
+11 vs 10 passes on 13 matched task-repeats); left off.

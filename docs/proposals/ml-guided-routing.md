@@ -5,8 +5,9 @@ Status: for Anders's review. Nothing here is built yet.
 Update 2026-10-03: phases 0-3 done offline. Privacy: `docs/evidence/m2-au-identifiers.md`,
 `m2-privacy-models.md`, `m2-privacy-pipeline.md` (gated Presidio pipeline: 0.6% of held-out
 conversations wrongly private, ~94% held-out name recall, 11 ms p99). Efficiency:
-`docs/evidence/m3-efficiency-model.md` (1,701 pairs, AUC 0.75 on unseen tasks). Phase 4 (build
-into the router, live run) awaits a go-ahead.
+`docs/evidence/m3-efficiency-model.md` (1,701 pairs, AUC 0.75 on unseen tasks). Phase 4 for the efficiency
+model was built and checked live (`docs/evidence/m3-efficiency-live.md`): no saving, left off.
+Phase 4 for the privacy pipeline awaits a go-ahead.
 
 ## The idea in one paragraph
 

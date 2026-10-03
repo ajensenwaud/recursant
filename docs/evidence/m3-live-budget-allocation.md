@@ -70,3 +70,15 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
   hard cap US$3.00 on provider usage.cost plus in-flight reserve. PII tasks excluded. No routing, no live tasks.
 - Result: 1,339 pairs, actual US$2.886, 0 errors (`.hermes/runtime/m3-live/mini-counterfactual-e1.jsonl`).
   See docs/evidence/m3-efficiency-model.md.
+
+## E-ml-live (2026-10-03): live check of the efficiency model
+- Anders approved "about US$2" on 2026-10-03 (build it off by default, then one live run).
+- Cap US$2.00 / 800 requests (`ALLOCATIONS['E-ml-live']`), router ecd1427 (build/eml, sha256 b8d4a087...f64416).
+- 10 final-d tasks x 2 arms (signals vs signals + efficiency, weights without final-d tasks) x 2 repeats.
+  Driver `.hermes/runtime/m3-live/final_e.py`, out `final-e/`.
+- Attempt 1 (final-e/): every request refused by the meter before egress (Hermes fb67154's
+  first request is ~61 KB, over the 65536 context bound): 0 calls, US$0. Stopped after two
+  episodes. Rerun as final-e2/ with context_limit 131072 (as the multi-agent runs), fresh
+  allocation path, same cap.
+- Result (final-e2/): US$1.876 actual; cap reached after 30 of 40 episodes, 4 refused at the cap
+  before any call. See docs/evidence/m3-efficiency-live.md.
