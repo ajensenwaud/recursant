@@ -278,7 +278,16 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
             if(!f)return false;
             g->efforts_by_signal[i].family=f;
             if(f==EFFORT_VLLM_THINKING){
-                if(!keys(effort,"|family|")||rt->config.aliases[g->candidates[i].alias_index].endpoint!=RC_ENDPOINT_PRIVATE)return false;
+                /* Thinking switch: "low"/"high" are "on" or "off". Defaults:
+                 * low "off" (routine steps answer faster without thinking),
+                 * high "on" (recovery steps think). */
+                if(!keys(effort,"|family||low||high|")||rt->config.aliases[g->candidates[i].alias_index].endpoint!=RC_ENDPOINT_PRIVATE)return false;
+                static const char *const sides[2]={"low","high"};
+                for(int k=0;k<2;k++){
+                    json_t *v=json_object_get(effort,sides[k]);const char *t=json_string_value(v);
+                    if(v&&(!t||(strcmp(t,"on")&&strcmp(t,"off"))))return false;
+                    strcpy(k?g->efforts_by_signal[i].high:g->efforts_by_signal[i].low,t?t:(k?"on":"off"));
+                }
             }else{
                 if(!keys(effort,"|family||low||high|"))return false;
                 const char *low=token(effort,"low",RC_EFFORT_BYTES),*high=token(effort,"high",RC_EFFORT_BYTES);
@@ -1072,9 +1081,9 @@ static int add_effort(struct rc_gateway_context *g,size_t i,json_t *body,bool hi
     int f=g->efforts_by_signal[i].family;const char *t=high?g->efforts_by_signal[i].high:g->efforts_by_signal[i].low;
     bool set=f==EFFORT_VLLM_THINKING?json_object_get(body,"chat_template_kwargs")!=NULL:
         json_object_get(body,"reasoning_effort")||json_object_get(body,"reasoning");
-    if(!f||set)return EFFORT_NONE;
-    int failed=f==EFFORT_VLLM_THINKING?json_object_set_new(body,"chat_template_kwargs",json_pack("{s:b}","enable_thinking",high)):
-        !t[0]?-1:f==EFFORT_OPENAI?json_object_set_new(body,"reasoning_effort",json_string(t)):
+    if(!f||set||!t[0])return EFFORT_NONE;
+    int failed=f==EFFORT_VLLM_THINKING?json_object_set_new(body,"chat_template_kwargs",json_pack("{s:b}","enable_thinking",!strcmp(t,"on"))):
+        f==EFFORT_OPENAI?json_object_set_new(body,"reasoning_effort",json_string(t)):
         json_object_set_new(body,"reasoning",json_pack("{s:s}","effort",t));
     return failed?EFFORT_NONE:f;
 }

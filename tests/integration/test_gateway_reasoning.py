@@ -74,6 +74,15 @@ class GatewayReasoningTests(unittest.TestCase):
         self.assertIn(' chosen=alias effort=low', effort[0])
         self.assertIn(' chosen=strong effort=high', effort[1])
 
+    def test_b2_thinking_switch_tokens(self):
+        # Default vllm-thinking: a downshift switches thinking off (faster); low "on" keeps it on.
+        for cheap, expect in (({'family': 'vllm-thinking', 'low': 'off'}, {'chat_template_kwargs': {'enable_thinking': False}}),
+                              ({'family': 'vllm-thinking', 'low': 'on'}, {'chat_template_kwargs': {'enable_thinking': True}})):
+            with self.subTest(cheap=cheap):
+                with self.router(lambda c, s, cheap=cheap: self.setup(c, s, cheap=cheap)) as (p, sink):
+                    steps = self.loop(p, sink, ['ok'])
+                self.assertEqual(steps[1], ('physical', expect))
+
     def test_c_openrouter_family(self):
         def edit(c, s):
             self.setup(c, s, cheap={'family': 'openrouter', 'low': 'low', 'high': 'medium'})
@@ -87,7 +96,7 @@ class GatewayReasoningTests(unittest.TestCase):
         so a routine GLM step still turns thinking off; an escalation to an
         OpenAI-family model keeps the harness's value."""
         def edit(c, s):
-            self.setup(c, s)
+            self.setup(c, s, cheap={'family': 'vllm-thinking', 'low': 'off'})
             for cand in c['context']['candidates']:
                 cand.setdefault('capabilities', {})['reasoning_effort'] = ['low', 'medium', 'high']
         results = ['ok', 'Traceback (most recent call last): boom', 'ERROR: command failed, exit code 2']
@@ -112,7 +121,7 @@ class GatewayReasoningTests(unittest.TestCase):
         self.assertIn(' chosen=alias effort=low', effort[0])
 
     def test_e_failover_removes_the_failed_destinations_field(self):
-        with self.router(lambda c, s: self.setup(c, s, health_on=True)) as (p, sink):
+        with self.router(lambda c, s: self.setup(c, s, cheap={'family': 'vllm-thinking', 'low': 'off'}, health_on=True)) as (p, sink):
             history = self.first('job one')
             sink.envelope = {'message': {'tool_calls': [call(1)]}}
             self.assertEqual(self.send(p, history), 200)
@@ -138,6 +147,8 @@ class GatewayReasoningTests(unittest.TestCase):
                lambda c: c['context'].update(reasoning='signals', signals='off'),
                lambda c: cand(c, 0, {'family': 'vllm-thinking'}),          # public destination
                lambda c: cand(c, 1, {'family': 'vllm-thinking', 'low': 'low'}),
+               lambda c: cand(c, 1, {'family': 'vllm-thinking', 'high': True}),
+               lambda c: cand(c, 1, {'family': 'vllm-thinking', 'low': 'off', 'extra': 1}),
                lambda c: cand(c, 2, {'family': 'anthropic', 'low': 'low'}),
                lambda c: cand(c, 2, {'family': 'openai'}),
                lambda c: cand(c, 2, {'family': 'openai', 'low': 'two words'}),
@@ -146,6 +157,7 @@ class GatewayReasoningTests(unittest.TestCase):
         good = [lambda c: None, lambda c: c['context'].update(reasoning='signals'),
                 lambda c: c['context'].update(reasoning='off'),
                 lambda c: cand(c, 2, {'family': 'openai', 'high': 'high'}),
+                lambda c: cand(c, 1, {'family': 'vllm-thinking', 'low': 'off', 'high': 'on'}),
                 lambda c: [cand(c, i, None) for i in range(3)] and None]
         env = {**os.environ, 'RC_TEST_AUTH': 'local-test-key', 'RC_TEST_SOURCE': 'source-only-test-key'}
         with tempfile.TemporaryDirectory() as tmp:

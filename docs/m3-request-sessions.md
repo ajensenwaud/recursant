@@ -192,7 +192,7 @@ Each candidate may declare `reasoning: {"family": ..., "low": token, "high": tok
 |---|---|---|
 | `openai` | `reasoning_effort: <token>` | at least one of low/high |
 | `openrouter` | `reasoning: {"effort": <token>}` | at least one of low/high |
-| `vllm-thinking` | `chat_template_kwargs: {"enable_thinking": false/true}` | private aliases only; no tokens (GLM, Qwen) |
+| `vllm-thinking` | `chat_template_kwargs: {"enable_thinking": false/true}` | private aliases only (GLM, Qwen); `low`/`high` are `"on"`/`"off"`. Default `low: "off"` (a downshifted step answers without thinking, faster) and `high: "on"` (an escalation thinks) |
 
 - A step the selector downshifts on a signal class (`reason=cheapest`) gets the
   destination's `low`; an escalation (`reason=escalate`) gets its `high`. Baseline,
