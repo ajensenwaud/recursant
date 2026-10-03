@@ -128,3 +128,23 @@ US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10
   are effort low vs xhigh. Probe (6 settings x 6 questions plus 7 single calls): about US$0.40.
 - Caps: Sonnet low US$3.00, Sonnet xhigh US$5.00 (all 416); Opus low and xhigh on the 216
   maths questions, shuffled, with what remains under the US$15.00 total. GLM unbilled.
+
+## F-agent (2026-10-04): reasoning effort per agent step, Claude Sonnet 5.5
+- Anders, 2026-10-04: "You need to test it on agentic workflows as well." Cap US$15.00 public
+  for all of F-agent (`ALLOCATIONS['F-agent']` in bench/evaluation/live.py).
+- Smokes (csvsum, switch arm, 1 episode each): fa-smoke1 refused by the meter's second
+  4096 output check (US$0), fa-smoke2 US$0.094 (session pinned: Claude's reasoning_details and
+  native finish reasons), fa-smoke3 US$0.038 (pinned: native finish reasons), fa-smoke4
+  US$0.058 (works: xhigh first step, low on routine steps, cache hits kept). Smokes US$0.19.
+- Main run fa-main: 10 tasks x 3 arms (low / xhigh / switch) x 2 repeats, router 0a141eb,
+  cap US$14.50 (US$15.00 minus smokes, rounded down).
+- fa-main spent US$4.2510 (230 requests, 60 episodes). F-agent so far US$4.44.
+- Long-horizon run fa-lh: 6 tasks (bench/longhorizon, 80 turns, 1500 s) x 3 arms x 1 repeat,
+  task-major order, cap US$10.50 (the F-agent remainder, rounded down).
+- fa-lh spent US$4.0126 (152 requests, 18 episodes). F-agent so far US$8.45.
+- Second long-horizon repeat fa-lh2 (same plan), cap US$6.50 (the F-agent remainder).
+- fa-lh2 spent US$3.4183 (130 requests). F-agent total US$11.87 of US$15.00
+  (smokes 0.19, fa-main 4.25, fa-lh 4.01, fa-lh2 3.42).
+- F-hard final: Sonnet low US$1.6476, xhigh US$2.6046; Opus low US$2.0201, xhigh US$2.9363 (216
+  maths questions); probes US$0.51. Total US$9.72 of US$15.00. GLM unbilled.
+- Evidence: docs/evidence/m3-reasoning-effort-agents.md.
