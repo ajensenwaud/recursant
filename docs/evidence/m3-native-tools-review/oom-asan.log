@@ -1,0 +1,11 @@
+test_snapshot_and_replay_failures_pin (__main__.OOM.test_snapshot_and_replay_failures_pin) ... injected and consumed OOM target h
+injected and consumed OOM target t
+injected and consumed OOM target c
+injected and consumed OOM target o
+injected and consumed OOM target r
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 5.272s
+
+OK

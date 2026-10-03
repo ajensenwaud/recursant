@@ -1,0 +1,8 @@
+{
+  "command": "docker run --rm --network none -v /home/aj/projects/recursant-v4-m3-tool-boundary:/src:ro -w /src recursant-v4-dev:local sh -c 'set -e; cc -std=c17 -Wall -Wextra -Wpedantic -Werror -fanalyzer -Icore/include tests/unit/test_tool_boundary.c core/src/context/tool_boundary.c -ljansson -o /tmp/test; /tmp/test; cc -std=c17 -Wall -Wextra -Wpedantic -Werror -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -fno-pie -no-pie -Icore/include tests/unit/test_tool_boundary.c core/src/context/tool_boundary.c -ljansson -o /tmp/test-san; ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/test-san'",
+  "result": {
+    "output": "tool_boundary: PASS\ntool_boundary: PASS",
+    "exit_code": 0,
+    "error": null
+  }
+}

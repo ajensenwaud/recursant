@@ -1,0 +1,874 @@
+{
+  "kind": "actual_C_gateway_synthetic_readiness_probe",
+  "cases": [
+    {
+      "case": "fast_tool",
+      "repeat": 0,
+      "tool_seconds": 0.025,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005701091140508652,
+          "end_ms": 0.3434550017118454
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": false,
+      "tool_completion_to_dispatch_ms": 0.020469073206186295,
+      "next_request_roundtrip_ms": 1.3501932844519615,
+      "source_to_dispatch_ms": 25.447438936680555,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6935019046068192,
+          "response_sent_ms": 150.95150703564286,
+          "elapsed_ms": 150.25800513103604
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_no_callback",
+      "repeat": 0,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.009248033165931702,
+          "end_ms": 0.7994109764695168
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.03355322405695915,
+      "next_request_roundtrip_ms": 3.2256226986646652,
+      "source_to_dispatch_ms": 500.8763740770519,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6578648462891579,
+          "response_sent_ms": 150.97918873652816,
+          "elapsed_ms": 150.321323890239
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_callback",
+      "repeat": 0,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005379784852266312,
+          "end_ms": 0.5487101152539253
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.6921477615833,
+          "end_ms": 501.65499513968825
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 1.0114777833223343,
+      "next_request_roundtrip_ms": 1.2272330932319164,
+      "source_to_dispatch_ms": 501.6597039066255,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 2,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.664666760712862,
+          "response_sent_ms": 150.93371272087097,
+          "elapsed_ms": 150.2690459601581
+        },
+        {
+          "revision": "2",
+          "segments": [
+            {
+              "id": "tool_result",
+              "source": "executor",
+              "text": "format checked result"
+            },
+            {
+              "id": "tool_status",
+              "source": "executor",
+              "text": "ok"
+            }
+          ],
+          "start_ms": 502.0468211732805,
+          "response_sent_ms": 652.4560498073697,
+          "elapsed_ms": 150.40922863408923
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_metadata",
+      "repeat": 0,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005880836397409439,
+          "end_ms": 0.33804401755332947
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.46163611114025,
+          "end_ms": 501.0520238429308
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.6258049979805946,
+      "next_request_roundtrip_ms": 1.004593912512064,
+      "source_to_dispatch_ms": 501.05574121698737,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6170482374727726,
+          "response_sent_ms": 150.90423682704568,
+          "elapsed_ms": 150.2871885895729
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_export_late",
+      "repeat": 0,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005559995770454407,
+          "end_ms": 0.5282508209347725
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.03611808642745018,
+      "next_request_roundtrip_ms": 1.3978229835629463,
+      "source_to_dispatch_ms": 500.6542569026351,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": 409,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6560208275914192,
+          "response_sent_ms": 151.07835503295064,
+          "elapsed_ms": 150.42233420535922
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "positive_wait_control",
+      "repeat": 0,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.009267125278711319,
+          "end_ms": 0.7202201522886753
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.8651432581246,
+          "end_ms": 501.9780099391937
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 301.26339197158813,
+      "next_request_roundtrip_ms": 1.6092797741293907,
+      "source_to_dispatch_ms": 802.086977288127,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 2,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.8891969919204712,
+          "response_sent_ms": 151.2087183073163,
+          "elapsed_ms": 150.31952131539583
+        },
+        {
+          "revision": "2",
+          "segments": [
+            {
+              "id": "tool_result",
+              "source": "executor",
+              "text": "format checked result"
+            },
+            {
+              "id": "tool_status",
+              "source": "executor",
+              "text": "ok"
+            }
+          ],
+          "start_ms": 502.1548820659518,
+          "response_sent_ms": 652.5211911648512,
+          "elapsed_ms": 150.36630909889936
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "fast_tool",
+      "repeat": 1,
+      "tool_seconds": 0.025,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.0060908496379852295,
+          "end_ms": 0.5979519337415695
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": false,
+      "tool_completion_to_dispatch_ms": 0.04557473585009575,
+      "next_request_roundtrip_ms": 1.5287091955542564,
+      "source_to_dispatch_ms": 25.746557861566544,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.7232269272208214,
+          "response_sent_ms": 151.05239488184452,
+          "elapsed_ms": 150.3291679546237
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_no_callback",
+      "repeat": 1,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.007505062967538834,
+          "end_ms": 0.6649577990174294
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.03166962414979935,
+      "next_request_roundtrip_ms": 1.4333692379295826,
+      "source_to_dispatch_ms": 500.7890406996012,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.8542737923562527,
+          "response_sent_ms": 151.1559197679162,
+          "elapsed_ms": 150.30164597555995
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_callback",
+      "repeat": 1,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.007524155080318451,
+          "end_ms": 0.6012879312038422
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.72706397622824,
+          "end_ms": 501.72247225418687
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 1.037857960909605,
+      "next_request_roundtrip_ms": 1.2240470387041569,
+      "source_to_dispatch_ms": 501.72774214297533,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 2,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.7696938700973988,
+          "response_sent_ms": 151.02096693590283,
+          "elapsed_ms": 150.25127306580544
+        },
+        {
+          "revision": "2",
+          "segments": [
+            {
+              "id": "tool_result",
+              "source": "executor",
+              "text": "format checked result"
+            },
+            {
+              "id": "tool_status",
+              "source": "executor",
+              "text": "ok"
+            }
+          ],
+          "start_ms": 502.2279410623014,
+          "response_sent_ms": 652.5174649432302,
+          "elapsed_ms": 150.28952388092875
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_metadata",
+      "repeat": 1,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.008655712008476257,
+          "end_ms": 0.8974331431090832
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 501.4260159805417,
+          "end_ms": 502.49285669997334
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 1.1326950043439865,
+      "next_request_roundtrip_ms": 1.255786046385765,
+      "source_to_dispatch_ms": 502.52006808295846,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.7426729425787926,
+          "response_sent_ms": 151.02681703865528,
+          "elapsed_ms": 150.2841440960765
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_export_late",
+      "repeat": 1,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005309935659170151,
+          "end_ms": 0.5429079756140709
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.044833868741989136,
+      "next_request_roundtrip_ms": 1.469567883759737,
+      "source_to_dispatch_ms": 500.68575609475374,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": 409,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.7234271615743637,
+          "response_sent_ms": 151.00347297266126,
+          "elapsed_ms": 150.2800458110869
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "positive_wait_control",
+      "repeat": 1,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005880836397409439,
+          "end_ms": 0.6085005588829517
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.73938770219684,
+          "end_ms": 501.7504636198282
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 301.1550190858543,
+      "next_request_roundtrip_ms": 1.615801826119423,
+      "source_to_dispatch_ms": 801.8562248907983,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 2,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.7345979101955891,
+          "response_sent_ms": 150.95215663313866,
+          "elapsed_ms": 150.21755872294307
+        },
+        {
+          "revision": "2",
+          "segments": [
+            {
+              "id": "tool_result",
+              "source": "executor",
+              "text": "format checked result"
+            },
+            {
+              "id": "tool_status",
+              "source": "executor",
+              "text": "ok"
+            }
+          ],
+          "start_ms": 501.97091791778803,
+          "response_sent_ms": 652.2280806675553,
+          "elapsed_ms": 150.2571627497673
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "fast_tool",
+      "repeat": 2,
+      "tool_seconds": 0.025,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.0064820051193237305,
+          "end_ms": 0.8074548095464706
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": false,
+      "tool_completion_to_dispatch_ms": 0.02978602424263954,
+      "next_request_roundtrip_ms": 1.435722690075636,
+      "source_to_dispatch_ms": 25.921016931533813,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.7195300422608852,
+          "response_sent_ms": 151.0068499483168,
+          "elapsed_ms": 150.28731990605593
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_no_callback",
+      "repeat": 2,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.008576083928346634,
+          "end_ms": 0.7876381278038025
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.03150897100567818,
+      "next_request_roundtrip_ms": 1.4089527539908886,
+      "source_to_dispatch_ms": 500.9066821075976,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6315046921372414,
+          "response_sent_ms": 150.88136494159698,
+          "elapsed_ms": 150.24986024945974
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_callback",
+      "repeat": 2,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005922280251979828,
+          "end_ms": 0.6271973252296448
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.73779514059424,
+          "end_ms": 501.5805661678314
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.8755233138799667,
+      "next_request_roundtrip_ms": 1.1751549318432808,
+      "source_to_dispatch_ms": 501.58523535355926,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 2,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.810141209512949,
+          "response_sent_ms": 151.1481460183859,
+          "elapsed_ms": 150.33800480887294
+        },
+        {
+          "revision": "2",
+          "segments": [
+            {
+              "id": "tool_result",
+              "source": "executor",
+              "text": "format checked result"
+            },
+            {
+              "id": "tool_status",
+              "source": "executor",
+              "text": "ok"
+            }
+          ],
+          "start_ms": 501.91378127783537,
+          "response_sent_ms": 652.1982862614095,
+          "elapsed_ms": 150.28450498357415
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_metadata",
+      "repeat": 2,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.008115079253911972,
+          "end_ms": 2.4624201469123363
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 502.57208617404103,
+          "end_ms": 503.0979118309915
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.5515441298484802,
+      "next_request_roundtrip_ms": 1.0924008674919605,
+      "source_to_dispatch_ms": 503.10138799250126,
+      "next_model": "frontier",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 2.9086568392813206,
+          "response_sent_ms": 153.18510681390762,
+          "elapsed_ms": 150.2764499746263
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "long_tool_export_late",
+      "repeat": 2,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005641020834445953,
+          "end_ms": 0.524754635989666
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 0.03885291516780853,
+      "next_request_roundtrip_ms": 3.805510699748993,
+      "source_to_dispatch_ms": 500.66354498267174,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": 409,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 1,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6597689352929592,
+          "response_sent_ms": 150.9214206598699,
+          "elapsed_ms": 150.26165172457695
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    },
+    {
+      "case": "positive_wait_control",
+      "repeat": 2,
+      "tool_seconds": 0.5,
+      "synthetic_interpreter_delay_ms": 150,
+      "events": [
+        {
+          "revision": 1,
+          "status": 202,
+          "start_ms": 0.005470123142004013,
+          "end_ms": 0.5534682422876358
+        },
+        {
+          "revision": 2,
+          "status": 202,
+          "start_ms": 500.66480692476034,
+          "end_ms": 501.4297519810498
+        }
+      ],
+      "old_interpreter_completed_before_tool_callback": true,
+      "tool_completion_to_dispatch_ms": 300.8834798820317,
+      "next_request_roundtrip_ms": 1.61727424710989,
+      "source_to_dispatch_ms": 801.5227690339088,
+      "next_model": "physical",
+      "after_drain_model": "frontier",
+      "late_callback_status": null,
+      "chat_dispatches": 3,
+      "interpreter_dispatches": 2,
+      "interpreter_records": [
+        {
+          "revision": "1",
+          "segments": [
+            {
+              "id": "assistant_plan",
+              "source": "model_claim",
+              "text": "format the result"
+            }
+          ],
+          "start_ms": 0.6710491143167019,
+          "response_sent_ms": 150.94326110556722,
+          "elapsed_ms": 150.27221199125051
+        },
+        {
+          "revision": "2",
+          "segments": [
+            {
+              "id": "tool_result",
+              "source": "executor",
+              "text": "format checked result"
+            },
+            {
+              "id": "tool_status",
+              "source": "executor",
+              "text": "ok"
+            }
+          ],
+          "start_ms": 501.60312792286277,
+          "response_sent_ms": 651.9180000759661,
+          "elapsed_ms": 150.31487215310335
+        }
+      ],
+      "usage": "not supplied by synthetic provider; unknown, not zero"
+    }
+  ],
+  "trials": 18,
+  "chat_dispatches": 54,
+  "interpreter_dispatches": 24,
+  "savings_claim": false,
+  "native_harness_executed": false
+}

@@ -1,0 +1,159 @@
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libcurl;jansson'
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /review/normal
+[  2%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[  4%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[  6%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[  8%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o
+[ 11%] Linking C static library librecursant_context.a
+[ 13%] Linking C static library librecursant_selector.a
+[ 15%] Linking C static library librecursant_config.a
+[ 17%] Linking C static library librecursant_policy.a
+[ 17%] Built target recursant_context
+[ 17%] Built target recursant_selector
+[ 20%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o
+[ 20%] Built target recursant_config
+[ 20%] Built target recursant_policy
+[ 22%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o
+[ 24%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 26%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 31%] Linking C static library librecursant_interpreter.a
+[ 31%] Linking C executable test_config
+[ 33%] Linking C executable test_context
+[ 33%] Built target recursant_interpreter
+[ 33%] Built target test_config
+[ 35%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 37%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 37%] Built target test_context
+[ 40%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 42%] Linking C executable test_interpreter_alloc
+[ 42%] Built target test_interpreter_alloc
+[ 44%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 46%] Linking C executable test_egress
+[ 48%] Linking C static library librecursant_auth.a
+[ 51%] Linking C executable recursant-validate
+[ 51%] Built target test_egress
+[ 51%] Built target recursant_auth
+[ 53%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o
+[ 55%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o
+[ 55%] Built target recursant-validate
+[ 57%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 60%] Linking C static library librecursant_attempts.a
+[ 62%] Linking C executable test_selector
+[ 64%] Linking C static library librecursant_admission.a
+[ 66%] Linking C executable test_interpreter
+[ 66%] Built target recursant_attempts
+[ 66%] Built target recursant_admission
+[ 66%] Built target test_selector
+[ 68%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o
+[ 71%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o
+[ 73%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 73%] Built target test_interpreter
+[ 75%] Linking C shared library libattempt_probe.so
+[ 77%] Linking C executable test_attempts_internal
+[ 80%] Linking C executable test_admission
+[ 82%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 82%] Built target attempt_probe
+[ 84%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 84%] Built target test_admission
+[ 84%] Built target test_attempts_internal
+[ 86%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o
+[ 88%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 91%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 93%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 95%] Linking C executable test_attempts
+[ 97%] Linking C executable recursant-tracer
+[ 97%] Built target recursant-tracer
+[ 97%] Built target test_attempts
+[100%] Linking C executable recursant
+[100%] Built target recursant
+Test project /review/normal
+      Start  1: selector_unit
+ 1/17 Test  #1: selector_unit ....................   Passed    0.00 sec
+      Start  2: attempts_unit
+ 2/17 Test  #2: attempts_unit ....................   Passed    0.00 sec
+      Start  3: attempts_overflow
+ 3/17 Test  #3: attempts_overflow ................   Passed    0.00 sec
+      Start  4: interpreter_alloc
+ 4/17 Test  #4: interpreter_alloc ................   Passed    0.04 sec
+      Start  5: context_unit
+ 5/17 Test  #5: context_unit .....................   Passed    0.00 sec
+      Start  6: egress_policy
+ 6/17 Test  #6: egress_policy ....................   Passed    0.00 sec
+      Start  7: config_strict
+ 7/17 Test  #7: config_strict ....................   Passed    0.00 sec
+      Start  8: admission_unit
+ 8/17 Test  #8: admission_unit ...................   Passed    0.00 sec
+      Start  9: interpreter_loopback
+ 9/17 Test  #9: interpreter_loopback .............   Passed   10.45 sec
+      Start 10: gateway_context_integration
+10/17 Test #10: gateway_context_integration ......   Passed   22.95 sec
+      Start 11: hermes_observer
+11/17 Test #11: hermes_observer ..................   Passed    0.12 sec
+      Start 12: compliance_integration
+12/17 Test #12: compliance_integration ...........   Passed   19.27 sec
+      Start 13: router_integration
+13/17 Test #13: router_integration ...............   Passed   23.29 sec
+      Start 14: transport_integration
+14/17 Test #14: transport_integration ............   Passed    1.47 sec
+      Start 15: admission_integration
+15/17 Test #15: admission_integration ............   Passed    0.35 sec
+      Start 16: trajectory_reference
+16/17 Test #16: trajectory_reference .............   Passed    3.55 sec
+      Start 17: accounting
+17/17 Test #17: accounting .......................   Passed    0.12 sec
+
+100% tests passed, 0 tests failed out of 17
+
+Total Test time (real) =  81.62 sec
+test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok
+test_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok
+test_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok
+test_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok
+test_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok
+test_expiry_feed_loss_and_invalid_interpreter_retain_baseline (test_gateway_context.GatewayContextTests.test_expiry_feed_loss_and_invalid_interpreter_retain_baseline) ... ok
+test_explicit_pin_conflict_rejects_instead_of_rerouting (test_gateway_context.GatewayContextTests.test_explicit_pin_conflict_rejects_instead_of_rerouting) ... ok
+test_explicit_replay_updates_history_and_consumes_prior_advice (test_gateway_context.GatewayContextTests.test_explicit_replay_updates_history_and_consumes_prior_advice) ... ok
+test_full_attempt_ledger_cannot_downshift_on_last_snapshot (test_gateway_context.GatewayContextTests.test_full_attempt_ledger_cannot_downshift_on_last_snapshot) ... ok
+test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) ... ok
+test_live_interpreter_downshift_and_changed_action_escalates (test_gateway_context.GatewayContextTests.test_live_interpreter_downshift_and_changed_action_escalates) ... ok
+test_missing_scope_ambiguous_registered_identity_is_not_joined (test_gateway_context.GatewayContextTests.test_missing_scope_ambiguous_registered_identity_is_not_joined) ... ok
+test_pin_survives_lost_feed_and_policy_conflict_blocks (test_gateway_context.GatewayContextTests.test_pin_survives_lost_feed_and_policy_conflict_blocks) ... ok
+test_private_source_authority_preserves_permitted_explicit_private_alias (test_gateway_context.GatewayContextTests.test_private_source_authority_preserves_permitted_explicit_private_alias) ... ok
+test_registration_cannot_reset_live_continuity (test_gateway_context.GatewayContextTests.test_registration_cannot_reset_live_continuity) ... ok
+test_rejected_new_source_revision_revokes_old_advice (test_gateway_context.GatewayContextTests.test_rejected_new_source_revision_revokes_old_advice) ... ok
+test_scoped_explicit_inflight_exclusion_in_both_directions (test_gateway_context.GatewayContextTests.test_scoped_explicit_inflight_exclusion_in_both_directions) ... ok
+test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting) ... ok
+test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice) ... ok
+test_scoped_generation_cannot_dispatch_concurrently (test_gateway_context.GatewayContextTests.test_scoped_generation_cannot_dispatch_concurrently) ... ok
+test_selector_quotes_recheck_concrete_candidate_m2_eligibility (test_gateway_context.GatewayContextTests.test_selector_quotes_recheck_concrete_candidate_m2_eligibility) ... ok
+test_sensitive_source_cannot_send_derived_selection_public (test_gateway_context.GatewayContextTests.test_sensitive_source_cannot_send_derived_selection_public) ... ok
+test_shadow_and_explicit_aliases_keep_actual_destination (test_gateway_context.GatewayContextTests.test_shadow_and_explicit_aliases_keep_actual_destination) ... ok
+test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline) ... ok
+test_shadow_privacy_authority_and_pin_conflict_still_apply (test_gateway_context.GatewayContextTests.test_shadow_privacy_authority_and_pin_conflict_still_apply) ... ok
+test_source_auth_replay_foreign_scope_and_schemas (test_gateway_context.GatewayContextTests.test_source_auth_replay_foreign_scope_and_schemas) ... ok
+test_strict_context_configuration (test_gateway_context.GatewayContextTests.test_strict_context_configuration) ... ok
+test_tool_exchange_is_pinned_even_if_caller_removes_tools (test_gateway_context.GatewayContextTests.test_tool_exchange_is_pinned_even_if_caller_removes_tools) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 22.766s
+
+OK

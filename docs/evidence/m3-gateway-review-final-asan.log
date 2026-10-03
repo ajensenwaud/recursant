@@ -1,0 +1,200 @@
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Checking for modules 'libcurl;jansson'
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+-- Checking for modules 'libmicrohttpd;libcurl;jansson;libpcre2-8'
+--   Found libmicrohttpd, version 1.0.1
+--   Found libcurl, version 8.18.0
+--   Found jansson, version 2.14
+--   Found libpcre2-8, version 10.46
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Configuring done (0.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /review/asan
+[  2%] Building C object CMakeFiles/recursant_config.dir/core/src/config/config.c.o
+[  4%] Building C object CMakeFiles/recursant_selector.dir/core/src/context/selector.c.o
+[  6%] Building C object CMakeFiles/recursant_policy.dir/core/src/compliance/egress.c.o
+[  8%] Building C object CMakeFiles/recursant_context.dir/core/src/context/context.c.o
+[ 11%] Linking C static library librecursant_policy.a
+[ 13%] Linking C static library librecursant_selector.a
+[ 15%] Linking C static library librecursant_context.a
+[ 15%] Built target recursant_policy
+[ 17%] Building C object CMakeFiles/recursant_interpreter.dir/core/src/context/interpreter.c.o
+[ 17%] Built target recursant_selector
+[ 17%] Built target recursant_context
+[ 20%] Building C object CMakeFiles/test_interpreter_alloc.dir/tests/unit/test_interpreter_alloc.c.o
+[ 22%] Building C object CMakeFiles/test_egress.dir/tests/unit/test_egress.c.o
+[ 24%] Linking C executable test_egress
+[ 24%] Built target test_egress
+[ 26%] Building C object CMakeFiles/test_selector.dir/tests/unit/test_selector.c.o
+[ 28%] Linking C static library librecursant_config.a
+[ 28%] Built target recursant_config
+[ 31%] Building C object CMakeFiles/test_context.dir/tests/unit/test_context.c.o
+[ 33%] Linking C static library librecursant_interpreter.a
+[ 35%] Linking C executable test_interpreter_alloc
+[ 35%] Built target recursant_interpreter
+[ 37%] Building C object CMakeFiles/test_config.dir/tests/unit/test_config.c.o
+[ 40%] Linking C executable test_selector
+[ 42%] Linking C executable test_context
+[ 42%] Built target test_selector
+[ 42%] Built target test_interpreter_alloc
+[ 44%] Building C object CMakeFiles/test_interpreter.dir/tests/unit/test_interpreter.c.o
+[ 46%] Building C object CMakeFiles/recursant_auth.dir/core/src/auth/auth.c.o
+[ 46%] Built target test_context
+[ 48%] Linking C executable test_config
+[ 51%] Building C object CMakeFiles/recursant-validate.dir/core/src/admin/validate.c.o
+[ 53%] Linking C static library librecursant_auth.a
+[ 55%] Linking C executable recursant-validate
+[ 57%] Linking C executable test_interpreter
+[ 57%] Built target recursant_auth
+[ 60%] Building C object CMakeFiles/recursant_attempts.dir/core/src/context/attempts.c.o
+[ 60%] Built target test_config
+[ 60%] Built target recursant-validate
+[ 62%] Building C object CMakeFiles/recursant_admission.dir/core/src/http/admission.c.o
+[ 64%] Building C object CMakeFiles/test_attempts_internal.dir/tests/unit/test_attempts_internal.c.o
+[ 66%] Linking C static library librecursant_attempts.a
+[ 68%] Linking C static library librecursant_admission.a
+[ 68%] Built target test_interpreter
+[ 68%] Built target recursant_attempts
+[ 71%] Building C object CMakeFiles/recursant.dir/core/src/http/router.c.o
+[ 71%] Built target recursant_admission
+[ 73%] Linking C executable test_attempts_internal
+[ 75%] Building C object CMakeFiles/test_attempts.dir/tests/unit/test_attempts.c.o
+[ 77%] Building C object CMakeFiles/attempt_probe.dir/tests/fixtures/attempt_probe.c.o
+[ 80%] Linking C shared library libattempt_probe.so
+[ 80%] Built target attempt_probe
+[ 80%] Built target test_attempts_internal
+[ 84%] Building C object CMakeFiles/recursant-tracer.dir/core/src/http/tracer.c.o
+[ 84%] Building C object CMakeFiles/test_admission.dir/tests/unit/test_admission.c.o
+[ 86%] Linking C executable test_attempts
+[ 86%] Built target test_attempts
+[ 88%] Linking C executable test_admission
+[ 91%] Building C object CMakeFiles/recursant.dir/core/src/runtime.c.o
+[ 93%] Building C object CMakeFiles/recursant.dir/core/src/compliance/classifier.c.o
+[ 95%] Linking C executable recursant-tracer
+[ 95%] Built target test_admission
+[ 97%] Building C object CMakeFiles/recursant.dir/core/src/context/gateway_context.c.o
+[ 97%] Built target recursant-tracer
+[100%] Linking C executable recursant
+[100%] Built target recursant
+Test project /review/asan
+      Start  1: selector_unit
+ 1/17 Test  #1: selector_unit ....................   Passed    0.02 sec
+      Start  2: attempts_unit
+ 2/17 Test  #2: attempts_unit ....................   Passed    0.01 sec
+      Start  3: attempts_overflow
+ 3/17 Test  #3: attempts_overflow ................   Passed    0.01 sec
+      Start  4: interpreter_alloc
+ 4/17 Test  #4: interpreter_alloc ................   Passed    0.18 sec
+      Start  5: context_unit
+ 5/17 Test  #5: context_unit .....................   Passed    0.01 sec
+      Start  6: egress_policy
+ 6/17 Test  #6: egress_policy ....................   Passed    0.01 sec
+      Start  7: config_strict
+ 7/17 Test  #7: config_strict ....................   Passed    0.01 sec
+      Start  8: admission_unit
+ 8/17 Test  #8: admission_unit ...................   Passed    0.01 sec
+      Start  9: interpreter_loopback
+ 9/17 Test  #9: interpreter_loopback .............   Passed   11.07 sec
+      Start 10: gateway_context_integration
+10/17 Test #10: gateway_context_integration ......   Passed   23.49 sec
+      Start 11: hermes_observer
+11/17 Test #11: hermes_observer ..................   Passed    0.13 sec
+      Start 12: compliance_integration
+12/17 Test #12: compliance_integration ...........   Passed   19.87 sec
+      Start 13: router_integration
+13/17 Test #13: router_integration ...............   Passed   25.39 sec
+      Start 14: transport_integration
+14/17 Test #14: transport_integration ............   Passed    1.53 sec
+      Start 15: admission_integration
+15/17 Test #15: admission_integration ............   Passed    0.42 sec
+      Start 16: trajectory_reference
+16/17 Test #16: trajectory_reference .............   Passed    3.95 sec
+      Start 17: accounting
+17/17 Test #17: accounting .......................   Passed    0.12 sec
+
+100% tests passed, 0 tests failed out of 17
+
+Total Test time (real) =  86.23 sec
+test_active_authenticated_open_and_immediate_baseline (test_gateway_context.GatewayContextTests.test_active_authenticated_open_and_immediate_baseline) ... ok
+test_delayed_interpreter_is_not_on_dispatch_path (test_gateway_context.GatewayContextTests.test_delayed_interpreter_is_not_on_dispatch_path) ... ok
+test_disabled_has_no_context_route_or_interpreter (test_gateway_context.GatewayContextTests.test_disabled_has_no_context_route_or_interpreter) ... ok
+test_duplicate_physical_invocation_invalidates_published_snapshot (test_gateway_context.GatewayContextTests.test_duplicate_physical_invocation_invalidates_published_snapshot) ... ok
+test_duplicate_wire_headers_are_not_collapsed_into_exactness (test_gateway_context.GatewayContextTests.test_duplicate_wire_headers_are_not_collapsed_into_exactness) ... ok
+test_expiry_feed_loss_and_invalid_interpreter_retain_baseline (test_gateway_context.GatewayContextTests.test_expiry_feed_loss_and_invalid_interpreter_retain_baseline) ... ok
+test_explicit_pin_conflict_rejects_instead_of_rerouting (test_gateway_context.GatewayContextTests.test_explicit_pin_conflict_rejects_instead_of_rerouting) ... ok
+test_explicit_replay_updates_history_and_consumes_prior_advice (test_gateway_context.GatewayContextTests.test_explicit_replay_updates_history_and_consumes_prior_advice) ... ok
+test_full_attempt_ledger_cannot_downshift_on_last_snapshot (test_gateway_context.GatewayContextTests.test_full_attempt_ledger_cannot_downshift_on_last_snapshot) ... ok
+test_known_workflow_missing_scope_cannot_bypass_private_pin (test_gateway_context.GatewayContextTests.test_known_workflow_missing_scope_cannot_bypass_private_pin) ... ok
+test_live_interpreter_downshift_and_changed_action_escalates (test_gateway_context.GatewayContextTests.test_live_interpreter_downshift_and_changed_action_escalates) ... ok
+test_missing_scope_ambiguous_registered_identity_is_not_joined (test_gateway_context.GatewayContextTests.test_missing_scope_ambiguous_registered_identity_is_not_joined) ... ok
+test_pin_survives_lost_feed_and_policy_conflict_blocks (test_gateway_context.GatewayContextTests.test_pin_survives_lost_feed_and_policy_conflict_blocks) ... ok
+test_private_source_authority_preserves_permitted_explicit_private_alias (test_gateway_context.GatewayContextTests.test_private_source_authority_preserves_permitted_explicit_private_alias) ... ok
+test_registration_cannot_reset_live_continuity (test_gateway_context.GatewayContextTests.test_registration_cannot_reset_live_continuity) ... ok
+test_rejected_new_source_revision_revokes_old_advice (test_gateway_context.GatewayContextTests.test_rejected_new_source_revision_revokes_old_advice) ... ok
+test_scoped_explicit_inflight_exclusion_in_both_directions (test_gateway_context.GatewayContextTests.test_scoped_explicit_inflight_exclusion_in_both_directions) ... ok
+test_scoped_explicit_policy_conflict_rejects_without_retargeting (test_gateway_context.GatewayContextTests.test_scoped_explicit_policy_conflict_rejects_without_retargeting) ... ok
+test_scoped_explicit_tool_exchange_invalidates_auto_advice (test_gateway_context.GatewayContextTests.test_scoped_explicit_tool_exchange_invalidates_auto_advice) ... ok
+test_scoped_generation_cannot_dispatch_concurrently (test_gateway_context.GatewayContextTests.test_scoped_generation_cannot_dispatch_concurrently) ... ok
+test_selector_quotes_recheck_concrete_candidate_m2_eligibility (test_gateway_context.GatewayContextTests.test_selector_quotes_recheck_concrete_candidate_m2_eligibility) ... ok
+test_sensitive_source_cannot_send_derived_selection_public (test_gateway_context.GatewayContextTests.test_sensitive_source_cannot_send_derived_selection_public) ... ok
+test_shadow_and_explicit_aliases_keep_actual_destination (test_gateway_context.GatewayContextTests.test_shadow_and_explicit_aliases_keep_actual_destination) ... ok
+test_shadow_optional_selector_veto_does_not_block_baseline (test_gateway_context.GatewayContextTests.test_shadow_optional_selector_veto_does_not_block_baseline) ... ok
+test_shadow_privacy_authority_and_pin_conflict_still_apply (test_gateway_context.GatewayContextTests.test_shadow_privacy_authority_and_pin_conflict_still_apply) ... ok
+test_source_auth_replay_foreign_scope_and_schemas (test_gateway_context.GatewayContextTests.test_source_auth_replay_foreign_scope_and_schemas) ... ok
+test_strict_context_configuration (test_gateway_context.GatewayContextTests.test_strict_context_configuration) ... ok
+test_tool_exchange_is_pinned_even_if_caller_removes_tools (test_gateway_context.GatewayContextTests.test_tool_exchange_is_pinned_even_if_caller_removes_tools) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 23.704s
+
+OK
+	linux-vdso.so.1 (0x000079cdd3796000)
+	libasan.so.8 => /usr/lib/x86_64-linux-gnu/libasan.so.8 (0x000079cdd2f76000)
+	libmicrohttpd.so.12 => /usr/lib/x86_64-linux-gnu/libmicrohttpd.so.12 (0x000079cdd2f3b000)
+	libcurl.so.4 => /usr/lib/x86_64-linux-gnu/libcurl.so.4 (0x000079cdd2e47000)
+	libjansson.so.4 => /usr/lib/x86_64-linux-gnu/libjansson.so.4 (0x000079cdd2e36000)
+	libpcre2-8.so.0 => /usr/lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x000079cdd2d8a000)
+	libubsan.so.1 => /usr/lib/x86_64-linux-gnu/libubsan.so.1 (0x000079cdd276b000)
+	libc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x000079cdd254a000)
+	libm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x000079cdd2424000)
+	libgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x000079cdd23f6000)
+	libgnutls.so.30 => /usr/lib/x86_64-linux-gnu/libgnutls.so.30 (0x000079cdd21e5000)
+	libnghttp2.so.14 => /usr/lib/x86_64-linux-gnu/libnghttp2.so.14 (0x000079cdd21b9000)
+	libidn2.so.0 => /usr/lib/x86_64-linux-gnu/libidn2.so.0 (0x000079cdd2197000)
+	librtmp.so.1 => /usr/lib/x86_64-linux-gnu/librtmp.so.1 (0x000079cdd2177000)
+	libldap.so.2 => /usr/lib/x86_64-linux-gnu/libldap.so.2 (0x000079cdd2114000)
+	liblber.so.2 => /usr/lib/x86_64-linux-gnu/liblber.so.2 (0x000079cdd2103000)
+	libssh2.so.1 => /usr/lib/x86_64-linux-gnu/libssh2.so.1 (0x000079cdd20b6000)
+	libpsl.so.5 => /usr/lib/x86_64-linux-gnu/libpsl.so.5 (0x000079cdd209f000)
+	libssl.so.3 => /usr/lib/x86_64-linux-gnu/libssl.so.3 (0x000079cdd1f91000)
+	libcrypto.so.3 => /usr/lib/x86_64-linux-gnu/libcrypto.so.3 (0x000079cdd1977000)
+	libgssapi_krb5.so.2 => /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2 (0x000079cdd191f000)
+	libzstd.so.1 => /usr/lib/x86_64-linux-gnu/libzstd.so.1 (0x000079cdd185c000)
+	libbrotlidec.so.1 => /usr/lib/x86_64-linux-gnu/libbrotlidec.so.1 (0x000079cdd184d000)
+	libz.so.1 => /usr/lib/x86_64-linux-gnu/libz.so.1 (0x000079cdd182d000)
+	libstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x000079cdd158d000)
+	/lib64/ld-linux-x86-64.so.2 (0x000079cdd3798000)
+	libp11-kit.so.0 => /usr/lib/x86_64-linux-gnu/libp11-kit.so.0 (0x000079cdd13b2000)
+	libunistring.so.5 => /usr/lib/x86_64-linux-gnu/libunistring.so.5 (0x000079cdd11cb000)
+	libtasn1.so.6 => /usr/lib/x86_64-linux-gnu/libtasn1.so.6 (0x000079cdd11b4000)
+	libhogweed.so.6 => /usr/lib/x86_64-linux-gnu/libhogweed.so.6 (0x000079cdd1167000)
+	libnettle.so.8 => /usr/lib/x86_64-linux-gnu/libnettle.so.8 (0x000079cdd1110000)
+	libgmp.so.10 => /usr/lib/x86_64-linux-gnu/libgmp.so.10 (0x000079cdd108a000)
+	libsasl2.so.2 => /usr/lib/x86_64-linux-gnu/libsasl2.so.2 (0x000079cdd106f000)
+	libkrb5.so.3 => /usr/lib/x86_64-linux-gnu/libkrb5.so.3 (0x000079cdd0fa3000)
+	libk5crypto.so.3 => /usr/lib/x86_64-linux-gnu/libk5crypto.so.3 (0x000079cdd0f75000)
+	libcom_err.so.2 => /usr/lib/x86_64-linux-gnu/libcom_err.so.2 (0x000079cdd0f6f000)
+	libkrb5support.so.0 => /usr/lib/x86_64-linux-gnu/libkrb5support.so.0 (0x000079cdd0f62000)
+	libbrotlicommon.so.1 => /usr/lib/x86_64-linux-gnu/libbrotlicommon.so.1 (0x000079cdd0f3f000)
+	libffi.so.8 => /usr/lib/x86_64-linux-gnu/libffi.so.8 (0x000079cdd0f2e000)
+	libkeyutils.so.1 => /usr/lib/x86_64-linux-gnu/libkeyutils.so.1 (0x000079cdd0f25000)
+	libresolv.so.2 => /usr/lib/x86_64-linux-gnu/libresolv.so.2 (0x000079cdd0f12000)

@@ -1,0 +1,373 @@
+{
+  "verdict": "R1_R2_R3_REPRODUCED_FIXED; FAIL_FINAL_REVIEW_R4_ERROR_PATH",
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "id": "R4",
+      "severity": "medium",
+      "location": "bench/evaluation/live.py:333-340",
+      "title": "Malformed optional usage details escape the provider error boundary as AttributeError",
+      "detail": "Truthy non-object completion_tokens_details or prompt_tokens_details are used via .get without a type check. Lists, strings and integers raise AttributeError, which the except clause does not catch. forward() does not return a controlled 502, the HTTP bridge handler has no enclosing exception handler, and the finally journal leaves upstream status=200 with no error field. The earlier known usage and exact raw bytes survive, and the reservation remains charged, but transport failure is not accurately marked and can trigger harness retries.",
+      "reproduction": "independent.py: list/string/integer details each produced uncaught AttributeError, call_error=null, prior usage complete=true and raw_retained=true. compare-error-path.py isolates an introduced behavior: an invalid interim usage-details object followed by a valid final usage tail returns 200 under 45c1de4 but raises AttributeError under 69d0a74. Rejecting invalid interim provider data is acceptable; escaping the controlled error/evidence path is the defect, not the rejection.",
+      "scope": "Malformed provider schema only; not observed in either actual authorized recording. Tail-shape vulnerability also existed before this commit; processing every record introduces the interim-record regression. Does not bypass spend caps, erase raw evidence or establish an exploit.",
+      "required_fix": "Validate optional details as object/null before applying any usage update, or turn invalid shapes into ValueError handled by the existing 502 path. Preserve prior known usage, record an explicit error, retain raw bytes and liabilities. Add interim and terminal malformed-detail tests for both optional detail fields."
+    }
+  ],
+  "reviewed_commit": "69d0a74dcd32865757cf47ad0f9e7c58e97e2123",
+  "previous_reviewed_commit": "45c1de43524330c3b152cbdd58028282b3c63f27",
+  "reviewed_repository": "/home/aj/projects/recursant-v4-m3-full-task-evaluation",
+  "evidence_root": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74",
+  "provenance": {
+    "commit": "69d0a74dcd32865757cf47ad0f9e7c58e97e2123",
+    "source_hashes": {
+      "bench/evaluation/test_evaluation.py": "9e08fb71e449fe1b5cedb6497c8899581b7babab1e47e68e7366d5f35f629f01",
+      "bench/evaluation/live.py": "a97a8b314fbeeed2eebc325d240041b5e0680a2bc495e1c7937ab1f99bf51604",
+      "bench/evaluation/report.py": "f4add61f2edd2448294816619d7d05574a2c2d1a6a257d292f50a68b0218f1f1",
+      "bench/evaluation/meter.py": "0ed9c79939c1c2840dbe5a513c49ac5f8fbf10b91f73107c9a098ab28a53979f",
+      "bench/evaluation/tasks.py": "c53c949ba8cabf71943bed388f80994f5c72d899c024bc0b94a9819f72548b5d",
+      "bench/evaluation/README.md": "1581cb4d90be6ff549cb9e93dc8a2faa627e1e088dda1dc7a44c6ee86c120166",
+      "bench/evaluation/test_runner_regressions.py": "b65fa88428911a58010e293d340996bb5223830ec6c3286619763e26a202a334",
+      "bench/evaluation/run.py": "d84723c948931b7c0216faedb95690366551f3e56b04d7e40e0ad03c7ac3fd5e",
+      "bench/evaluation/test_stream_regressions.py": "613e5678480ad96b698ea88bdd6032d8b660dd61e9382add16158be74b4945c3",
+      "bench/evaluation/worker.py": "c000ece8f67a000c1b8b7495cf2c415bb71c782bc15e28bc66399c71f865a5f5",
+      "bench/evaluation/live.example.json": "445f05a977a87e78fb8c9d8093cdd580b47a24bbf4c8af48e583b9158903f9ab",
+      "bench/evaluation/evidence/tests-final.log": "7db79d94b54af6f048214432c8d7f64ce41fb94e6a07715a4786bb3dec90fbaf",
+      "bench/evaluation/evidence/fixture-result.json": "9b981e45df429b9b7823ab12c34544f067d7e5df055fb0b04bc69bbd646b2f6f",
+      "deploy/hermes/context_adapter/__init__.py": "7033238e57af838169a9a4a109a948608d820b367906072a4457b8ced27bbbf2",
+      "deploy/hermes/context_adapter/gateway.py": "e4a9e2337f78460edd96406ee88466315544b98b47e56e833883326865dfc8bd"
+    },
+    "source_unchanged": true,
+    "branch_status": "",
+    "binary_sha256": "f692bae58e08353e90b6a4f14d9882b9373233975de67b7ddcb855fd735517cc",
+    "images": {
+      "recursant-v4-dev:local": "sha256:2b5edaf312e5fff935ce0dfe8ae251bd6629393742a9bf236e7b4455b49f70f7",
+      "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b": "sha256:ad2bceb50b5074adf042afd53079eb57f0f17e0e9ce4257a0e03a91ad3e55f1b"
+    },
+    "wire_hashes": {
+      "gpt-4.1-wire.sse": "01ef7d422121fc7f116a60002ad5c066569ba76623d5e3b83e5053347c237d8a",
+      "gpt-4.1-mini-wire.sse": "7a4df822b2d145232f016c7d9251e92d731f896383d42c7fefe584c60fe62589"
+    },
+    "original_review_sha256": "583661e243d2a237b31265fca33cbf06eb2b4472d4b028262e4dd8b01d61202a",
+    "ctest_summary": [
+      "100% tests passed, 0 tests failed out of 17"
+    ],
+    "containers_after": [
+      "goofy_diffie",
+      "cranky_darwin",
+      "recursant-test-postgres-test-1"
+    ]
+  },
+  "scope": "Independent frozen archive, full runner review (live/run/worker/meter/report/tasks/accounting and tests), repair diff plus original review and repair evidence. No repository source edits, commits, pushes, installs, image pulls, model inference, serving or profile changes. Temporary independent probes only in ignored runtime directory.",
+  "authorization": {
+    "live_private_requests_consumed": 0,
+    "live_public_usd_consumed": 0,
+    "maximum_allocation_B_physical_requests": 188,
+    "maximum_allocation_B_public_usd": "9.99",
+    "allocation_A_untouched": {
+      "local_requests": 12,
+      "public_usd": "0.01"
+    }
+  },
+  "original_findings": {
+    "R1": {
+      "resolved": true,
+      "evidence": "Real freshly built C RouteSession passed nonfixture public admission; one loopback request and one liability reservation. Provider field exactly {allow_fallbacks:false}; 0/true/null/empty and routing/pricing extension controls refused. Existing model/context/output/server-tool negative controls passed."
+    },
+    "R2": {
+      "original_cases_resolved": true,
+      "remaining_issue": "R4 malformed optional-details error boundary",
+      "evidence": "Content-Type precedence, comments/events/id/retry, BOM/CRLF/multiline framing, null optional details, provider-error and malformed JSON/nonobject tails, bounded overflow and pre-parse exact raw retention passed. Both existing real wire files replayed via loopback with original SHA-256 unchanged. No paid/provider network calls.",
+      "recordings": [
+        {
+          "name": "gpt-4.1-wire.sse",
+          "input_tokens": 11,
+          "output_tokens": 2,
+          "reasoning_tokens": 0,
+          "cached_input_tokens": 0,
+          "cost_usd": 3.8e-05
+        },
+        {
+          "name": "gpt-4.1-mini-wire.sse",
+          "input_tokens": 11,
+          "output_tokens": 2,
+          "reasoning_tokens": 0,
+          "cached_input_tokens": 0,
+          "cost_usd": 7.6e-06
+        }
+      ],
+      "authority_limit": "Evidence parser only; not native SSE completion, ordering, finish/DONE or gateway replay authority. Whole response buffering remains. Actual recordings here mean previously captured bytes, not new inference."
+    },
+    "R3": {
+      "resolved_with_scope": true,
+      "evidence": "Preflight, exclusive allocation creation and nonfixture Egress construction reject values above $9.99/188. Decimal exact liability admitted; one micro-dollar below refused. 188 real loopback dispatches then 189th refused. Unknown/failed attempts retain liability. fsync failure prevents upstream IO. Same allocation creation after restart refused; incomplete outcomes recover without inventing completion. Independent nonfixture concurrency confirms private serialization and public shared-budget atomicity.",
+      "limits": "One trusted runner process with one shared budget and a parent-issued exclusive allocation path. CLI validates and exclusively creates the journal before constructing Egress. Egress by itself is not a resumable ledger-backed allocator: constructing independent instances without sharing budget, or using new allocation paths for one authorization, is not protected. Cross-process identity and directory-entry power-loss durability remain unqualified. Do not authorize multiple runners against the same allowance."
+    }
+  },
+  "verification": {
+    "unit_and_integration_tests": {
+      "run": 45,
+      "passed": 45,
+      "skipped": 0,
+      "exit_code": 0,
+      "log": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/tests.log",
+      "includes": "Both explicitly opted-in pinned real-Hermes tests, real C/nonfixture public route, authorized wire replays, runner/SSE regressions, existing accounting suite"
+    },
+    "ctest": {
+      "passed": 17,
+      "total": 17,
+      "exit_code": 0,
+      "log": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/build-ctest.log"
+    },
+    "independent": {
+      "concurrent_shared_public_budget": {
+        "statuses": [
+          502,
+          502,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429
+        ],
+        "upstream_calls": 2,
+        "reserved": "0.017868",
+        "unknown_costs_retained": true
+      },
+      "details_null": {
+        "status": 200,
+        "uncaught": null,
+        "call_error": null,
+        "cost": 0.02,
+        "usage": {
+          "total_tokens": 16,
+          "complete": true,
+          "known_tokens": 16
+        },
+        "raw_retained": true,
+        "liability": "0.008934"
+      },
+      "details_object": {
+        "status": 200,
+        "uncaught": null,
+        "call_error": null,
+        "cost": 0.02,
+        "usage": {
+          "total_tokens": 16,
+          "complete": true,
+          "known_tokens": 16
+        },
+        "raw_retained": true,
+        "liability": "0.008934"
+      },
+      "details_list": {
+        "status": null,
+        "uncaught": "AttributeError: 'list' object has no attribute 'get'",
+        "call_error": null,
+        "cost": 0.02,
+        "usage": {
+          "total_tokens": 16,
+          "complete": true,
+          "known_tokens": 16
+        },
+        "raw_retained": true,
+        "liability": "0.008934"
+      },
+      "details_string": {
+        "status": null,
+        "uncaught": "AttributeError: 'str' object has no attribute 'get'",
+        "call_error": null,
+        "cost": 0.02,
+        "usage": {
+          "total_tokens": 16,
+          "complete": true,
+          "known_tokens": 16
+        },
+        "raw_retained": true,
+        "liability": "0.008934"
+      },
+      "details_integer": {
+        "status": null,
+        "uncaught": "AttributeError: 'int' object has no attribute 'get'",
+        "call_error": null,
+        "cost": 0.02,
+        "usage": {
+          "total_tokens": 16,
+          "complete": true,
+          "known_tokens": 16
+        },
+        "raw_retained": true,
+        "liability": "0.008934"
+      },
+      "real_hermes": {
+        "success": true,
+        "verifier": {
+          "success": true,
+          "passed": 5,
+          "total": 5,
+          "exit_code": 0,
+          "artifact_sha256": "0235ca6e4642f0dc86868eca63d743f41254193d4c17e3eefc767f2706ca7520"
+        },
+        "exit_code": 0,
+        "harness_completed": true,
+        "source": {
+          "sha": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+          "pristine": true
+        },
+        "physical_attempts": 4,
+        "harness_settings": {
+          "context": 65536,
+          "model": "fixture",
+          "output": 4096,
+          "turns": 8,
+          "deadline_s": 180
+        },
+        "hook_counts": {
+          "on_session_start": 1,
+          "pre_api_request": 4,
+          "on_stream_start": 4,
+          "on_stream_delta": 4,
+          "on_stream_end": 4,
+          "post_api_request": 4,
+          "post_tool_call": 3,
+          "on_session_end": 1
+        },
+        "evidence_kind": "fixture",
+        "token_accounting": {
+          "total_tokens": null,
+          "complete": false,
+          "known_tokens": 0
+        }
+      }
+    },
+    "original_durability_rerun": {
+      "nonfixture_admission_loopback": {
+        "calls": 2,
+        "state": {
+          "active": 0,
+          "maximum": 1,
+          "observations": [
+            {
+              "reservation_visible_before_provider_handler": true,
+              "unique_reserved_dispatches": 1
+            },
+            {
+              "reservation_visible_before_provider_handler": true,
+              "unique_reserved_dispatches": 2
+            }
+          ]
+        },
+        "third_request_status": 429
+      },
+      "restart_same_allocation_refused": true,
+      "recovered_after_no_outcome": {
+        "calls": 2,
+        "success": false,
+        "collection_complete": false
+      },
+      "persistence_failure_refuses_network": true
+    },
+    "old_new_error_comparison": {
+      "original_45c1de4": {
+        "status": 200,
+        "uncaught": null,
+        "call_error": null,
+        "cost": 0.02,
+        "physical_calls": 1
+      },
+      "reviewed_69d0a74": {
+        "status": null,
+        "uncaught": "AttributeError",
+        "call_error": null,
+        "cost": null,
+        "physical_calls": 1
+      }
+    }
+  },
+  "readiness": {
+    "bounded_baseline_candidate_calibration": {
+      "spend_admission_and_isolation_checks_passed": true,
+      "unconditional_safe_to_start": false,
+      "status": "CONDITIONAL_RUNNER_CAPABLE_BUT_NOT_APPROVED_TO_START",
+      "reason": "No overspend or isolation regression found in the single-parent/single-budget path. A direct fixed-model baseline/candidate calibration does not require native M3 routing readiness. Nevertheless this final review is not a clean pass until R4 is repaired/re-reviewed, and no filled independently reviewed allocation/configuration was supplied.",
+      "requirements": [
+        "Repair R4 and re-review exact source/binary.",
+        "Parent reconciles allocation A and any previous spending; issues a smaller fresh nonreusable allocation B subset if needed.",
+        "Independently review actual tariff/output/tokenizer-framing liability bounds and current private served context/output settings; reference strings are not proof.",
+        "For fixed-model calibration, keep routing/interpreter disabled and retain shared-budget/serialization controls. Review the exact baseline/candidate invocation; do not run the nine-episode, three-arm live CLI as if it were an isolated two-model calibration.",
+        "Disclose and calibrate assistant-selected 65536 context, 4096 output including reasoning, 8 turns and 180-second task deadline (210-second container bound); preserve earlier failures when changing constraints."
+      ]
+    },
+    "full_M3_gateway": {
+      "ready": false,
+      "release_gate": false,
+      "reason": "This runner audit does not clear merged native gateway integration/stream/tool requalification or the separate Jansson allocation-failure blocker. Those remain external blockers, not newly attributed runner regressions."
+    }
+  },
+  "evidence_distinctions": [
+    "Retained real pinned Hermes DAG episode: artifact grader 5/5; harness_completed=true; exit_code=0; 4 scripted physical calls. These are distinct facts, not a claim of live model quality.",
+    "Fixture token_accounting.complete=false and total_tokens=null. known_tokens=0 is a lower bound from absent evidence, not zero actual usage. Provider replay usage validates extraction, not native gateway token accounting or economics.",
+    "Runner permits artifact success despite harness timeout and records harness completion separately; summary success is artifact success. Do not relabel this as successful harness completion.",
+    "All failed-task spending remains in accounting; private resource/collector costs, role attribution and semantic readiness remain unknown. Buffering prevents TTFT/live-mid-generation timing claims.",
+    "Three development tasks and descriptive bootstrap do not establish held-out quality, cost savings, request-only ablation or release acceptance.",
+    "Task-visible traces/results are writable by the agent; this is not a hostile-tenant evidence boundary. Host/image provenance and dispatch journals remain required."
+  ],
+  "commands": [
+    {
+      "cwd": "/home/aj/projects/recursant-v4-m3-full-task-evaluation",
+      "command": "git archive 69d0a74dcd32865757cf47ad0f9e7c58e97e2123; extracted via Python tarfile into /home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/source",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/source",
+      "command": "docker run --rm --pull=never --network=none --user \"$(id -u):$(id -g)\" -v \"$PWD:/work\" -w /work recursant-v4-dev:local bash -lc 'cmake -S . -B build/review -DCMAKE_BUILD_TYPE=Debug && cmake --build build/review -j2 && ctest --test-dir build/review --output-on-failure' > ../build-ctest.log 2>&1",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/source",
+      "command": "M3_DOCKER_TEST=1 M3_ROUTER_BINARY=\"$PWD/build/review/recursant\" M3_REPLAY_WIRE_DIR=/home/aj/projects/recursant-v4/.hermes/runtime/m3-live python3 -m unittest bench.evaluation.test_evaluation bench.evaluation.test_runner_regressions bench.evaluation.test_stream_regressions tests.test_accounting -v > ../tests.log 2>&1",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/source",
+      "command": "python3 ../durability.py > ../durability.log 2>&1",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/source",
+      "command": "python3 ../independent.py > ../independent.log 2>&1",
+      "exit_code": 0
+    },
+    {
+      "cwd": "/home/aj/projects/recursant-v4/.hermes/runtime/m3-runner-review-final-69d0a74/source",
+      "command": "python3 ../compare-error-path.py > ../compare-error-path.log 2>&1",
+      "exit_code": 0
+    }
+  ],
+  "reproduction_scripts": {
+    "durability.py": "import json,sys,threading,tempfile,time,hashlib\nfrom pathlib import Path\nfrom http.server import BaseHTTPRequestHandler,ThreadingHTTPServer\nROOT=Path(__file__).resolve().parent\nsys.path.insert(0,str(ROOT/'source'))\nfrom bench.evaluation.live import Egress,create_allocation\nfrom bench.evaluation.run import recover_outcomes\nresults={};state={'active':0,'maximum':0,'observations':[]};lock=threading.Lock()\nwith tempfile.TemporaryDirectory() as td:\n p=Path(td);allocation=p/'allocation.jsonl'\n class Sink(BaseHTTPRequestHandler):\n  def log_message(self,*args):pass\n  def do_POST(self):\n   self.rfile.read(int(self.headers['Content-Length']))\n   entries=[json.loads(x) for x in allocation.read_text().splitlines()][1:]\n   with lock:\n    state['active']+=1;state['maximum']=max(state['maximum'],state['active'])\n    state['observations'].append({'reservation_visible_before_provider_handler':any(e['status'] is None for e in entries),'unique_reserved_dispatches':len(set(e['dispatch_id'] for e in entries))})\n   time.sleep(.1)\n   self.send_response(200);self.end_headers();self.wfile.write(b'{\"model\":\"private-model\",\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2}}')\n   with lock:state['active']-=1\n server=ThreadingHTTPServer(('127.0.0.1',0),Sink);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()\n cfg=dict(request_cap=2,paid_cap_usd=9.99,allocation_path=str(allocation),allocation_reference='review-synthetic-only',approval_reference='NO-LIVE',context_limit=65536,upstreams={'private':dict(url=f'http://127.0.0.1:{server.server_port}/v1',model='private-model',reasoning_semantics='inclusive',tokenizer='synthetic')})\n create_allocation(cfg)\n ep=p/'ep';ep.mkdir()\n egress=Egress(cfg,ep,'task','text-aware')\n # Using real admission path, ONLY loopback scripted endpoint; these are not model results.\n body={'model':'private-model','messages':[{'role':'user','content':'synthetic'}],'max_tokens':32}\n try:\n  workers=[threading.Thread(target=egress.forward,args=('private',body,{})) for _ in range(2)]\n  for w in workers:w.start()\n  for w in workers:w.join()\n  results['nonfixture_admission_loopback']={'calls':len(egress.calls),'state':state,'third_request_status':egress.forward('private',body,{})[0]}\n  try:create_allocation(cfg)\n  except FileExistsError:results['restart_same_allocation_refused']=True\n  assignment={'episode_id':'ep','task_id':'task','arm':'text-aware','pair_id':'p'}\n  recovered=recover_outcomes(p,[assignment],[])[0]\n  results['recovered_after_no_outcome']={'calls':len(recovered['calls']),'success':recovered['success'],'collection_complete':recovered['collection_complete']}\n  # Fsync journal failure must prevent all upstream IO.\n  another=Egress(dict(cfg,request_cap=10),ep,'task','baseline')\n  before=len(state['observations'])\n  def fail(call):raise OSError('injected persistence failure')\n  another.journal=fail\n  try:another.forward('private',body,{})\n  except OSError:results['persistence_failure_refuses_network']=len(state['observations'])==before\n finally:server.shutdown();server.server_close();thread.join()\n(ROOT/'durability.json').write_text(json.dumps(results,indent=2)+'\\n')\nprint(json.dumps(results,indent=2))\n\n",
+    "independent.py": "import sys,json,tempfile,threading,hashlib\nfrom pathlib import Path\nfrom decimal import Decimal\nfrom concurrent.futures import ThreadPoolExecutor\nROOT=Path(__file__).resolve().parent\nsys.path.insert(0,str(ROOT/'source'))\nfrom bench.evaluation import live\nfrom bench.evaluation.test_runner_regressions import provider,config_for,BODY\nfrom bench.evaluation.run import run_episode,SETTINGS\nfrom bench.evaluation.tasks import TASKS\nfrom bench.accounting import aggregate_calls\nresults={}\n# Two Egress instances, one parent budget, concurrent paid calls.\nwith tempfile.TemporaryDirectory() as td, provider(b'not-json') as (url,seen):\n p=Path(td);cfg=config_for(p,url);liability,_=live.admission(cfg,'public',BODY)\n cfg['paid_cap_usd']=float(liability*2);live.create_allocation(cfg)\n shared={'count':0,'reserved':Decimal('0'),'lock':threading.Lock()}\n meters=[live.Egress(cfg,p,'t','baseline',budget=shared) for _ in range(2)]\n with ThreadPoolExecutor(max_workers=12) as pool:\n  statuses=list(pool.map(lambda i:meters[i%2].forward('public',BODY,{})[0],range(12)))\n assert sorted(statuses)==[429]*10+[502]*2\n assert len(seen)==2 and shared['reserved']==liability*2\n rows=[json.loads(x) for x in Path(cfg['allocation_path']).read_text().splitlines()][1:]\n assert len({r['dispatch_id'] for r in rows})==2 and all(r['cost_usd'] is None for r in rows)\n results['concurrent_shared_public_budget']={'statuses':statuses,'upstream_calls':len(seen),'reserved':str(shared['reserved']),'unknown_costs_retained':True}\n# Explore malformed optional provider details, retaining prior known evidence.\nbase={'prompt_tokens':11,'completion_tokens':5,'cost':0.02}\nfor label,details in [('null',None),('object',{'reasoning_tokens':2}),('list',[1]),('string','bad'),('integer',1)]:\n usage=dict(base,completion_tokens_details=details)\n wire=b'data: '+json.dumps({'usage':base}).encode()+b'\\n\\ndata: '+json.dumps({'usage':usage}).encode()+b'\\n\\n'\n with tempfile.TemporaryDirectory() as td,provider(wire,'text/event-stream') as (url,seen):\n  p=Path(td);cfg=config_for(p,url);live.create_allocation(cfg);e=live.Egress(cfg,p,'t','baseline')\n  try: status=e.forward('public',BODY,{})[0];error=None\n  except Exception as exc:status=None;error=type(exc).__name__+': '+str(exc)\n  call=e.calls[0]\n  results['details_'+label]={'status':status,'uncaught':error,'call_error':call.get('error'),'cost':call['cost_usd'],'usage':aggregate_calls(e.calls),'raw_retained':(p/call['provider_response_ref']).read_bytes()==wire,'liability':str(e.budget['reserved'])}\n# Retain one complete real pinned-Hermes episode separately from usage claims.\nrow=run_episode(TASKS[2],'baseline',ROOT/'retained-hermes',SETTINGS)\nresults['real_hermes']={k:row[k] for k in ['success','verifier','exit_code','harness_completed','source','physical_attempts','harness_settings','hook_counts','evidence_kind']}\nresults['real_hermes']['token_accounting']=aggregate_calls(row['calls'])\nassert row['success'] and row['harness_completed'] and row['physical_attempts']==4\n(ROOT/'independent-results.json').write_text(json.dumps(results,indent=2)+'\\n')\nprint(json.dumps(results,indent=2))\n",
+    "compare-error-path.py": "import sys,json,tempfile,importlib.util,subprocess\nfrom pathlib import Path\nROOT=Path(__file__).resolve().parent\nsys.path.insert(0,str(ROOT/'source'))\nfrom bench.evaluation import live\nfrom bench.evaluation.test_runner_regressions import provider,config_for,BODY\nold_path=ROOT/'original-live.py'\nold_path.write_bytes(subprocess.check_output(['git','show','45c1de43524330c3b152cbdd58028282b3c63f27:bench/evaluation/live.py'],cwd='/home/aj/projects/recursant-v4-m3-full-task-evaluation'))\nspec=importlib.util.spec_from_file_location('original_live',old_path);old=importlib.util.module_from_spec(spec);spec.loader.exec_module(old)\nframes=[{'usage':{'prompt_tokens':11,'completion_tokens':5,'completion_tokens_details':[1]}},{'usage':{'prompt_tokens':11,'completion_tokens':5,'completion_tokens_details':None,'cost':0.02}}]\n# Old null defect separately avoided here to isolate middle-record regression.\nframes[-1]['usage']['completion_tokens_details']={}\nwire=b''.join(b'data: '+json.dumps(f).encode()+b'\\n\\n' for f in frames)+b'data: [DONE]\\n\\n'\nresults={}\nfor label,module in [('original_45c1de4',old),('reviewed_69d0a74',live)]:\n with tempfile.TemporaryDirectory() as td,provider(wire,'text/event-stream') as (url,seen):\n  p=Path(td);cfg=config_for(p,url);module.create_allocation(cfg);e=module.Egress(cfg,p,'t','baseline')\n  try:status=e.forward('public',BODY,{})[0];error=None\n  except Exception as exc:status=None;error=type(exc).__name__\n  results[label]={'status':status,'uncaught':error,'call_error':e.calls[0].get('error'),'cost':e.calls[0]['cost_usd'],'physical_calls':len(seen)}\nassert results['original_45c1de4']['status']==200\nassert results['reviewed_69d0a74']['uncaught']=='AttributeError'\n(ROOT/'compare-error-path.json').write_text(json.dumps(results,indent=2)+'\\n')\nprint(json.dumps(results,indent=2))\n"
+  },
+  "artifact_hashes": {
+    "build-ctest.log": "e129362318d8d4b701887e06752d80ee6133aa6a0f504c3dd69ac8bf71e5015e",
+    "tests.log": "05d70b8a2cd70a4b5733781d3fb9a84eb3632a2208038c620781b83b3de37fe4",
+    "durability.json": "9b0b56b03343f8dcc0f1b43162881704a32bd375c770802d30ce083d14eda578",
+    "independent-results.json": "95057d51ca8979d5f68c1318949882bf73f60ada062e0579a9206b44b1646121",
+    "compare-error-path.json": "9c30405a760dc00b20be13c62648da20c6c38073118813986ce77a7c96f8ee47"
+  },
+  "suggestions": [
+    "Extend provider-shape validation coverage beyond nulls; unsupported provider fields should fail with a controlled status and explicit call error.",
+    "Retain this review as failed history if repairs follow; use a new exact commit review rather than replacing provenance."
+  ],
+  "issues_encountered": [
+    "All shipped tests passed, but independently added malformed optional-detail probes exposed R4. No installed dependencies or network workaround was needed.",
+    "Temporary probe editor reported static import-resolution diagnostics because it could not follow the runtime-added frozen-source path; every probe actually executed successfully."
+  ],
+  "raw_artifacts": "No real wire bytes or secrets embedded. Authorized source recordings were read only and never committed. Raw fixture episode and synthetic probes remain ignored under evidence_root."
+}

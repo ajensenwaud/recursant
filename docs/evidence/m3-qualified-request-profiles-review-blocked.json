@@ -1,0 +1,18 @@
+{
+  "reviewed_commit": "d482fd4",
+  "delegation_id": "deleg_b05b57d4",
+  "passed": false,
+  "review_complete": false,
+  "status": "provider_blocked_independent_review",
+  "reason": "The model provider stopped the delegated review with content_policy_blocked. No completed independent verdict was delivered; this is not evidence of a product security defect or a passing review.",
+  "merge_permitted": false,
+  "separate_parent_measured_compatibility_gap": {
+    "evidence": "m3-native-profile-shape.json",
+    "actual_profile_bytes": 36501,
+    "configured_profile_byte_limit": 32768,
+    "actual_tool_definitions_bytes": 36463,
+    "configured_tool_definitions_byte_limit": 16384,
+    "status": "Actual pinned-Hermes request profiles exceed both declared limits. Requires a bounded regression and reviewed correction."
+  },
+  "provider_or_safety_configuration_changed": false
+}

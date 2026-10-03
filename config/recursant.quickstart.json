@@ -1,0 +1,156 @@
+{
+  "listen": {
+    "host": "127.0.0.1",
+    "port": 8080
+  },
+  "providers": [
+    {
+      "name": "local",
+      "trust": "private",
+      "url": "http://127.0.0.1:11434/v1",
+      "adapter": "openai-compatible"
+    },
+    {
+      "name": "openrouter",
+      "trust": "public",
+      "url": "https://openrouter.ai/api/v1",
+      "key_env": "OPENROUTER_API_KEY",
+      "adapter": "openrouter"
+    }
+  ],
+  "private_default": {
+    "provider": "local",
+    "model": "qwen3:8b"
+  },
+  "auth": {
+    "api_key_env": "RECURSANT_API_KEY"
+  },
+  "aliases": [
+    {
+      "from": "baseline",
+      "provider": "openrouter",
+      "model": "openai/gpt-4.1"
+    },
+    {
+      "from": "economy",
+      "provider": "openrouter",
+      "model": "openai/gpt-4.1-mini"
+    },
+    {
+      "from": "strong",
+      "provider": "openrouter",
+      "model": "openai/o4-mini"
+    },
+    {
+      "from": "local",
+      "provider": "local",
+      "model": "qwen3:8b"
+    }
+  ],
+  "limits": {
+    "max_body_bytes": 4194304,
+    "max_connections": 32,
+    "request_timeout_seconds": 600
+  },
+  "compliance": {
+    "enabled": true,
+    "public_allowed": true,
+    "text_mode": "agent",
+    "identifiers": [
+      "au_tfn",
+      "au_medicare",
+      "au_abn",
+      "payment_card",
+      "au_phone",
+      "au_bank_account",
+      "passport",
+      "drivers_licence",
+      "date_of_birth"
+    ]
+  },
+  "context": {
+    "mode": "active",
+    "tenant": "local",
+    "project": "default",
+    "source_key_env": "RECURSANT_SOURCE_KEY",
+    "auto_alias": "auto",
+    "baseline_alias": "baseline",
+    "ttl_ms": 180000,
+    "signals": "on",
+    "sessions": "request",
+    "reasoning_text": "drop",
+    "health": {
+      "cooldown_ms": 5000,
+      "failure_ratio": 0.5,
+      "min_requests": 5,
+      "max_retries": 2
+    },
+    "reasoning": "signals",
+    "repeat_escalation": "off",
+    "housekeeping": {
+      "alias": "economy"
+    },
+    "budgets": {
+      "session_usd": 5.0,
+      "downshift_at": 0.8,
+      "session_requests": 500,
+      "requests_per_minute": 600
+    },
+    "decision_headers": "on",
+    "candidates": [
+      {
+        "alias": "baseline",
+        "quality_evidence": "HARNESS-DEFAULT-BASELINE",
+        "qualified_tasks": [],
+        "context_limit": 1000000,
+        "price": {
+          "input_per_mtok": 2.0,
+          "output_per_mtok": 8.0,
+          "cached_input_per_mtok": 0.5
+        }
+      },
+      {
+        "alias": "economy",
+        "quality_evidence": "OPERATOR-QUALIFIED-ROUTINE-STEPS",
+        "qualified_tasks": [
+          "tool_followup_ok",
+          "final_answer",
+          "delegated_start"
+        ],
+        "context_limit": 1000000,
+        "capabilities": {
+          "tool_history": true,
+          "function_tools": true,
+          "parallel_tools": true
+        },
+        "price": {
+          "input_per_mtok": 0.4,
+          "output_per_mtok": 1.6,
+          "cached_input_per_mtok": 0.1
+        }
+      },
+      {
+        "alias": "strong",
+        "quality_evidence": "OPERATOR-QUALIFIED-RECOVERY",
+        "qualified_tasks": [],
+        "escalation": true,
+        "context_limit": 200000,
+        "capabilities": {
+          "tool_history": true,
+          "function_tools": true,
+          "parallel_tools": true
+        },
+        "reasoning": {
+          "family": "openrouter",
+          "low": "low",
+          "high": "high"
+        },
+        "price": {
+          "input_per_mtok": 1.1,
+          "output_per_mtok": 4.4,
+          "cached_input_per_mtok": 0.275
+        }
+      }
+    ]
+  }
+}

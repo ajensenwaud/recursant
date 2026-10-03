@@ -1,0 +1,41 @@
+{
+  "explicit_tool_exchange": {
+    "explicit_status": 200,
+    "tool_reply": {
+      "choices": [
+        {
+          "index": 0,
+          "finish_reason": "tool_calls",
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call-1",
+                "type": "function",
+                "function": {
+                  "name": "f",
+                  "arguments": "{}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "subsequent_auto_model": "physical"
+  },
+  "shadow_candidate_veto": {
+    "unassociated_status": 200,
+    "associated_status": 403,
+    "physical_dispatches": 1
+  },
+  "shadow_source_placement": {
+    "first_model": "frontier",
+    "second_model": "physical"
+  },
+  "client_reset": {
+    "next_status": 200,
+    "next_model": "frontier"
+  }
+}

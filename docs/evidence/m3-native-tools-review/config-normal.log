@@ -1,0 +1,9 @@
+rejected None exit 1
+rejected [] exit 1
+rejected True exit 1
+rejected {'future': True} exit 1
+rejected {'tool_history': 1} exit 1
+rejected {'function_tools': 'true'} exit 1
+rejected {'parallel_tools': None} exit 1
+7 malformed capability configurations rejected
+valid boolean capability control starts and shuts down cleanly

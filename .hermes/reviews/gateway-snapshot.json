@@ -1,0 +1,14 @@
+{
+  "snapshot": "/tmp/recursant-m3-gateway-review-swjdx99t",
+  "base": "9cb10db8572bd637b42448c410c052dc7684ed54",
+  "hashes": {
+    "CMakeLists.txt": "89fe2ebc41d4d35172a1382978a2259c9c64db81a43c56238728cb713d48e61a",
+    "core/include/recursant/runtime.h": "f9f05085f3d9e96cd9dc3dc4b6b2ec6b4fbabd6c9f1abe02941177d5830b19ea",
+    "core/src/http/router.c": "c140d467c796bae12144b1a692aa22957dec42a7434d9d4ff2f83df063bc8cae",
+    "core/src/runtime.c": "63701d736ef4c8330b996302c1d887bd3a5495f0a49b6ef8a1f4e384886dd948",
+    "core/include/recursant/gateway_context.h": "dc197267ade01e34c498357789702fdaeb7379241a14a4538fa0b99a18544cbf",
+    "core/src/context/gateway_context.c": "01ddf41b4ab0f0a925fc66cae6d30383e495ef12146af2aed9020898514a7a40",
+    "docs/m3-gateway-wire-contract.md": "e9fe9386e4256df0b01ea4730f062bdae00c65a82924836aeee75abe17774949",
+    "tests/integration/test_gateway_context.py": "e8797cfcd7ae9a0e970fb03a0d71d0992ffcbc144372a185819c6cde1bdf7bf8"
+  }
+}

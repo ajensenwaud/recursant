@@ -1,0 +1,345 @@
+{
+  "kind": "reference_interpretation_not_release_benchmark",
+  "assigned_cases": 12,
+  "recorded_attempts": 12,
+  "missing_cases": [],
+  "complete": true,
+  "schema_valid_cases": 10,
+  "label_matched_cases": 6,
+  "attempts": [
+    {
+      "case_id": "holdout-v1-01-negative-result-new-information",
+      "schema_valid": true,
+      "labels_match": false,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": false,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 374,
+        "completion_tokens": 881,
+        "total_tokens": 1255
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-02-failure-without-workflow-status",
+      "schema_valid": false,
+      "labels_match": false,
+      "field_matches": {},
+      "usage": null,
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-03-retracted-plan-redesign",
+      "schema_valid": false,
+      "labels_match": false,
+      "field_matches": {},
+      "usage": null,
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-04-identical-reruns",
+      "schema_valid": true,
+      "labels_match": false,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": false,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 371,
+        "completion_tokens": 3170,
+        "total_tokens": 3541
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-05-revert-before-repair",
+      "schema_valid": true,
+      "labels_match": false,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": false,
+        "progress_state": false,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 343,
+        "completion_tokens": 3307,
+        "total_tokens": 3650
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-06-external-authorization-stop",
+      "schema_valid": true,
+      "labels_match": true,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 378,
+        "completion_tokens": 1323,
+        "total_tokens": 1701
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-07-unordered-conflicting-notes",
+      "schema_valid": true,
+      "labels_match": true,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 381,
+        "completion_tokens": 2149,
+        "total_tokens": 2530
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-08-quoted-injection-final-table",
+      "schema_valid": true,
+      "labels_match": true,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 393,
+        "completion_tokens": 818,
+        "total_tokens": 1211
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-09-metadata-only-abstention",
+      "schema_valid": true,
+      "labels_match": true,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 277,
+        "completion_tokens": 512,
+        "total_tokens": 789
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-10-cross-service-causal-proof",
+      "schema_valid": true,
+      "labels_match": true,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 424,
+        "completion_tokens": 942,
+        "total_tokens": 1366
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-11-bounded-two-consumer-edit",
+      "schema_valid": true,
+      "labels_match": true,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": true,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 414,
+        "completion_tokens": 595,
+        "total_tokens": 1009
+      },
+      "reasoning_inclusion": "unverified"
+    },
+    {
+      "case_id": "holdout-v1-12-claimed-ease-not-progress",
+      "schema_valid": true,
+      "labels_match": false,
+      "field_matches": {
+        "phase": true,
+        "next_action": true,
+        "difficulty_band": true,
+        "progress_state": false,
+        "coverage": true
+      },
+      "usage": {
+        "prompt_tokens": 360,
+        "completion_tokens": 1434,
+        "total_tokens": 1794
+      },
+      "reasoning_inclusion": "unverified"
+    }
+  ],
+  "release_pass": false,
+  "manifest_sha256": "a9d11a40ed35402d210b7ab47c06d8ab92d8f1e076b23a48983d0854bb60dc16",
+  "ledger_sha256": {
+    "holdout-v1.json": "8f4b16508ef5a35469d973a0671c669e3dcfe18c98bca9f309e0e678c3fcf96d",
+    "holdout-v1-continuation.json": "af61938142f3849ccd3b3bcd3d9b2a0b763cba9e4baf34b76d8f84d480fa7a40",
+    "holdout-v1-final-batch.json": "e637b56685fdd653795b3c4613f80dbbf7a13c184d22b470f00217a5bf2ab92a"
+  },
+  "approved_additional_local_calls_consumed": 12,
+  "public_calls": 0,
+  "status_counts": {
+    "received": 10,
+    "failed": 2
+  },
+  "condition": {
+    "model": "GLM-5.3-Flash-EXL3",
+    "max_tokens": 4096,
+    "timeout_seconds": 180,
+    "structured": true,
+    "reasoning_changed": false
+  },
+  "response_representation": "Observed content/finish/usage projection; original inline scorer wrapper corrected offline, no calls repeated.",
+  "evidence_scope": "frozen holdout semantic diagnostic; not full-task quality, readiness or savings acceptance",
+  "dispatches": [
+    {
+      "case_id": "holdout-v1-01-negative-result-new-information",
+      "status": "received",
+      "elapsed_seconds": 68.67245603632182,
+      "http_status": 200,
+      "reasoning_chars": 3775
+    },
+    {
+      "case_id": "holdout-v1-02-failure-without-workflow-status",
+      "status": "failed",
+      "elapsed_seconds": 180.10448307497427,
+      "error_type": "TimeoutError"
+    },
+    {
+      "case_id": "holdout-v1-03-retracted-plan-redesign",
+      "status": "failed",
+      "elapsed_seconds": 180.094994999934,
+      "error_type": "TimeoutError"
+    },
+    {
+      "case_id": "holdout-v1-04-identical-reruns",
+      "status": "received",
+      "elapsed_seconds": 131.89470402430743,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 14325
+    },
+    {
+      "case_id": "holdout-v1-05-revert-before-repair",
+      "status": "received",
+      "elapsed_seconds": 139.4508557273075,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 14950
+    },
+    {
+      "case_id": "holdout-v1-06-external-authorization-stop",
+      "status": "received",
+      "elapsed_seconds": 55.88889566762373,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 6009
+    },
+    {
+      "case_id": "holdout-v1-07-unordered-conflicting-notes",
+      "status": "received",
+      "elapsed_seconds": 79.51657814485952,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 9470
+    },
+    {
+      "case_id": "holdout-v1-08-quoted-injection-final-table",
+      "status": "received",
+      "elapsed_seconds": 28.74552339920774,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 3465
+    },
+    {
+      "case_id": "holdout-v1-09-metadata-only-abstention",
+      "status": "received",
+      "elapsed_seconds": 17.032863463740796,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 2110
+    },
+    {
+      "case_id": "holdout-v1-10-cross-service-causal-proof",
+      "status": "received",
+      "elapsed_seconds": 35.16481914836913,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 4007
+    },
+    {
+      "case_id": "holdout-v1-11-bounded-two-consumer-edit",
+      "status": "received",
+      "elapsed_seconds": 22.298972771968693,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 2642
+    },
+    {
+      "case_id": "holdout-v1-12-claimed-ease-not-progress",
+      "status": "received",
+      "elapsed_seconds": 57.2418893952854,
+      "http_status": 200,
+      "deadline_reached": false,
+      "reasoning_chars": 6587
+    }
+  ],
+  "received_median_seconds": 56.56539253145456,
+  "valid_response_field_matches": {
+    "phase": {
+      "matched": 10,
+      "returned": 10
+    },
+    "next_action": {
+      "matched": 10,
+      "returned": 10
+    },
+    "difficulty_band": {
+      "matched": 7,
+      "returned": 10
+    },
+    "progress_state": {
+      "matched": 8,
+      "returned": 10
+    },
+    "coverage": {
+      "matched": 10,
+      "returned": 10
+    }
+  }
+}

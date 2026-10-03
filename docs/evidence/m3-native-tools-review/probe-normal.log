@@ -1,0 +1,13 @@
+test_historical_callback_and_reused_call_id (__main__.Probe.test_historical_callback_and_reused_call_id) ... ok
+test_new_scope_cannot_bootstrap_claimed_tool_history (__main__.Probe.test_new_scope_cannot_bootstrap_claimed_tool_history) ... ok
+test_new_tool_requirements_and_no_definition_continuation (__main__.Probe.test_new_tool_requirements_and_no_definition_continuation) ... ok
+test_pending_prefix_does_not_consume_boundary (__main__.Probe.test_pending_prefix_does_not_consume_boundary) ... ok
+test_repeated_invocation_denies_source_attribution (__main__.Probe.test_repeated_invocation_denies_source_attribution) ... ok
+test_shadow_completed_boundary_and_explicit_owner (__main__.Probe.test_shadow_completed_boundary_and_explicit_owner) ... ok
+test_status_provenance_all_literals (__main__.Probe.test_status_provenance_all_literals) ... ok
+test_tool_source_privacy_sticky_after_metadata (__main__.Probe.test_tool_source_privacy_sticky_after_metadata) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 8.597s
+
+OK

@@ -1,0 +1,208 @@
+{
+  "passed": true,
+  "case_count": 26,
+  "cases": [
+    {
+      "case": "scope_loss_identity_pin_baseline",
+      "mode": "active",
+      "repeat": 0,
+      "lost_tag_rejections": 12,
+      "passed": true
+    },
+    {
+      "case": "scope_loss_identity_pin_baseline",
+      "mode": "active",
+      "repeat": 1,
+      "lost_tag_rejections": 12,
+      "passed": true
+    },
+    {
+      "case": "scope_loss_identity_pin_baseline",
+      "mode": "active",
+      "repeat": 2,
+      "lost_tag_rejections": 12,
+      "passed": true
+    },
+    {
+      "case": "scope_loss_identity_pin_baseline",
+      "mode": "shadow",
+      "repeat": 0,
+      "lost_tag_rejections": 12,
+      "passed": true
+    },
+    {
+      "case": "scope_loss_identity_pin_baseline",
+      "mode": "shadow",
+      "repeat": 1,
+      "lost_tag_rejections": 12,
+      "passed": true
+    },
+    {
+      "case": "scope_loss_identity_pin_baseline",
+      "mode": "shadow",
+      "repeat": 2,
+      "lost_tag_rejections": 12,
+      "passed": true
+    },
+    {
+      "case": "mixed_explicit_auto_old_worker",
+      "delay": 0.0,
+      "repeat": 0,
+      "models": [
+        "frontier",
+        "other-physical",
+        "frontier"
+      ],
+      "passed": true
+    },
+    {
+      "case": "mixed_explicit_auto_old_worker",
+      "delay": 0.0,
+      "repeat": 1,
+      "models": [
+        "frontier",
+        "other-physical",
+        "frontier"
+      ],
+      "passed": true
+    },
+    {
+      "case": "mixed_explicit_auto_old_worker",
+      "delay": 0.0,
+      "repeat": 2,
+      "models": [
+        "frontier",
+        "other-physical",
+        "frontier"
+      ],
+      "passed": true
+    },
+    {
+      "case": "mixed_explicit_auto_old_worker",
+      "delay": 0.45,
+      "repeat": 0,
+      "models": [
+        "frontier",
+        "other-physical",
+        "frontier"
+      ],
+      "passed": true
+    },
+    {
+      "case": "mixed_explicit_auto_old_worker",
+      "delay": 0.45,
+      "repeat": 1,
+      "models": [
+        "frontier",
+        "other-physical",
+        "frontier"
+      ],
+      "passed": true
+    },
+    {
+      "case": "mixed_explicit_auto_old_worker",
+      "delay": 0.45,
+      "repeat": 2,
+      "models": [
+        "frontier",
+        "other-physical",
+        "frontier"
+      ],
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "auto",
+      "second": "other",
+      "repeat": 0,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "auto",
+      "second": "other",
+      "repeat": 1,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "auto",
+      "second": "other",
+      "repeat": 2,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "auto",
+      "repeat": 0,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "auto",
+      "repeat": 1,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "auto",
+      "repeat": 2,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "baseline",
+      "repeat": 0,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "baseline",
+      "repeat": 1,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "baseline",
+      "repeat": 2,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "other",
+      "repeat": 0,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "other",
+      "repeat": 1,
+      "passed": true
+    },
+    {
+      "case": "inflight",
+      "first": "other",
+      "second": "other",
+      "repeat": 2,
+      "passed": true
+    },
+    {
+      "case": "shadow_optional_failure_mandatory_privacy",
+      "pinned": false,
+      "passed": true
+    },
+    {
+      "case": "shadow_optional_failure_mandatory_privacy",
+      "pinned": true,
+      "passed": true
+    }
+  ]
+}

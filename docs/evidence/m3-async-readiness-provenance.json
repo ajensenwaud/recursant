@@ -1,0 +1,22 @@
+{
+  "revision": "2d69166c6992b8cdea014f00d7268060de0d4973",
+  "sha256": {
+    "AGENTS.md": "7b8f8d3cfafba38d837350acf1a07a473fa85741ea921738d7db720412a83090",
+    "docs/m3-architecture-review.md": "af25fb11833ba29c189ae7f74b3735961c34546be3673e8f1ed30f42ca31e3da",
+    "docs/benchmark-contract.md": "b1b6e84188b87e00c3b4b47b49be2ccf0efff7f7e961884ee50561a71bdc24c3",
+    "core/src/context/gateway_context.c": "ac6fd428474fb9755e48f34f65ea9c4b9807671905fd9ba75d5984ccd5d10d94",
+    "core/src/context/context.c": "9897d2b2d9d4a4c7a50492141a280de0a134711d471e32f1ffa42a1ef4b03cb5",
+    "core/src/context/interpreter.c": "d3e4d3aa580b9fcbf4ac3ee3555a6b38940d36ff4f51d5b6b3cbed71827b13aa",
+    "core/src/context/selector.c": "1addc26b9415aa99bd1dcd8c0af43b75eee1b195964c24bd4f64ba095a0a0783",
+    "core/src/context/attempts.c": "3c0db498ed0ef36ede5f9c72c082544266aeca562d1db5512fee3caa18af0be9",
+    "deploy/hermes/context_adapter/gateway.py": "147d2e7a87db5e67ae7bb89a3a8fce4da14a1d533002c61bdda59f52b350cc1a",
+    "deploy/hermes/context_adapter/__init__.py": "7033238e57af838169a9a4a109a948608d820b367906072a4457b8ced27bbbf2",
+    "tests/integration/test_native_tools.py": "8a6a31058854918eec11f5dbebd4cb40adcc9ed3d463b2a4315d62f9357c0483",
+    "tests/integration/test_gateway_context.py": "b2f4559204d9a5932dadeb8ee082f21ae870232990d198b81f7c1dca52009482",
+    "docs/evidence/m3-async-readiness-probe.py": "63c4987818c6ec0086a31c29aa5b1693278f1134ccd1ce0a561a113afb9603f3",
+    "docs/evidence/m3-async-readiness-results.json": "cad2dc23289bb03726d4df6afb4cf44f2b72578d60d55a572ef0e109110018ef",
+    "docs/evidence/m3-holdout-v1-live-final.json": "6251996dde8580e73af4c3200a9a5048effcb5e72c26f0cbd67ffb1babae8a52"
+  },
+  "binary_sha256": "e85cf6a533e393c5bdaafd4ecc530c300c404032b2e8dc3a5ef89326ff7e024b",
+  "note": "benchmark-contract working tree already modified by parent; captured as read. No production changes by audit."
+}
