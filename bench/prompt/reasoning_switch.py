@@ -30,6 +30,7 @@ def arm(rows, choose):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('off'); ap.add_argument('on'); ap.add_argument('--out')
+    ap.add_argument('--scores', help='embed_eval.py output: evaluate its out-of-fold scores too')
     a = ap.parse_args()
     off, on = load(a.off), load(a.on)
     rows = []
@@ -80,6 +81,16 @@ def main():
                     [('learned switch p>=%.2f (5-fold)' % t, (lambda t: lambda r, k: s5[k] >= t)(t)) for t in (0.05, 0.1, 0.2, 0.3)]:
         acc, tok, mean_s, med_s, share = arm(rows, ch)
         print('%-34s %7.1f%% %10.0f %10.1f %10.1f %7.0f%%' % (name, acc, tok, mean_s, med_s, share))
+    if a.scores:
+        ext = json.load(open(a.scores)); pos = {r['id']: k for k, r in enumerate(rows)}
+        for name, d in ext.items():
+            for split in ('kfold', 'loso'):
+                sc = [0.0] * n
+                for i, p in zip(d['ids'], d[split]): sc[pos[i]] = p
+                print('\n%s [%s]: AUC %.3f, %.1f ms/question' % (name, split, auc(sc, ys), 1000 * d['secs_per_q']))
+                for t in (0.05, 0.1, 0.2, 0.3, 0.4):
+                    acc, tok, mean_s, med_s, share = arm(rows, (lambda t, sc=sc: lambda r, k: sc[k] >= t)(t))
+                    print('  p>=%.2f %7.1f%% %8.0f tok %7.1f s mean %6.1f s median %5.0f%% worked' % (t, acc, tok, mean_s, med_s, share))
     if a.out:
         m = fit(rows); json.dump(m, open(a.out, 'w'), indent=0, sort_keys=True); print('wrote', a.out)
 
