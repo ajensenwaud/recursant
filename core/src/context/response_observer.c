@@ -104,17 +104,26 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     /* Match terminal native metadata to its exact supported finish mode.
      * Live OpenRouter openai/gpt-4.1 (pilot-1) reports "completed" for a
      * tool_calls finish; the finish/tail consistency check below still binds. */
+    /* Anthropic models on OpenRouter report Anthropic's own stop reasons:
+     * "tool_use" for a tool_calls finish, "end_turn" for a stop finish. */
     if(native&&!json_is_null(native)&&
        !((string_is(native,"completed")&&(string_is(finish,"stop")||string_is(finish,"tool_calls")))||
-         (string_is(native,"tool_calls")&&string_is(finish,"tool_calls"))))return false;
-    if(!keys(delta,o->drop_reasoning?"|role||content||tool_calls||reasoning||reasoning_content|":"|role||content||tool_calls|",
+         (string_is(native,"tool_calls")&&string_is(finish,"tool_calls"))||
+         (string_is(native,"tool_use")&&string_is(finish,"tool_calls"))||
+         (string_is(native,"end_turn")&&string_is(finish,"stop"))))return false;
+    if(!keys(delta,o->drop_reasoning?"|role||content||tool_calls||reasoning||reasoning_content||reasoning_details|":"|role||content||tool_calls|",
              "|refusal||annotations||audio||function_call|"))return false;
     /* Opt-in (context.reasoning_text "drop"): readable reasoning text (vLLM
-     * "reasoning", "reasoning_content") is left out of the replayable message.
-     * Whether a harness replays it is checked by the exact replay of the next
-     * request. Structured or encrypted reasoning always fails closed. */
+     * "reasoning", "reasoning_content") and OpenRouter's reasoning_details
+     * array (Claude's signed or redacted thinking blocks) are left out of the
+     * replayable message. Whether a harness replays them is checked by the
+     * exact replay of the next request: a harness that sends thinking back
+     * makes the next request differ, which pins as before. Any other shape
+     * (an object where text is expected) fails closed. */
     json_t *thinking[]={json_object_get(delta,"reasoning"),json_object_get(delta,"reasoning_content")};
     for(size_t k=0;k<2;k++)if(thinking[k]&&!json_is_null(thinking[k])&&!json_is_string(thinking[k]))return false;
+    json_t *details=json_object_get(delta,"reasoning_details");
+    if(details&&!json_is_null(details)&&!json_is_array(details))return false;
     json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
     /* OpenRouter repeats the empty terminal choice with accounting. This is
      * not a second completion or permission to append state after finish. */
@@ -123,7 +132,9 @@ static bool chunk(rc_response_observer *o,json_t *root) {
            json_object_get(delta,"tool_calls")||
            (text&&!string_is(text,""))||
            o->native_completed!=string_is(native,"completed")||
-           o->native_tool_calls!=string_is(native,"tool_calls"))return false;
+           o->native_tool_calls!=string_is(native,"tool_calls")||
+           o->native_tool_use!=string_is(native,"tool_use")||
+           o->native_end_turn!=string_is(native,"end_turn"))return false;
         o->accounting_tail=true;
     }
     if(role){if(!string_is(role,"assistant"))return false;o->role=true;}
@@ -151,6 +162,8 @@ static bool chunk(rc_response_observer *o,json_t *root) {
         o->tool_finish=tools;
         o->native_completed=string_is(native,"completed");
         o->native_tool_calls=string_is(native,"tool_calls");
+        o->native_tool_use=string_is(native,"tool_use");
+        o->native_end_turn=string_is(native,"end_turn");
         o->finished=true;
     }
     return true;

@@ -34,7 +34,8 @@ def main():
     ap.add_argument('--private-url'); ap.add_argument('--limit', type=int)
     ap.add_argument('--reserve', type=float, default=0.02); ap.add_argument('--shuffle', action='store_true')
     ap.add_argument('--thinking', choices=('on', 'off'), default='off'); ap.add_argument('--style', choices=('brief', 'direct'), default='brief'); ap.add_argument('--max-tokens', type=int, default=1024)
-    ap.add_argument('--effort', choices=('none', 'minimal', 'low', 'medium', 'high'), help='public reasoning models: OpenRouter reasoning.effort (default: the provider default)')
+    ap.add_argument('--timeout', type=int, default=600, help='seconds per request')
+    ap.add_argument('--effort', choices=('none', 'minimal', 'low', 'medium', 'high', 'xhigh'), help='public reasoning models: OpenRouter reasoning.effort (default: the provider default)')
     a = ap.parse_args()
     items = [json.loads(l) for l in open(ITEMS)]
     if a.limit: items = items[:a.limit]
@@ -64,7 +65,7 @@ def main():
             req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
             start = time.time()
             try:
-                with urllib.request.urlopen(req, timeout=600) as resp: ans = json.loads(resp.read())
+                with urllib.request.urlopen(req, timeout=a.timeout) as resp: ans = json.loads(resp.read())
                 u = ans.get('usage') or {}
                 msg = ans['choices'][0]['message']
                 rec.update(text=msg.get('content') or '', secs=round(time.time() - start, 2), reasoning_chars=len(msg.get('reasoning_content') or msg.get('reasoning') or ''),

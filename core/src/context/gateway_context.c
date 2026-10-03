@@ -98,6 +98,7 @@ struct hint {char session[RC_ATTEMPT_TOKEN_SIZE];uint64_t at;bool delegated,set;
 struct physical {rc_attempt_headers headers;rc_attempt_id id;int scope;bool complete,in_use,settled;uint64_t begun;};
 struct outcome {uint64_t window,requests,failures,until;};
 enum {EFFORT_NONE,EFFORT_OPENAI,EFFORT_OPENROUTER,EFFORT_VLLM_THINKING};
+enum {REASONING_OFF,REASONING_SIGNALS,REASONING_STEPS};
 struct rc_gateway_context {
     pthread_mutex_t lock;
     bool active;
@@ -126,10 +127,16 @@ struct rc_gateway_context {
      * Never moves a pinned session and never crosses final M2. */
     struct {bool on;uint64_t cooldown_ms,min_requests,max_retries;double ratio;} health;
     struct outcome outcome[RC_SELECTOR_MAX_CANDIDATES];
-    /* context.reasoning "signals" (default off): a downshifted step asks its
+    /* context.reasoning (default "off"). "signals": a downshifted step asks its
      * destination for the candidate's low effort, an escalated step for its
-     * high effort, in the family's own field. Never overrides the harness. */
-    bool reasoning;
+     * high effort, in the family's own field; never overrides the harness.
+     * "steps": every session step on a candidate with a reasoning table gets
+     * low on a routine step (the signals classed it tool_followup_ok,
+     * final_answer or simple_prompt) and high otherwise (first step,
+     * recovery, unclassified), whichever candidate serves it. The operator
+     * hands effort to the router: for the openai/openrouter families the
+     * harness's reasoning_effort/reasoning fields are replaced. */
+    int reasoning;
     bool repeat; /* context.repeat_escalation "on": signals' repeat-loop rule */
     /* context.budgets. Per session: spend from provider usage x the served
      * candidate's price (priced registries); from downshift_at x session_usd
@@ -210,8 +217,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     g->implicit=eq(o,"sessions","request");
     if(json_object_get(o,"reasoning_text")&&!eq(o,"reasoning_text","drop")&&!eq(o,"reasoning_text","pin"))return false;
     g->drop_reasoning=eq(o,"reasoning_text","drop");
-    if(json_object_get(o,"reasoning")&&!eq(o,"reasoning","signals")&&!eq(o,"reasoning","off"))return false;
-    g->reasoning=eq(o,"reasoning","signals");
+    if(json_object_get(o,"reasoning")&&!eq(o,"reasoning","signals")&&!eq(o,"reasoning","steps")&&!eq(o,"reasoning","off"))return false;
+    g->reasoning=eq(o,"reasoning","signals")?REASONING_SIGNALS:eq(o,"reasoning","steps")?REASONING_STEPS:REASONING_OFF;
     if(g->reasoning&&!g->signals)return false;
     if(json_object_get(o,"repeat_escalation")&&!eq(o,"repeat_escalation","on")&&!eq(o,"repeat_escalation","off"))return false;
     g->repeat=eq(o,"repeat_escalation","on");
@@ -1075,12 +1082,16 @@ static bool housekeeping_place(rc_runtime *rt,struct rc_gateway_context *g,json_
  * request already sets that destination's own control. A harness's OpenAI-style
  * reasoning_effort does not control a vLLM thinking switch (Hermes sends
  * reasoning_effort on every request; ma1-localthink, 2026-10-03, added nothing).
- * Returns the family added. */
-static int add_effort(struct rc_gateway_context *g,size_t i,json_t *body,bool high) {
+ * override ("steps" mode): the harness's openai/openrouter effort fields are
+ * removed first (chat_template_kwargs is never replaced: it may carry other
+ * template switches). Returns the family added. */
+static int add_effort(struct rc_gateway_context *g,size_t i,json_t *body,bool high,bool override) {
     int f=g->efforts_by_signal[i].family;const char *t=high?g->efforts_by_signal[i].high:g->efforts_by_signal[i].low;
+    if(!f||!t[0])return EFFORT_NONE;
+    if(override&&f!=EFFORT_VLLM_THINKING){json_object_del(body,"reasoning_effort");json_object_del(body,"reasoning");}
     bool set=f==EFFORT_VLLM_THINKING?json_object_get(body,"chat_template_kwargs")!=NULL:
         json_object_get(body,"reasoning_effort")||json_object_get(body,"reasoning");
-    if(!f||set||!t[0])return EFFORT_NONE;
+    if(set)return EFFORT_NONE;
     int failed=f==EFFORT_VLLM_THINKING?json_object_set_new(body,"chat_template_kwargs",json_pack("{s:b}","enable_thinking",!strcmp(t,"on"))):
         f==EFFORT_OPENAI?json_object_set_new(body,"reasoning_effort",json_string(t)):
         json_object_set_new(body,"reasoning",json_pack("{s:s}","effort",t));
@@ -1455,8 +1466,12 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
                 for(size_t i=0;g->priced&&i<g->count;i++)if(g->candidates[i].alias_index==selected.alias_index){ticket->cost=quotes[i].expected_task_cost;ticket->costed=true;}
             }
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
-            if(g->active&&g->reasoning&&!placed&&!s->pinned){
+            if(g->active&&g->reasoning==REASONING_SIGNALS&&!placed&&!s->pinned){
                 effort_step=selected.reason==RC_SELECT_ESCALATE?2:selected.reason==RC_SELECT_CHEAPEST?1:0;effort_alias=selected.alias_index;
+            }
+            else if(g->active&&g->reasoning==REASONING_STEPS&&!placed&&!s->pinned){
+                bool routine=!escalation&&selected.reason!=RC_SELECT_ESCALATE&&(signal&(RC_TASK_TOOL_FOLLOWUP_OK|RC_TASK_FINAL_ANSWER|RC_TASK_SIMPLE_PROMPT));
+                effort_step=routine?1:2;effort_alias=selected.alias_index;
             }
         }
     }
@@ -1492,7 +1507,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
      * exact outgoing object (a cooldown move to another alias cancels it). */
     if(s&&effort_step){
         int i=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
-        if(i>=0&&g->candidates[i].alias_index==effort_alias&&(s->reasoning_added=add_effort(g,(size_t)i,body,effort_step==2)))
+        if(i>=0&&g->candidates[i].alias_index==effort_alias&&(s->reasoning_added=add_effort(g,(size_t)i,body,effort_step==2,g->reasoning==REASONING_STEPS)))
             fprintf(stderr,"route_effort scope=%d chosen=%s effort=%s\n",ticket->scope,rt->config.aliases[effort_alias].from,effort_step==2?"high":"low");
     }
     if(rc_dispatch_gate&&rc_dispatch_gate(rt,body,endpoint)){status=403;goto done;}

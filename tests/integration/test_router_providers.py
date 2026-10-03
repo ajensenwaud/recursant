@@ -45,6 +45,7 @@ def provider_config(p, private, gw_a, gw_b):
             {'from': 'local', 'provider': 'gx10', 'model': 'local-physical'},
             {'from': 'cloud-a', 'provider': 'openrouter', 'model': 'vendor/model-a'},
             {'from': 'cloud-b', 'provider': 'other-gateway', 'model': 'model-b'},
+            {'from': 'cloud-claude', 'provider': 'openrouter', 'model': 'anthropic/claude-test'},
         ],
     }
 
@@ -176,7 +177,7 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertNotIn('Authorization', private.seen[0][1])
             status, data, _ = self.request(p, 'GET', '/v1/models')
             self.assertEqual(status, 200)
-            self.assertEqual(json.loads(data), {'object': 'list', 'data': [{'id': a, 'object': 'model'} for a in ('local', 'cloud-a', 'cloud-b')]})
+            self.assertEqual(json.loads(data), {'object': 'list', 'data': [{'id': a, 'object': 'model'} for a in ('local', 'cloud-a', 'cloud-b', 'cloud-claude')]})
             # private_default.model remains a routable concrete name (legacy private.model semantics).
             self.assertEqual(self.request(p, body={'model': 'local-physical', 'messages': []})[0], 200)
             self.assertEqual(len(private.seen), 2)
@@ -261,6 +262,33 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertEqual(self.request(p, body={'model': 'local', **clean})[0], 200)
             self.assertEqual(private.seen[-1][2], {**clean, 'model': 'local-physical'})
         self.assertNotIn(b'synthetic@example.test', self.last_stderr)
+
+    def test_08b_openrouter_anthropic_prompt_cache(self):
+        """OpenRouter adapter: an Anthropic model on a continuing conversation (tools
+        offered or history) gets the top-level automatic cache breakpoint; a fresh
+        single question, other models and other gateways do not. A caller's own
+        breakpoint is kept; a malformed one is uninspectable (private)."""
+        def edit(cfg): cfg['compliance'] = {'enabled': True, 'public_allowed': True}
+        tool = {'type': 'function', 'function': {'name': 'f', 'parameters': {'type': 'object'}}}
+        cache = {'type': 'ephemeral'}
+        fresh = {'messages': [{'role': 'system', 'content': 's'}, {'role': 'user', 'content': 'hello'}], 'max_tokens': 8}
+        history = {'messages': fresh['messages'] + [{'role': 'assistant', 'content': 'hi'}, {'role': 'user', 'content': 'more'}], 'max_tokens': 8}
+        with_tools = {**fresh, 'tools': [tool]}
+        with self.router(edit) as (p, private, gw_a, gw_b):
+            for body, expect in ((fresh, None), (history, cache), (with_tools, cache)):
+                self.assertEqual(self.request(p, body={'model': 'cloud-claude', **body})[0], 200)
+                self.assertEqual(gw_a.seen[-1][2].get('cache_control'), expect)
+            self.assertEqual(self.request(p, body={'model': 'cloud-a', **history})[0], 200)
+            self.assertNotIn('cache_control', gw_a.seen[-1][2])
+            own = {**fresh, 'cache_control': {'type': 'ephemeral', 'ttl': '1h'}}
+            self.assertEqual(self.request(p, body={'model': 'cloud-claude', **own})[0], 200)
+            self.assertEqual(gw_a.seen[-1][2]['cache_control'], {'type': 'ephemeral', 'ttl': '1h'})
+            self.assertEqual(self.request(p, body={'model': 'cloud-b', **own})[0], 200)
+            self.assertEqual(gw_b.seen[-1][2]['cache_control'], {'type': 'ephemeral', 'ttl': '1h'})
+            before = len(private.seen)
+            for bad in ({'type': 'persistent'}, {'type': 'ephemeral', 'ttl': '2h'}, {'type': 'ephemeral', 'x': 1}, 'ephemeral'):
+                self.assertEqual(self.request(p, body={'model': 'cloud-claude', **fresh, 'cache_control': bad})[0], 200)
+            self.assertEqual(len(private.seen), before + 4)
 
     def test_09_legacy_public_adapter_is_explicit_or_host_derived(self):
         base = {'listen': {'host': '127.0.0.1', 'port': 12345}, 'auth': {'api_key_env': 'RC_TEST_AUTH'},

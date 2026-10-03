@@ -19,6 +19,9 @@ import uuid
 
 
 PUBLIC_RATES={'openai/gpt-4.1':('0.000002','0.000008'),
+              # Claude Sonnet 5.5 (OpenRouter list 2026-10-04: US$2/US$10 per Mtok). Input at the
+              # 1.25x cache-write price, so a cache_control request is never under-reserved.
+              'anthropic/claude-sonnet-5.5':('0.0000025','0.00001'),
               'openai/gpt-4.1-mini':('0.0000004','0.0000016')}
 
 
@@ -134,8 +137,13 @@ def admission(config, endpoint, body, upstream=None, known=None):
     of bytes of the whole request (Hermes tool schemas are ~5 bytes/token)."""
     allowed={'model','messages','max_tokens','max_completion_tokens','temperature','top_p',
              'stream','stream_options','tools','tool_choice','parallel_tool_calls','response_format',
-             'reasoning','reasoning_effort','stop','seed','frequency_penalty','presence_penalty','provider'}
+             'reasoning','reasoning_effort','stop','seed','frequency_penalty','presence_penalty','provider',
+             'cache_control'}
     if set(body)-allowed: raise ValueError('unreviewed request option / priced server tool')
+    # Prompt-cache breakpoint only (the router's OpenRouter adapter adds it for Anthropic models).
+    if 'cache_control' in body and (not isinstance(body['cache_control'],dict) or
+            body['cache_control'].get('type')!='ephemeral' or set(body['cache_control'])-{'type','ttl'}):
+        raise ValueError('unreviewed cache control')
     if 'provider' in body:
         controls=body['provider']
         # Only the final-M2 no-fallback control is qualified, not provider routing/pricing extensions.
@@ -148,9 +156,11 @@ def admission(config, endpoint, body, upstream=None, known=None):
     if any(m.get('content') is not None and not isinstance(m['content'],str) for m in messages):
         raise ValueError('only text messages are budget-qualified')
     output=body.get('max_tokens',body.get('max_completion_tokens'))
-    if any(type(body[k]) is not int or not 0<body[k]<=4096 for k in ('max_tokens','max_completion_tokens') if k in body):
+    # 4096 unless the allocation reviewed a larger bound (reasoning models: thinking counts as output).
+    limit=config.get('max_output',4096)
+    if any(type(body[k]) is not int or not 0<body[k]<=limit for k in ('max_tokens','max_completion_tokens') if k in body):
         raise ValueError('conflicting output bound')
-    if type(output) is not int or not 0<output<=4096: raise ValueError('output bound')
+    if type(output) is not int or not 0<output<=limit: raise ValueError('output bound')
     output=max(body[k] for k in ('max_tokens','max_completion_tokens') if k in body)
     # Byte-fallback tokenizer upper bound, not actual usage. Allow generous
     # per-message/tool framing plus 4096 fixed tokens. No images/server tools.
@@ -206,7 +216,10 @@ ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200),
              'D-ma2':(Decimal('14'),2000),
              # E-ml-live: live check of the efficiency model (signals vs signals + model),
              # Anders approved about US$2 on 2026-10-03.
-             'E-ml-live':(Decimal('2'),800)}
+             'E-ml-live':(Decimal('2'),800),
+             # F-agent: reasoning effort per agent step on Claude Sonnet 5.5 (low / xhigh /
+             # router-switched). Anders 2026-10-04: "You need to test it on agentic workflows as well".
+             'F-agent':(Decimal('15'),3000)}
 
 
 def validate_allocation_limits(config):
@@ -489,7 +502,7 @@ class Egress:
                     self.budget['reserved']+liability>Decimal(str(self.config['paid_cap_usd']))):
                 return 429,b'{"error":"global_admission_cap"}','application/json'
             output=body.get('max_tokens',body.get('max_completion_tokens'))
-            if type(output) is not int or not 0<output<=4096:
+            if type(output) is not int or not 0<output<=self.config.get('max_output',4096):
                 return 400,b'{"error":"output_bound_required"}','application/json'
             self.budget['count']+=1; self.budget['reserved']+=liability
             role,role_evidence=classify_role(self.arm,endpoint,body)

@@ -349,20 +349,56 @@ static void readable_reasoning_is_dropped(void) {
      * reasoning next to content and tool calls. It is accepted and left out of
      * the replayable message. Default (drop off): it fails closed. Structured
      * reasoning fails closed either way. */
-    for(int mode=0;mode<4;mode++){
+    /* Modes 4-6: OpenRouter reasoning_details (Claude thinking blocks): an
+     * array is dropped like readable text; an object fails closed; without
+     * drop it fails closed. */
+    for(int mode=0;mode<7;mode++){
         rc_response_observer *o=calloc(1,sizeof *o);assert(o);
-        o->drop_reasoning=mode!=2;
+        o->drop_reasoning=mode!=2&&mode!=6;
         json_t *v=tool_event(NULL),*d=json_object_get(json_array_get(json_object_get(v,"choices"),0),"delta");
         if(mode==3)json_object_set_new(d,"reasoning",json_pack("{s:s}","encrypted","opaque"));
+        else if(mode==4||mode==6){
+            json_object_set_new(d,"reasoning",json_string("Check the header."));
+            json_object_set_new(d,"reasoning_details",json_pack("[{s:s,s:s,s:s}]","type","reasoning.text","text","Check the header.","signature","c2ln"));
+        }
+        else if(mode==5)json_object_set_new(d,"reasoning_details",json_pack("{s:s}","type","reasoning.encrypted"));
         else json_object_set_new(d,mode==1?"reasoning_content":"reasoning",json_string("Let me think about the file first."));
         feed_json(o,v);feed(o,"data: [DONE]\n\n");
         json_t *m=rc_response_observer_message(o);
-        if(mode>=2)assert(!m);
+        if(mode==2||mode==3||mode>=5)assert(!m);
         else{
-            assert(m&&!json_object_get(m,"reasoning")&&!json_object_get(m,"reasoning_content"));
+            assert(m&&!json_object_get(m,"reasoning")&&!json_object_get(m,"reasoning_content")&&!json_object_get(m,"reasoning_details"));
             assert(json_array_size(json_object_get(m,"tool_calls"))==1);
         }
         json_decref(m);json_decref(v);rc_response_observer_release(o);free(o);
+    }
+}
+/* Recorded live streams: anthropic/claude-sonnet-5.5 via OpenRouter
+ * (fa-smoke3, 2026-10-04). Native finish reasons are Anthropic's own
+ * ("tool_use", "end_turn"); thinking arrives as readable "reasoning" text
+ * plus a reasoning_details array with a signature. With drop (context.
+ * reasoning_text "drop") both are accepted and left out of the message;
+ * without it the stream fails closed. Every two-way split is checked. */
+static void claude_openrouter_streams(void) {
+    static const char *const files[]={RC_FIXTURE_DIR "/openrouter-claude-tool-use.sse",RC_FIXTURE_DIR "/openrouter-claude-end-turn.sse"};
+    for(size_t k=0;k<2;k++){
+        FILE *f=fopen(files[k],"rb");assert(f);
+        char *wire=malloc(RC_RESPONSE_LIMIT+1);assert(wire);
+        size_t n=fread(wire,1,RC_RESPONSE_LIMIT,f);assert(n&&n<RC_RESPONSE_LIMIT);fclose(f);wire[n]=0;
+        for(int drop=0;drop<2;drop++)for(size_t split=0;split<=n;split+=drop?1:n+1){
+            rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+            o->drop_reasoning=drop;
+            rc_response_observer_feed(o,wire,split);rc_response_observer_feed(o,wire+split,n-split);
+            json_t *m=rc_response_observer_message(o);
+            if(!drop){if(strstr(wire,"\"reasoning_details\""))assert(!m);}
+            else{
+                assert(m&&!json_object_get(m,"reasoning")&&!json_object_get(m,"reasoning_details"));
+                assert((json_array_size(json_object_get(m,"tool_calls"))==1)==(k==0));
+                assert(o->usage_known&&o->usage_cached>0);
+            }
+            json_decref(m);rc_response_observer_release(o);free(o);
+        }
+        free(wire);
     }
 }
 static void tool_guards(void) {
@@ -542,4 +578,4 @@ static void usage_capture(void) {
         json_decref(m);rc_response_observer_release(o);free(o);
     }
 }
-int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();readable_reasoning_is_dropped();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();readable_reasoning_is_dropped();claude_openrouter_streams();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}

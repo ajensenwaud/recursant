@@ -38,7 +38,7 @@ typedef struct {
     size_t total, line_used, event_used, text_used;
     char id[129], model[129], provider[129];
     json_int_t created;
-    bool has_created, native_completed, native_tool_calls, accounting_tail;
+    bool has_created, native_completed, native_tool_calls, native_tool_use, native_end_turn, accounting_tail;
     bool failed, cr, role, finished, done;
     /* Set once at allocation from the producing provider's adapter (S2b):
      * true = openai-compatible, strict OpenAI stream shape only; OpenRouter

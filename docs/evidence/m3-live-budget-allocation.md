@@ -116,3 +116,15 @@ US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10
   tracking about US$1.90).
 - Spent: gpt-6-luna none US$0.0444, high US$0.2048; gpt-6.1-sol low US$1.3660, high
   US$2.0272; probe US$0.0107. Total US$3.6531 of the US$5.00 cap. 980 answers per arm, 0 errors.
+
+## F-hard (2026-10-04): thinking on hard questions, Claude and GLM
+- Anders, 2026-10-04: "Yes, go ahead" (up to US$15: Claude Sonnet 5.5 and Opus 5.5 with less vs
+  more thinking, plus GLM thinking off/on, on hard maths and science), then "You need to test it
+  on agentic workflows as well" (separate allocation F-agent below).
+- Set: `.hermes/runtime/prompt/hard.jsonl` (bench/prompt/build_hard.py): AIME 2024+2025 (60),
+  MATH-500 level 4-5 integer answers (156), MMLU-Pro math/physics/chemistry/engineering not in
+  the 980 (200). 416 questions.
+- Claude 5.5 cannot switch reasoning off on OpenRouter ("Reasoning is mandatory"); the arms
+  are effort low vs xhigh. Probe (6 settings x 6 questions plus 7 single calls): about US$0.40.
+- Caps: Sonnet low US$3.00, Sonnet xhigh US$5.00 (all 416); Opus low and xhigh on the 216
+  maths questions, shuffled, with what remains under the US$15.00 total. GLM unbilled.

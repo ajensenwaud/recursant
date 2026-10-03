@@ -17,6 +17,8 @@ import math
 LIST_PRICES = {
     'openai/gpt-4.1': {'input_per_mtok': 2.0, 'output_per_mtok': 8.0, 'cached_input_per_mtok': 0.5},
     'openai/gpt-4.1-mini': {'input_per_mtok': 0.4, 'output_per_mtok': 1.6, 'cached_input_per_mtok': 0.1},
+    # OpenRouter list 2026-10-04 (fallback only: OpenRouter reports usage.cost on every call).
+    'anthropic/claude-sonnet-5.5': {'input_per_mtok': 2.0, 'output_per_mtok': 10.0, 'cached_input_per_mtok': 0.2},
 }
 PRICE_SOURCE = 'docs/evidence/m3-openrouter-price-snapshot.json (via recursant-v4 c2aa46c)'
 SOURCES = ('provider_usage_cost', 'list_price_tokens', 'private_trust_no_public_charge', 'unknown')

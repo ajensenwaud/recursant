@@ -239,7 +239,15 @@ static bool inspectable_content(json_t *body) {
  * functions) and the per-destination part (top-level keys, provider controls). */
 static bool inspectable_content(json_t *body);
 static bool inspectable_controls(json_t *body,const char *controls) {
-    if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider|"))return false;
+    if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider||cache_control|"))return false;
+    /* Prompt-cache breakpoint (Anthropic via OpenRouter): a fixed control,
+     * {"type":"ephemeral"[,"ttl":"5m"|"1h"]}, carries no content. */
+    json_t *cache=json_object_get(body,"cache_control");
+    if(cache){
+        const char *type=json_string_value(json_object_get(cache,"type")),*ttl=json_string_value(json_object_get(cache,"ttl"));
+        if(!known_keys(cache,"|type||ttl|")||!type||strcmp(type,"ephemeral"))return false;
+        if(json_object_get(cache,"ttl")&&(!ttl||(strcmp(ttl,"5m")&&strcmp(ttl,"1h"))))return false;
+    }
     json_t *provider=json_object_get(body,"provider");
     if(provider) {
         if(!controls||!known_keys(provider,controls))return false;

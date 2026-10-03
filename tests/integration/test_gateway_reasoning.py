@@ -134,6 +134,53 @@ class GatewayReasoningTests(unittest.TestCase):
             self.assertEqual(self.sent(sink, n), {'chat_template_kwargs': {'enable_thinking': False}})
             self.assertEqual(self.sent(sink), {})
 
+    def steps_loop(self, p, sink, results, harness='medium'):
+        history = self.first('job one'); sent = []
+        sink.envelope = {'message': {'tool_calls': [call(1)]}}
+        for i in range(len(results) + 1):
+            if i:
+                history.append({'role': 'tool', 'tool_call_id': 'call-%d' % i, 'content': results[i - 1]})
+                sink.envelope = {'message': {'tool_calls': [call(i + 1)]}}
+            extra = {'reasoning_effort': harness} if harness else {}
+            code, raw, _ = self.request(p, body=self.body(history, **extra))
+            self.assertEqual(code, 200)
+            history.append(json.loads(raw)['choices'][0]['message'])
+            sent.append((sink.seen[-1][2]['model'], self.sent(sink)))
+        return sent
+
+    def test_g_steps_mode_routine_low_otherwise_high_replacing_the_harness_field(self):
+        """context.reasoning "steps": every session step gets an effort from its
+        destination's table, low on a routine step, high on the first step, after a
+        failure and on escalation. The harness's openai/openrouter effort field is
+        replaced; a vLLM thinking destination keeps it and gets its own switch."""
+        def edit(c, s):
+            self.setup(c, s, mode='steps', cheap={'family': 'vllm-thinking', 'low': 'off'})
+            for cand in c['context']['candidates']:
+                cand.setdefault('capabilities', {})['reasoning_effort'] = ['low', 'medium', 'high']
+        with self.router(edit) as (p, sink):
+            sent = self.steps_loop(p, sink, ['ok', 'Traceback (most recent call last): boom', 'ERROR: command failed, exit code 2'])
+        effort = self.lines(sink, 'route_effort ')
+        self.assertEqual(sent, [
+            ('frontier', {'reasoning': {'effort': 'high'}}),
+            ('physical', {'reasoning_effort': 'medium', 'chat_template_kwargs': {'enable_thinking': False}}),
+            ('frontier', {'reasoning': {'effort': 'high'}}),
+            ('strong-physical', {'reasoning_effort': 'high'})])
+        self.assertEqual([l.split('effort=')[1] for l in effort], ['high', 'low', 'high', 'high'])
+
+    def test_h_steps_mode_on_one_model(self):
+        """Effort switching without a model switch: nothing qualified to downshift,
+        so the baseline serves every step at low or high effort."""
+        def edit(c, s):
+            self.setup(c, s, mode='steps')
+            c['context']['candidates'][1]['qualified_tasks'] = []
+        with self.router(edit) as (p, sink):
+            sent = self.steps_loop(p, sink, ['ok', 'ok', 'Traceback (most recent call last): boom'], harness=None)
+        self.assertEqual(sent, [
+            ('frontier', {'reasoning': {'effort': 'high'}}),
+            ('frontier', {'reasoning': {'effort': 'minimal'}}),
+            ('frontier', {'reasoning': {'effort': 'minimal'}}),
+            ('frontier', {'reasoning': {'effort': 'high'}})])
+
     def test_f_strict_reasoning_configuration(self):
         cfg0 = {'listen': {'host': '127.0.0.1', 'port': 12345},
                 'private': {'url': 'http://127.0.0.1:1/v1', 'model': 'physical'},
@@ -145,6 +192,8 @@ class GatewayReasoningTests(unittest.TestCase):
         bad = [lambda c: c['context'].update(reasoning='on'),
                lambda c: c['context'].update(reasoning=True),
                lambda c: c['context'].update(reasoning='signals', signals='off'),
+               lambda c: c['context'].update(reasoning='steps', signals='off'),
+               lambda c: c['context'].update(reasoning='step'),
                lambda c: cand(c, 0, {'family': 'vllm-thinking'}),          # public destination
                lambda c: cand(c, 1, {'family': 'vllm-thinking', 'low': 'low'}),
                lambda c: cand(c, 1, {'family': 'vllm-thinking', 'high': True}),
@@ -156,6 +205,7 @@ class GatewayReasoningTests(unittest.TestCase):
                lambda c: cand(c, 2, 'openai')]
         good = [lambda c: None, lambda c: c['context'].update(reasoning='signals'),
                 lambda c: c['context'].update(reasoning='off'),
+                lambda c: c['context'].update(reasoning='steps'),
                 lambda c: cand(c, 2, {'family': 'openai', 'high': 'high'}),
                 lambda c: cand(c, 1, {'family': 'vllm-thinking', 'low': 'off', 'high': 'on'}),
                 lambda c: [cand(c, i, None) for i in range(3)] and None]

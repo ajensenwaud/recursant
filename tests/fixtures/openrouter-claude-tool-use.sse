@@ -1,0 +1,30 @@
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"I should check the workspace first","reasoning_details":[{"type":"reasoning.text","text":"I should check the workspace first","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" before deciding on edge cases, like how empty lines or invalid JSON lines should be handled.","reasoning_details":[{"type":"reasoning.text","text":" before deciding on edge cases, like how empty lines or invalid JSON lines should be handled.","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning_details":[{"type":"reasoning.text","signature":"CAQS4wYKEAgSGAI4AUIIdGhpbmtpbmcSDOKXU9Q82MEVTXq3vhoM72Mb/jgF6jdUM6wYIjABbHiPn6cKZbSLQWdn35WqZ+zvGb9klEnBue8senxmt0RN6bv4UGiakAm8HNqr/4kqgAY6AW1gVkvmrCdcG1hO+pFXfnwZXqMkEB+A0GARDwT3eycB69IPrXnZjNC6vkF9sJ186JXyaO97yMI1+sLmv6pAlBuZwJe7OvQupWCAwc9HOytChxo7everCoKS0h38WHJTly4Ny3IHcJsxZczsX+FSQAyEsrqVFtJ04f50fiLTv0S7D/HZyw+kpDJ0x7tozwHDOGz8Q+Qn7jI+EEu786ur99IdiFfGikVAyJqprGDNeSYSbljLpRmyl3Y+zZm3yrmhonCTQygO2r2W/R0hpOvWISBwrXyFuS1YEPvVoGGu+7WXaoyxEYT24W/EpUM9OsHLpQgW+4b0NDoWX+a7T2K2k7Adx1Xl/rc4qUFxFZvwG5SnaQX247DZ2DzAIwXUZBS4YYVQWoPeo41WZwBwLqEB3XMg/PEW7llyB9/0rHX9urlN7j3c2q/B88J7UqCRTUQcnubAePdMhRy9rmshJYDx5SSiF4M8yBxsG2EKxtzt3+0rbsSA/ugZSICSHw8GSvTdoDL4q2EU+6fobGqsS2UFD+GEPceB4xDg89ysx1jFxx3NXGi9wgErfQmVH/vl92FLINkQh5gZS4O9/6IMTKMp6taKXKuaX1b+m1SnFeqRMTHtxtcpnoOm0+43Ors7Zy9yBr4QXGcpWTMmKVgNTZ4a7fYrJB2o6CVOWageBZpYyvOlANgz5wvX6gHgCwKcx3HUAQyyuyb0DSW+cypSg7XeUy6sdnu2BAZ9wkobAETcg+8ONAEKCQasha6mFYqXIv4WtPSHJM6MsUM1rntHR4MtDsnDjoSkBboSHetjeND6sGnt+8fmk8OkjoHqbdySp5NVVixsTj7b0qY9MqNlTkBIJFPRv5rdyhGuyimCAqvAf5YMAxkQfut7gymijUOEASr2CKBhCo+fSuEkiN8cuLV1qf+GbrsDq7S0QNuqBpJNE9koOEnQ9myt40AoxoqAlAgMEdQ7Eh0AhZmL91x8krk4YxRbAP4Nv4b2A8BpsIvGHSf9h1M239PSUxbEg76hfS4YAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1zb25uZXQtNS41LTIwMjYwOTI4fGNsYXVkZS1vbi1hd3MifQ","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"toolu_0181nkRRgbE1xkpdSmVcxWmM","type":"function","function":{"name":"terminal","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"command\": \"cd /workspace &&"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":" ls -la && python3 --version"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"tool_use"}]}
+
+data: {"id":"gen-1791062731-9rq2o8bZW8w5YVdGYbZm","object":"chat.completion.chunk","created":1791062731,"model":"anthropic/claude-sonnet-5.5","provider":"Claude Platform on AWS","service_tier":"default","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"tool_use"}],"usage":{"prompt_tokens":17911,"completion_tokens":165,"total_tokens":18076,"cost":0.0052394,"is_byok":false,"prompt_tokens_details":{"cached_tokens":17907,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.0052394,"upstream_inference_prompt_cost":0.0035894,"upstream_inference_completions_cost":0.00165},"completion_tokens_details":{"reasoning_tokens":101,"image_tokens":0,"audio_tokens":0}}}
+
+data: [DONE]
+
