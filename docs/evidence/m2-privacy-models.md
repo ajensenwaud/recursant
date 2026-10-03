@@ -22,6 +22,11 @@ bert-base-NER reads words in source code as names; Presidio flags many code iden
 
 ## Conclusions
 
+Correction (2026-10-03, `m2-privacy-pipeline.md`): the CPU times above are most likely
+inflated. Under `--cpus=8` torch starts 20 threads (one per host core); with 8 threads Piiranha
+takes 638 ms and bert-base-NER 355 ms per 1,000 chars. The follow-up gates the model to about
+5% of agent text.
+
 1. Rules plus one model reach about 95 to 97% recall. The model's job is names and street
    addresses; the rules already handle identifiers with check digits.
 2. Presidio is fast but raises too many false alarms on agent work (each one moves a
