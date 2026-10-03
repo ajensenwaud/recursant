@@ -7,6 +7,7 @@
 #include "recursant/signals.h"
 #include "recursant/judge.h"
 #include "recursant/efficiency.h"
+#include "recursant/prompt.h"
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
@@ -161,6 +162,8 @@ struct rc_gateway_context {
     rc_judge_config judge;
     /* Optional efficiency model (context.efficiency). Advisory only, local. */
     rc_efficiency_config efficiency;
+    /* Optional prompt classifier (context.prompt): fresh user questions. */
+    rc_prompt_config prompt;
 };
 static bool keys(json_t *o,const char *allowed) {
     if(!json_is_object(o))return false;
@@ -186,7 +189,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||efficiency||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||efficiency||prompt||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -250,6 +253,10 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
      * signals on. Absent = off. */
     json_t *efficiency=json_object_get(o,"efficiency");
     if(efficiency&&(!g->signals||!rc_efficiency_configure(efficiency,&g->efficiency)))return false;
+    /* context.prompt: {weights, vocab, simple_min[, agent_turns]}. Requires
+     * signals on. Absent = off. */
+    json_t *prompt=json_object_get(o,"prompt");
+    if(prompt&&(!g->signals||!rc_prompt_configure(prompt,&g->prompt)))return false;
     if(!strcmp(automatic,rt->config.private_model)||(rt->config.public_model&&!strcmp(automatic,rt->config.public_model)))return false;
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(automatic,rt->config.aliases[i].from)||!strcmp(automatic,rt->config.aliases[i].model))return false;
     json_t *list=json_object_get(o,"candidates");g->count=json_array_size(list);
@@ -305,7 +312,7 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
             }
         }
         /* Strict frozen names, no duplicates, unknown rejected. */
-        json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>4)return false;
+        json_t *tasks=json_object_get(v,"qualified_tasks");if(!json_is_array(tasks)||json_array_size(tasks)>5)return false;
         for(size_t t=0;t<json_array_size(tasks);t++){
             json_t *name=json_array_get(tasks,t);uint64_t bit;
             if(!json_is_string(name)||json_string_length(name)!=strlen(json_string_value(name))||
@@ -392,7 +399,7 @@ void rc_gateway_destroy(rc_runtime *rt) {
         json_decref(g->scopes[i].contract);
     }
     pthread_mutex_unlock(&g->lock);
-    free(g->authorization);rc_candidates_destroy(g->registry);pthread_mutex_destroy(&g->lock);free(g);rt->gateway=NULL;
+    rc_prompt_destroy(&g->prompt);free(g->authorization);rc_candidates_destroy(g->registry);pthread_mutex_destroy(&g->lock);free(g);rt->gateway=NULL;
 }
 static unsigned ingest(rc_runtime *,json_t *);
 static uint64_t now_ms(void);
@@ -1323,6 +1330,16 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                 }
                 fprintf(stderr,"efficiency scope=%d p=%.3f action=%s\n",ticket->scope,p,action);
             }
+            /* Prompt classifier: a fresh user question (chat or single query,
+             * or an agent's instruction when agent_turns is on) that the economy
+             * tier is predicted to answer. Fills an unclassified turn only;
+             * never a pinned or private-only scope or a recovery turn. */
+            if(g->prompt.enabled&&structural&&!signal&&!escalation&&!s->private_only){
+                bool tools=json_array_size(json_object_get(body,"tools"))>0;
+                double p=(!tools||g->prompt.agent_turns)?rc_prompt_score(&g->prompt,body):-1;const char *action="none";
+                if(p>=0){action="keep";if(p>=g->prompt.simple_min){signal=RC_TASK_SIMPLE_PROMPT;action="add";}}
+                fprintf(stderr,"prompt scope=%d p=%.3f action=%s\n",ticket->scope,p,action);
+            }
             /* First turn of a delegated session (subagent): its own class,
              * used only by candidates the operator qualified for it. */
             if(structural&&!signal&&!escalation&&!s->turns&&s->delegated)signal=RC_TASK_DELEGATED_START;
@@ -1397,7 +1414,7 @@ unsigned rc_gateway_prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_
                  * USD. No content. Classes offered: interpreter [+signal]. */
                 static const char *reasons[]={"baseline","cheapest","pin","escalate"};
                 uint64_t offered=(req.context_usable?task:0)|signal|escalation;char classes[96]="";
-                for(uint64_t bit=1;bit<=RC_TASK_DELEGATED_START;bit<<=1)if(offered&bit){
+                for(uint64_t bit=1;bit<=RC_TASK_MAX;bit<<=1)if(offered&bit){
                     size_t n=strlen(classes);snprintf(classes+n,sizeof classes-n,"%s%s",n?"+":"",rc_task_name(bit));
                 }
                 char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s class=%s reason=%s chosen=%s est_prompt=%llu est_out=%llu costs=",

@@ -26,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/ajensenwaud/recursant/main/install.
 
 Recursant is one OpenAI-compatible endpoint in front of all your models, public and on-prem, that decides every step:
 
-- **Which model.** Routine steps (a clean tool result, a final answer) go to an economy model; steps after repeated failures go to a stronger one; the rest stay on your baseline. Decided per step, not per conversation.
+- **Which model.** Routine steps (a clean tool result, a final answer) go to an economy model; steps after repeated failures go to a stronger one; the rest stay on your baseline. Decided per step, not per conversation. Plain questions (chat, single API calls) go to the cheapest model you qualify for them.
 - **Where.** On-prem and public providers sit in one pool. Requests are placed by price, measured token use, prompt-cache warmth, capacity and health.
 - **Whether it's allowed.** A deterministic compliance engine checks the exact outgoing request before it leaves. Anything containing personal data goes to your private model, and the conversation stays there. Compliance overrides every other decision.
 - **Without integration.** Sessions, tool loops and subagents are recognised from the request stream alone. No SDK, no plugin, no harness changes. Point the agent's base URL at Recursant and set the model to `auto`.
@@ -50,6 +50,16 @@ Live benchmarks: the Hermes agent on synthetic development tasks, gpt-4.1 as the
 | Agent calling gpt-4.1 directly | 2/10 | 73% | US$4.70 | 31 |
 | Recursant | 5/10 | 82% | US$1.58 (**-66%**) | **0** |
 
+**Single questions** (1,450 benchmark questions: MMLU, GSM8K, ARC, HumanEval, MBPP and others, [evidence](docs/evidence/m3-prompt-classifier.md))
+
+| Model answering | Correct | Spend |
+|---|---|---|
+| gpt-4.1 | 89.8% | US$1.37 |
+| gpt-4.1-mini | 88.8% | US$0.32 (**-77%**) |
+| GLM-5.3-Flash on your own GPU | 90.2% | **US$0** in tokens (about 4x slower) |
+
+A question classifier, the approach other routers use, could not tell which questions the cheaper model would get wrong (AUC 0.5, a coin flip), so Recursant sends every fresh question to the cheapest qualified model. The classifier is still there for model pairs with a real capability gap.
+
 **What to expect.** On agent workloads where an economy model exists that can handle routine steps, expect public token spend to fall by roughly a quarter to two thirds at equal quality. Savings rise with longer tool loops, multi-agent work and on-prem capacity, which costs nothing per token. These are development benchmarks with one agent, one model pair and synthetic tasks; every number above links to its evidence, including the limits. We publish what didn't work too: a learned efficiency model that looked good offline [saved nothing live](docs/evidence/m3-efficiency-live.md) and ships switched off.
 
 ## How it works
@@ -71,6 +81,8 @@ Live benchmarks: the Hermes agent on synthetic development tasks, gpt-4.1 as the
 |                  work -> baseline.                                           |
 |  4. Judge        optional low-cost decision model for steps the signals      |
 |                  leave open (only when compliance already allows public).    |
+|     Questions    a fresh question (chat, single call) -> the cheapest model  |
+|                  qualified for questions; tool results are never read here.  |
 |  5. Selection    cheapest permitted candidate: price x estimated tokens,     |
 |                  cached-token discounts, capacity, health, budgets.          |
 +-------------------------------------------------------------------------------+

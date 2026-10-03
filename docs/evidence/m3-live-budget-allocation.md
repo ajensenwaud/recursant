@@ -82,3 +82,11 @@ Allocations are ceilings, not observations of execution. Do not rerun allocation
   allocation path, same cap.
 - Result (final-e2/): US$1.876 actual; cap reached after 30 of 40 episodes, 4 refused at the cap
   before any call. See docs/evidence/m3-efficiency-live.md.
+
+## F-prompt (2026-10-03): single-query labels for the prompt classifier
+- Anders, 2026-10-03: "do so" (support single-query and first-task sessions with a prompt
+classifier); paid runs under his standing approval of 2026-10-02 ("You are allowed to do paid runs").
+- 1,450 benchmark questions from gx10's HF cache asked once each to openai/gpt-4.1-mini (cap
+US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10 (no cost).
+- Result: gpt-4.1 US$1.373, gpt-4.1-mini US$0.320, probe US$0.001 (US$1.694 total); GLM unbilled.
+  See docs/evidence/m3-prompt-classifier.md.

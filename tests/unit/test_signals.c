@@ -38,7 +38,10 @@ static void taxonomy(void) {
     CHECK(RC_TASK_DELEGATED_START==16);
     CHECK(rc_task_qualifiable("delegated_start",&bit) && bit==RC_TASK_DELEGATED_START);
     CHECK(!strcmp(rc_task_name(RC_TASK_DELEGATED_START),"delegated_start"));
-    CHECK(!strcmp(rc_task_name(32),"invalid"));
+    CHECK(RC_TASK_SIMPLE_PROMPT==32 && RC_TASK_MAX==RC_TASK_SIMPLE_PROMPT);
+    CHECK(rc_task_qualifiable("simple_prompt",&bit) && bit==RC_TASK_SIMPLE_PROMPT);
+    CHECK(!strcmp(rc_task_name(RC_TASK_SIMPLE_PROMPT),"simple_prompt"));
+    CHECK(!strcmp(rc_task_name(64),"invalid"));
     CHECK(!strcmp(rc_task_name(17),"invalid"));
 }
 static void followup_and_final(void) {

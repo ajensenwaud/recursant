@@ -315,3 +315,29 @@ which writes this section (`docs/evidence/m3-efficiency-model.md`).
 - Features equal the training features exactly: `bench/efficiency/parity.py` compares the C
   and Python features on every recorded request (4,034 requests, 0 differences).
 - Evidence line: `efficiency scope= p= action=add|veto|keep|none`; no content.
+
+## Prompt classifier (`context.prompt`)
+
+`{"weights": {name: number}, "vocab": {token: number}, "simple_min"[, "agent_turns"]}`,
+absent = off; requires `signals: "on"`. For single-query and chat traffic, and optionally an
+agent task's opening instruction. Reads only the newest message, and only when it is a user
+message: the request's tools, tool results and earlier history are never read. A logistic
+regression over the question's words (bag of words, ASCII lower-cased runs of `[a-z0-9]`, up
+to 32 bytes, each distinct word counted once) and eight shape features (length, lines, words,
+code/digit/operator share, question mark; names in `core/include/recursant/prompt.h`),
+predicting the chance that the economy model answers as well as the baseline. Trained by
+`bench/prompt/train.py --out FILE` (`docs/evidence/m3-prompt-classifier.md`).
+
+- At `p >= simple_min` (0.5 to 1) the turn gets the `simple_prompt` class, served only by
+  candidates whose `qualified_tasks` include `"simple_prompt"` (a private model at no token
+  price wins the cost check when qualified). Below it, the turn stays on the baseline.
+- Requests that offer tools are scored only with `agent_turns: true` (the opening instruction
+  and any later user instruction); tool-result turns are never scored, the signals decide them.
+  Fills an unclassified turn only; never a recovery turn, a pinned or private-only session;
+  qualification, capability gates, the cost check and final M2 still decide.
+- Multi-turn chat is scored per question; a switch pays the prompt-cache switching cost in
+  the cost check like any other.
+- Local arithmetic, no egress; the first 64 KiB of the message are read. At most 20,000
+  vocabulary entries, each weight within +-100, keys `[a-z0-9]{1,32}`.
+- C and Python score identically: `bench/prompt/parity.py`.
+- Evidence line: `prompt scope= p= action=add|keep|none`; no content.

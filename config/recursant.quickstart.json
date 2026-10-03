@@ -97,6 +97,13 @@
       "requests_per_minute": 600
     },
     "decision_headers": "on",
+    "prompt": {
+      "weights": {
+        "bias": 5
+      },
+      "vocab": {},
+      "simple_min": 0.5
+    },
     "candidates": [
       {
         "alias": "baseline",
@@ -115,7 +122,8 @@
         "qualified_tasks": [
           "tool_followup_ok",
           "final_answer",
-          "delegated_start"
+          "delegated_start",
+          "simple_prompt"
         ],
         "context_limit": 1000000,
         "capabilities": {
