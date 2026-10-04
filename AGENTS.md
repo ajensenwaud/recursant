@@ -42,6 +42,36 @@ Layer 2. is fully deterministic and can override any decisions made by layer 3 o
 - The router should maintain a full picture of what the agent is doing and uses that picture to use the right model. For instance, if the agent is mid-turn/mid-workflow, we shouldn't suddenly route to a different model as that would route to a new model and impact context window and caching 
 - Before building the context engine you need to research how it is actually going to work and come up with an architecture that I can review
 
+# Recursant CLI / daemon design
+
+## Principles
+- Engineer and agent friendly CLI
+- Consistent, principle of least surprise
+- Design: 'recursant <command as verb> <--switches>'
+- Use systemd as daemonisation facility
+- Write to systemd log 
+
+## Core commands
+- `install` - install recursant as a daemon into systemd
+- `uninstall` - uninstall recursant from systemd and remove it
+- `start` - start the recursant daemon
+- `stop` - stop the recursant daemon
+- `restart` - restart the daemon, e.g. after a configuration change
+- `check` - check that configuration is sane prior to restarting
+- `status` - write out the status of the daemon including service endpoint, number of requests processed, etc.
+- `configure` - `hermes model`-like interface to configure the core router including private inference endpoints, OpenRouter (including API keys), and other decisions currently in the configuration file. Old config files are backed up with a date.
+  - Model configuration
+  - Endpoint setup (add one or more public or private endpoints)
+  - Pattern configuration for PII etc. beyond defaults
+  - Network interface setup (localhost only, tailnet, any other endpoint, e.g. 0.0.0.0) and port
+
+# Routing and networking requirements
+- Router should support an arbitrary amount of public and private endpoints
+- Public endpoints should support more than just OpenRouter, we need to expand to other public routing providers (have a look at Hermes for a full list)
+- Recursant should automatically recognise Tailscale tailnets 
+
+# Implementation plan
+
 ## Build sequence and scope
 - M1: Core inference router including hybrid routing. Definition of done: Can route across public and private workloads
 - M2: Compliance engine (supports regexes and pattern matching for now). Definition of done: Can filter out requests with PII and ship them to private inference
