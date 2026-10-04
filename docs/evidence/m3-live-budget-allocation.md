@@ -163,3 +163,6 @@ US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10
   Cap US$5.00 public (`ALLOCATIONS['H-sub']`). Pack `bench/multiagent`, three plain delegate
   tasks x 2 repeats x 3 arms (sonnet / mix / sub = mix + `delegated_start` on luna). Driver
   `bench/evaluation/sub_agent.py`.
+- Spent: smoke US$0.225 (1 job), hs-main US$3.237 (sonnet 1.181, mix 1.154, sub 0.902).
+  H-sub total US$3.46 of US$5.00. The sonnet arm's sixth job was refused by its US$1.40
+  arm share (equal split of the cap), so the comparison is over the 5 matched jobs.

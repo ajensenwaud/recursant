@@ -113,7 +113,37 @@ task and repeat (32 pairs): sonnet 105 steps, mix 157.
 So the step tax is a property of the cheap model (more failures, smaller pieces), and the
 router already does the right thing with it (escalate on failure). Not a routing bug to fix.
 
-## 7. Shipped (this commit)
+## 7. Subagents on the cheap model: H-sub (US$3.46)
+
+Pack `bench/multiagent`, the three plain delegate tasks (parent delegates three independent
+modules to subagents, then integrates and tests), 2 repeats, Sonnet 5.5 at effort low with the
+cache breakpoint, Hermes fb67154, sessions from the request stream, no plugin. Driver
+`bench/evaluation/sub_agent.py`. Quality bar frozen before the run: no worse iff passes are
+at least the Sonnet arm's minus one.
+
+| Arm | Jobs | Hidden tests | US$ (5 matched jobs) | Model calls | On luna | Subagents recognised |
+|---|---|---|---|---|---|---|
+| sonnet (every session on Sonnet) | 5/5 | 65/65 | 1.181 | 51 | 0 | 15 of 15 |
+| mix (routine steps on luna) | 5/5 | 65/65 | 1.005 (-15%) | 71 | 38 | 15 of 15 |
+| **sub** (mix + subagents start on luna) | **5/5** | 65/65 | **0.717 (-39%)** | 99 | 63 | 15 of 15 |
+
+The sonnet arm's sixth job never ran: the arm's equal share of the cap (US$1.40) was exhausted
+after five jobs, and the meter refused the dispatch. Over all six, mix and sub passed 6/6.
+
+- Every subagent was recognised from the request stream alone (the child's first user message
+  equals the parent's `delegate_task` goal). No harness integration.
+- Putting the whole first turn of a subagent on luna more than doubles the saving of plain
+  routine-step routing on these tasks (-39% vs -15%) at the same quality. A subagent's first
+  turn is where it reads the goal and writes its module: the step the parent-only signals
+  would have kept on Sonnet.
+- Limits: 3 synthetic tasks, small independent modules, 5 matched jobs, one harness. The
+  earlier gpt-4.1 run on this pack passed 1-5 of 10; on current models every arm passes, so
+  this is the first time the quality comparison is meaningful.
+
+Shipped: `delegated_start` added to the economy candidate's `qualified_tasks` and
+`sessions: "request"` in both shipped configs (a passing run; Anders may veto).
+
+## 8. Shipped (this commit)
 
 - `config/recursant.quickstart.json` and `config/recursant.agent.example.json`: current models
   (Claude Sonnet 5.5 baseline, gpt-6-luna economy, Claude Opus 5.5 recovery), list prices,
