@@ -491,11 +491,29 @@ static bool parse(int argc, char **argv, int first, options *o, bool allow_posit
     return true;
 }
 
-/* Resolve --config / positional / $RECURSANT_CONFIG onto the chosen paths. */
+/* The config an installed unit serves: LoadCredential=config.json:PATH
+ * (system) or ExecStart=... serve --config PATH (user). false when absent. */
+static bool unit_config(const char *unit, char *out, size_t size) {
+    char *text = read_file(unit, NULL);
+    bool found = false;
+    for (char *line = text ? strtok(text, "\n") : NULL; line && !found; line = strtok(NULL, "\n")) {
+        const char *path = NULL, *mark;
+        if (!strncmp(line, "LoadCredential=config.json:", 27)) path = line + 27;
+        else if (!strncmp(line, "ExecStart=", 10) && (mark = strstr(line, " serve --config "))) path = mark + 16;
+        if (path && *path == '/' && strlen(path) < size) { snprintf(out, size, "%s", path); found = true; }
+    }
+    free(text);
+    return found;
+}
+
+/* Precedence: --config / positional, $RECURSANT_CONFIG, the config the
+ * installed service runs, then the default path for the installation. */
 static void resolve(const options *o, rc_cli_paths *p) {
     choose_paths(o->user, p);
     const char *config = o->config ? o->config : o->positional;
     if (!config && o->user < 0) config = getenv("RECURSANT_CONFIG");
+    char installed[PATH_MAX];
+    if (!config && unit_config(p->unit, installed, sizeof installed)) config = installed;
     if (config && *config) set_config(p, config);
 }
 
@@ -704,7 +722,7 @@ static int cmd_status(const options *o) {
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3L);
             curl_easy_setopt(curl, CURLOPT_PROXY, "");
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, collect);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, body);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)body);
             if (curl_easy_perform(curl) == CURLE_OK) curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         }
         memset(auth, 0, sizeof auth);

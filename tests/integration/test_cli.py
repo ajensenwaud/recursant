@@ -236,6 +236,18 @@ class CLITests(unittest.TestCase):
         self.assertEqual(self.run_cli('install', '--user', '--dry-run', '--config', self.write(cfg, 'bad.json')).returncode, 1)
         self.assertEqual(self.run_cli('install', '--user', '--config', self.dir / 'absent.json').returncode, 1)
 
+    def test_commands_follow_the_installed_units_config(self):
+        cfg = self.write(config(), 'elsewhere.json')
+        unit = self.dir / 'home' / '.config' / 'systemd' / 'user' / 'recursant.service'
+        unit.parent.mkdir(parents=True)
+        unit.write_text('[Service]\nExecStart=/x/recursant serve --config %s\n' % cfg)
+        report = json.loads(self.run_cli('status', '--user', '--json').stdout)
+        self.assertEqual(report['config'], str(cfg))
+        self.assertTrue(report['service']['installed'])
+        self.assertIn('config      %s' % cfg, self.run_cli('check', '--user', '--no-secrets').stdout)
+        explicit = self.write(config(), 'explicit.json')  # --config still wins
+        self.assertEqual(json.loads(self.run_cli('status', '--user', '--json', '--config', explicit).stdout)['config'], str(explicit))
+
     # ---- serve + status ----
     def test_status_endpoint_counts_requests(self):
         class Sink(http.server.BaseHTTPRequestHandler):
