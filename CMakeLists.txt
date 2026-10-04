@@ -111,7 +111,8 @@ if(ROUTER_DEPS_FOUND)
     target_compile_options(recursant_tools PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(recursant_tools PUBLIC -fsanitize=address,undefined)
   endif()
-  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/compliance/identifiers.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c)
+  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/compliance/identifiers.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c core/src/providers/catalog.c core/src/net/netinfo.c core/src/cli/cli.c core/src/cli/configure.c)
+  target_compile_definitions(recursant PRIVATE RECURSANT_VERSION="${PROJECT_VERSION}")
   target_link_libraries(recursant PRIVATE recursant_signals recursant_efficiency recursant_prompt recursant_cost recursant_stream_tools recursant_tools recursant_config recursant_selector recursant_context recursant_attempts recursant_interpreter Threads::Threads PkgConfig::ROUTER_DEPS)
   target_compile_options(recursant PRIVATE -Wall -Wextra -Wpedantic -Werror)
 else()
@@ -354,6 +355,12 @@ if(BUILD_TESTING)
                COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
                        ${CMAKE_SOURCE_DIR}/tests/integration -p test_compliance.py -v)
       set_tests_properties(compliance_integration PROPERTIES
+        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1"
+        TIMEOUT 180)
+      add_test(NAME cli_integration
+               COMMAND ${Python3_EXECUTABLE} -m unittest discover -s
+                       ${CMAKE_SOURCE_DIR}/tests/integration -p test_cli.py -v)
+      set_tests_properties(cli_integration PROPERTIES
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1"
         TIMEOUT 180)
       add_test(NAME router_integration

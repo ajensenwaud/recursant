@@ -142,22 +142,32 @@ curl -fsSL https://raw.githubusercontent.com/ajensenwaud/recursant/main/install.
 
 Options: `RECURSANT_PREFIX` (default `~/.local`), `RECURSANT_REF` (branch or tag), `RECURSANT_NO_DEPS=1` (print the package command instead of running it). Read [the script](install.sh) first if you prefer; it is short.
 
-**2. Set your keys.** Secrets are environment references only and never go in the config file.
+**2. Configure it.** `recursant configure` walks you through endpoints, models, PII patterns, network and keys. Secrets never go in the config: they are stored in `recursant.env` next to it (mode 0600), and a client key for your agents is generated on first run.
 
 ```sh
-export OPENROUTER_API_KEY=...                      # public models
-export RECURSANT_API_KEY=$(openssl rand -hex 24)    # what your agents use to call Recursant
-export RECURSANT_SOURCE_KEY=$(openssl rand -hex 24) # optional harness hints (must differ from the API key)
+recursant configure                    # interactive
+recursant check                        # validate before (re)starting
 ```
 
-**3. Point `local` at your on-prem model** in `~/.config/recursant/config.json` (the default is Ollama on `127.0.0.1:11434`), then run:
+The same edits as switches, for scripts and agents (every change is validated first, and the previous config is kept as `config.json.YYYY-MM-DD-HHMMSS.bak`):
 
 ```sh
-recursant validate ~/.config/recursant/config.json
-recursant serve ~/.config/recursant/config.json
+recursant configure --add-provider openrouter --alias economy=openrouter:openai/gpt-6-luna
+recursant configure --add-provider lab --url http://gx10:8888/v1 --trust private --private-default lab:GLM-5.3-Flash-EXL3
+printf %s "$OPENROUTER_API_KEY" | recursant configure --set-key OPENROUTER_API_KEY
+recursant configure --list-providers   # 28 known public gateways (OpenAI, Anthropic, Gemini, Groq, Mistral, ...)
 ```
 
-**4. Point your agent at it.** Use base URL `http://127.0.0.1:8080/v1`, API key `$RECURSANT_API_KEY` and model `auto`:
+Live-tested so far: OpenRouter and local OpenAI-compatible servers. The other catalogue entries use the generic OpenAI-compatible adapter and have not yet been exercised against their real APIs.
+
+**3. Run it as a service** (systemd; `--user` for a per-user service, or as root for the system one), or in the foreground with `recursant serve`:
+
+```sh
+recursant install --user && recursant start
+recursant status                       # state, endpoint, request counters (--json for agents)
+```
+
+**4. Point your agent at it.** Use base URL `http://127.0.0.1:8080/v1`, the client key from `recursant.env` and model `auto`:
 
 ```sh
 curl -s http://127.0.0.1:8080/v1/chat/completions \
@@ -178,13 +188,31 @@ docker run --rm --user "$(id -u):$(id -g)" --read-only --cap-drop ALL --security
   -e RECURSANT_API_KEY -e OPENROUTER_API_KEY -e RECURSANT_SOURCE_KEY recursant:local
 ```
 
+## Command line
+
+`recursant <command> [--switches]`. Every command takes `--config PATH`; the default is `$RECURSANT_CONFIG`, then `~/.config/recursant/config.json`, then `/etc/recursant/config.json`.
+
+| Command | What it does |
+|---|---|
+| `install` | Installs the binary and a hardened systemd unit (system: `DynamicUser`, config as a credential; `--user`: user manager), enables it. Refuses an invalid config. `--dry-run` prints the unit. |
+| `uninstall` | Stops, disables and removes the unit and binary. Config and keys are kept unless `--purge`. |
+| `start` / `stop` | Start or stop the daemon. Logs go to the journal: `journalctl [--user] -u recursant`. |
+| `restart` | Checks the config first; an invalid config never replaces the running one. |
+| `check` | Validates the config and names the problem (`--no-secrets` for structure only). |
+| `status` | Service state, endpoint, tailnet address, uptime and request counters (`--json`). Exit 3 when not running. |
+| `configure` | Interactive setup, or switches: `--add-provider`, `--remove-provider`, `--alias`, `--private-default`, `--add-pattern`, `--compliance`, `--listen localhost\|tailnet\|any\|IP`, `--port`, `--set-key`. |
+| `serve` | Runs the router in the foreground (what the service runs). |
+
+**Tailscale.** `listen.host` may be `tailnet`: Recursant binds to this machine's Tailscale address at start (and orders itself after `tailscaled`). `check`, `status` and `configure` show the detected tailnet address and mark tailnet endpoints, so a private model on another tailnet machine (`http://gx10:8888/v1`) is one `--add-provider` away.
+
 ## One config file
 
-Everything lives in one strict JSON file. Unknown keys are rejected, and `recursant validate` checks it before you deploy.
+Everything lives in one strict JSON file. Unknown keys are rejected, and `recursant check` names the problem before you deploy.
 
 | Section | What it controls |
 |---|---|
-| `providers` | Your model endpoints, each `private` or `public`, with an adapter (`openai-compatible`, `openrouter`) |
+| `providers` | Any number of model endpoints (up to 256), each `private` or `public`, with an adapter (`openai-compatible`, `openrouter`) |
+| `listen` | Address (`localhost`, `tailnet`, `any` or an IPv4 address) and port |
 | `aliases` | Names your agents can use (`baseline`, `economy`, `strong`, `local`) |
 | `compliance` | Identifier recognisers, your own patterns, agent text mode, whether public placement is allowed at all |
 | `context` | Routing: candidates with prices and qualifications, signals, sessions, budgets, health, judge, headers |

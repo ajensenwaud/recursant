@@ -128,14 +128,21 @@ else
   install -m 0600 "$SRC/config/recursant.quickstart.json" "$CONFIG"
   say "Wrote starter config $CONFIG"
 fi
+# Client keys for your agents (and harness hints), next to the config; never printed.
+ENVF="$CONFIG_DIR/recursant.env"
+if [ ! -e "$ENVF" ]; then
+  key() { od -An -tx1 -N24 /dev/urandom | tr -d ' \n'; }
+  ( umask 077
+    printf '# Recursant secrets (read by systemd EnvironmentFile= and by the recursant CLI). Keep 0600.\n'  > "$ENVF"
+    printf 'RECURSANT_API_KEY=%s\nRECURSANT_SOURCE_KEY=%s\n' "$(key)" "$(key)" >> "$ENVF" )
+  say "Generated RECURSANT_API_KEY and RECURSANT_SOURCE_KEY in $ENVF"
+fi
 
-# Structure check only: distinct placeholder values (the keys must differ) stand in for
-# your keys in this one subprocess.
-if env RECURSANT_API_KEY=check-client OPENROUTER_API_KEY=check-public RECURSANT_SOURCE_KEY=check-source \
-     "$PREFIX/bin/recursant" validate "$CONFIG" >/dev/null 2>&1; then
+# Structure check only (keys such as OPENROUTER_API_KEY may not be set yet).
+if "$PREFIX/bin/recursant" check --no-secrets --config "$CONFIG" >/dev/null 2>&1; then
   say "Config is valid"
 else
-  warn "$CONFIG did not validate; run: recursant validate $CONFIG (with your keys exported)"
+  warn "$CONFIG did not validate; run: recursant check --config $CONFIG"
 fi
 
 case ":$PATH:" in *":$PREFIX/bin:"*) ;; *) warn "$PREFIX/bin is not on your PATH; add: export PATH=\"$PREFIX/bin:\$PATH\"" ;; esac
@@ -144,16 +151,18 @@ cat <<EOF
 
 Recursant is installed.
 
-  1. Set three secrets (from your secret manager; never put them in the config):
-       export OPENROUTER_API_KEY=...                 # public models
-       export RECURSANT_API_KEY=\$(openssl rand -hex 24)   # what your agents use to call Recursant
-       export RECURSANT_SOURCE_KEY=\$(openssl rand -hex 24) # for optional harness hints
-  2. Point "local" in $CONFIG at your on-prem model (default: Ollama on :11434).
-  3. Run it:
-       recursant serve $CONFIG
-  4. Point your agent at it: base URL http://127.0.0.1:8080/v1, API key \$RECURSANT_API_KEY,
-     model "auto". Every step is routed; responses carry X-Recursant-Model and
-     X-Recursant-Decision headers so you can see what happened.
+  1. Configure endpoints, models and keys (keys are stored in $CONFIG_DIR/recursant.env, 0600):
+       recursant configure
+     or non-interactively, e.g.:
+       printf %s "\$OPENROUTER_API_KEY" | recursant configure --set-key OPENROUTER_API_KEY
+       recursant configure --add-provider lab --url http://my-gpu:8000/v1 --trust private
+  2. Check it:
+       recursant check
+  3. Run it as a service (systemd user unit), or in the foreground with: recursant serve
+       recursant install --user && recursant start && recursant status
+  4. Point your agent at it: base URL http://127.0.0.1:8080/v1, the RECURSANT_API_KEY from
+     recursant.env, model "auto". Responses carry X-Recursant-Model and X-Recursant-Decision
+     headers so you can see what happened.
 
 Docs: https://github.com/$REPO
 EOF

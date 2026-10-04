@@ -12,7 +12,7 @@ typedef enum { RC_ENDPOINT_PRIVATE = 0, RC_ENDPOINT_PUBLIC = 1 } rc_endpoint;
 
 #define RC_PROVIDER_NONE ((size_t)-1)
 #define RC_PROVIDER_NAME_MAX 63
-#define RC_PROVIDER_MAX 32
+#define RC_PROVIDER_MAX 256
 
 /* One named upstream gateway. Legacy private/public sections become the
  * implicit providers "private" and "public". */

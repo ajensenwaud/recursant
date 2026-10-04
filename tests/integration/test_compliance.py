@@ -330,7 +330,11 @@ class ComplianceTests(unittest.TestCase):
                 path = pathlib.Path(tmp) / 'config.json'; path.write_text(json.dumps(base))
                 result = subprocess.run([str(BIN), 'validate', str(path), '--test-mode'], env={**os.environ, 'RC_TEST_AUTH': 'local-test-key'}, capture_output=True)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn(result.stderr, (b'invalid compliance policy\n', b'invalid runtime configuration\n'))
+                # A fixed category, optionally with a reason; never the pattern text itself.
+                self.assertTrue(result.stderr.startswith((b'invalid compliance policy', b'invalid runtime configuration')), result.stderr)
+                self.assertEqual(result.stderr.count(b'\n'), 1)
+                self.assertNotIn(b'sensitive', result.stderr)
+                self.assertNotIn(b'\\u0000', result.stderr)
 
     def test_11_traversal_budgets_and_numeric_pattern(self):
         deep = 'clean'

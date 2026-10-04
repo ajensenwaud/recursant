@@ -3,6 +3,8 @@
 #include "recursant/gateway_context.h"
 #include "recursant/classifier.h"
 #include "recursant/provider_adapter.h"
+#include "recursant/cli.h"
+#include <stdatomic.h>
 #include <microhttpd.h>
 #include <curl/curl.h>
 #include <arpa/inet.h>
@@ -18,6 +20,12 @@
 #include <errno.h>
 
 #define QUEUE_SIZE 65536
+#ifndef RECURSANT_VERSION
+#define RECURSANT_VERSION "dev"
+#endif
+/* Process-lifetime counters for GET /v1/status (`recursant status`). Counts only. */
+static atomic_ullong stat_total,stat_ok,stat_rejected,stat_upstream,stat_private,stat_public;
+static time_t stat_started;
 static volatile sig_atomic_t stopping;
 typedef struct {
     rc_runtime *runtime;
@@ -45,6 +53,9 @@ static enum MHD_Result reply(struct MHD_Connection *c,unsigned status,const char
     enum MHD_Result result=MHD_queue_response(c,status,r);MHD_destroy_response(r);return result;
 }
 static enum MHD_Result error_reply(struct MHD_Connection *c,unsigned code){return reply(c,code,"{\"error\":{\"message\":\"request failed\"}}","application/json");}
+/* A chat request that ends without an upstream response: 502/503 count as
+ * upstream errors, everything else as rejected by the router. */
+static enum MHD_Result chat_fail(struct MHD_Connection *c,unsigned code){atomic_fetch_add(code==502||code==503?&stat_upstream:&stat_rejected,1);return error_reply(c,code);}
 static int progress(void *ctx,curl_off_t a,curl_off_t b,curl_off_t d,curl_off_t e){
     (void)a;(void)b;(void)d;(void)e;request *r=ctx;
     /* While MHD waits for upstream data, detect unambiguous transport errors.
@@ -181,6 +192,20 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     }
     if(r->rejection){r->replied=true;return error_reply(c,r->rejection);}
     if(health){r->replied=true;return reply(c,200,"{\"status\":\"ok\"}","application/json");}
+    if(!strcmp(url,"/v1/status")&&!strcmp(method,"GET")){
+        r->replied=true;
+        json_t *root=json_pack("{s:s,s:I,s:I,s:s,s:I,s:I,s:I,s:b,s:b,s:{s:I,s:I,s:I,s:I,s:I,s:I}}",
+            "version",RECURSANT_VERSION,"started",(json_int_t)stat_started,"uptime_s",(json_int_t)(time(NULL)-stat_started),
+            "listen",rt->config.listen_host,"port",(json_int_t)rt->config.listen_port,
+            "providers",(json_int_t)rt->config.provider_count,"aliases",(json_int_t)rt->config.alias_count,
+            "compliance",rt->compliance_enabled,"context",rt->gateway!=NULL,
+            "requests","total",(json_int_t)atomic_load(&stat_total),"ok",(json_int_t)atomic_load(&stat_ok),
+            "rejected",(json_int_t)atomic_load(&stat_rejected),"upstream_errors",(json_int_t)atomic_load(&stat_upstream),
+            "private",(json_int_t)atomic_load(&stat_private),"public",(json_int_t)atomic_load(&stat_public));
+        char *s=root?json_dumps(root,JSON_COMPACT):NULL;json_decref(root);
+        if(!s)return error_reply(c,500);
+        enum MHD_Result result=reply(c,200,s,"application/json");free(s);return result;
+    }
     if(!strcmp(url,"/v1/models")&&!strcmp(method,"GET")){
         r->replied=true;
         json_t *root=json_pack("{s:s,s:[]}","object","list","data");
@@ -202,11 +227,11 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
         enum MHD_Result result=text?reply(c,status,text,"application/json"):error_reply(c,status);free(text);return result;
     }
     if(strcmp(url,"/v1/chat/completions")||strcmp(method,"POST")){r->replied=true;return error_reply(c,404);}
-    r->replied=true;json_error_t je;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&je);
+    atomic_fetch_add(&stat_total,1);r->replied=true;json_error_t je;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&je);
     json_t *m=json_object_get(body,"model");const char *model=json_string_value(m),*physical=NULL;bool automatic=false;
-    if(!json_is_object(body)||!model||strlen(model)!=json_string_length(m)||!route(rt,model,&r->endpoint,&physical,&automatic)){json_decref(body);return error_reply(c,400);}
+    if(!json_is_object(body)||!model||strlen(model)!=json_string_length(m)||!route(rt,model,&r->endpoint,&physical,&automatic)){json_decref(body);return chat_fail(c,400);}
     json_t *rewritten=json_string(physical);
-    if(!rewritten || json_object_set_new(body,"model",rewritten)!=0){json_decref(body);return error_reply(c,500);}
+    if(!rewritten || json_object_set_new(body,"model",rewritten)!=0){json_decref(body);return chat_fail(c,500);}
     /* M2 hard gate: final provider object, before serialization and any network. */
     rc_gateway_headers headers_in={0};
     if(rt->gateway)MHD_get_connection_values(c,MHD_HEADER_KIND,collect_header,&headers_in);
@@ -214,25 +239,25 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     unsigned denial=rc_gateway_prepare(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket);
     clock_gettime(CLOCK_MONOTONIC,&routing_end);
     long long routing_us=(long long)(routing_end.tv_sec-routing_start.tv_sec)*1000000+(routing_end.tv_nsec-routing_start.tv_nsec)/1000;
-    if(denial){json_decref(body);return error_reply(c,denial);}
+    if(denial){json_decref(body);return chat_fail(c,denial);}
     /* Final (trust, model) after M2/context selects exactly one provider whose
      * trust equals the final M2 trust class; anything else fails closed. */
-    if(r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC){json_decref(body);return error_reply(c,403);}
+    if(r->endpoint!=RC_ENDPOINT_PRIVATE&&r->endpoint!=RC_ENDPOINT_PUBLIC){json_decref(body);return chat_fail(c,403);}
     const union MHD_ConnectionInfo *info=MHD_get_connection_info(c,MHD_CONNECTION_INFO_CONNECTION_FD);
-    if(!info || (r->downstream_fd=dup(info->connect_fd))<0){json_decref(body);return error_reply(c,503);}
+    if(!info || (r->downstream_fd=dup(info->connect_fd))<0){json_decref(body);return chat_fail(c,503);}
     rc_gateway_shadow(rt,body,automatic,&headers_in,r->endpoint,&r->ticket);
     /* context.health: a failure that reached no client byte (error status or
      * no response headers) may be retried on a failover target. */
     long status=0;bool sse=false;
     for(unsigned attempt=0;;attempt++){
         r->provider=rc_runtime_dispatch_provider(rt,r->endpoint,json_string_value(json_object_get(body,"model")));
-        if(r->provider==RC_PROVIDER_NONE){json_decref(body);return error_reply(c,403);}
+        if(r->provider==RC_PROVIDER_NONE){json_decref(body);return chat_fail(c,403);}
         /* The stream observer accepts only the dialect of the adapter that will
          * produce it; unknown adapters get the strict OpenAI shape. */
         const rc_provider_adapter *adapter=rc_provider_adapter_find(rt->config.providers[r->provider].adapter);
         r->strict_stream=!adapter||!adapter->accepts_openrouter_accounting;
-        free(r->payload);r->payload=json_dumps(body,JSON_COMPACT);if(!r->payload){json_decref(body);return error_reply(c,500);}
-        if(pthread_create(&r->worker,NULL,upstream,r)){json_decref(body);return error_reply(c,503);}
+        free(r->payload);r->payload=json_dumps(body,JSON_COMPACT);if(!r->payload){json_decref(body);return chat_fail(c,500);}
+        if(pthread_create(&r->worker,NULL,upstream,r)){json_decref(body);return chat_fail(c,503);}
         r->started=true;
         pthread_mutex_lock(&r->lock);while(!r->headers&&!r->done&&!r->cancel)if(pthread_cond_timedwait(&r->changed,&r->lock,&r->deadline)!=0)r->cancel=true;
         /* A 400 may report a context-window overflow: read its (bounded) body. */
@@ -243,15 +268,16 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
         if(!cancel&&headers&&status>=200&&status<300)break;
         /* A cancelled exchange (client gone, deadline) says nothing about the
          * destination and is never retried. */
-        if(cancel){json_decref(body);return error_reply(c,502);}
+        if(cancel){json_decref(body);return chat_fail(c,502);}
         /* A context overflow is the request's size, not the destination's health. */
         if(!overflow)rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),headers?status:0,retry_after);
         bool retryable=overflow||!headers||status==401||status==404||status==408||status==429||status>=500;
-        if(!retryable||attempt>=rc_gateway_max_retries(rt)||!rc_gateway_failover(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket,headers?status:0,overflow)){json_decref(body);return error_reply(c,502);}
+        if(!retryable||attempt>=rc_gateway_max_retries(rt)||!rc_gateway_failover(rt,body,automatic,&headers_in,&r->endpoint,&r->ticket,headers?status:0,overflow)){json_decref(body);return chat_fail(c,502);}
         pthread_join(r->worker,NULL);r->started=false;
         pthread_mutex_lock(&r->lock);r->status=0;r->headers=r->done=r->failed=r->sse=false;r->retry_after_ms=0;r->head=r->count=0;r->error_len=0;r->error_overflow=false;pthread_mutex_unlock(&r->lock);
     }
     rc_gateway_outcome(rt,r->endpoint,json_string_value(json_object_get(body,"model")),status,0);
+    atomic_fetch_add(&stat_ok,1);atomic_fetch_add(r->endpoint==RC_ENDPOINT_PRIVATE?&stat_private:&stat_public,1);
     const char *used=json_string_value(json_object_get(body,"model"));char model_used[129];snprintf(model_used,sizeof model_used,"%s",used?used:"");
     json_decref(body);
     struct MHD_Response *response=MHD_create_response_from_callback(MHD_SIZE_UNKNOWN,16384,read_response,r,NULL);if(!response)return MHD_NO;
@@ -270,6 +296,7 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
 }
 int rc_router_serve(rc_runtime *rt){
     if(!rc_gateway_start(rt))return 1;
+    stat_started=time(NULL);
     struct sockaddr_in bind_addr={.sin_family=AF_INET,.sin_port=htons((uint16_t)rt->config.listen_port)};
     if(inet_pton(AF_INET,rt->config.listen_host,&bind_addr.sin_addr)!=1)return 1;
     signal(SIGTERM,stop_server);signal(SIGINT,stop_server);signal(SIGPIPE,SIG_IGN);
@@ -281,24 +308,21 @@ int rc_router_serve(rc_runtime *rt){
     while(!stopping){rc_gateway_poll(rt);struct timespec t={0,100000000};nanosleep(&t,NULL);}MHD_stop_daemon(daemon);return 0;
 }
 
-int main(int argc,char **argv) {
-    if((argc!=3 && argc!=4) || (strcmp(argv[1],"serve") && strcmp(argv[1],"validate")) ||
-       (argc==4 && strcmp(argv[3],"--test-mode"))) {
-        fputs("usage: recursant {serve|validate} CONFIG [--test-mode]\n",stderr);
-        return 2;
-    }
-    if(curl_global_init(CURL_GLOBAL_DEFAULT)!=CURLE_OK)return 1;
-    rc_runtime runtime;char error[128];
+/* `recursant serve`: the CLI (cli/cli.c) has resolved the config path,
+ * loaded recursant.env and initialised libcurl. */
+int rc_serve_main(const char *config,bool test_mode) {
+    rc_runtime runtime;char error[256];
     rc_dispatch_gate=rc_compliance_gate;
-    if(!rc_runtime_load(argv[2],argc==4,&runtime,error,sizeof error)) {
-        fprintf(stderr,"%s\n",error);curl_global_cleanup();return 1;
+    if(!rc_runtime_load(config,test_mode,&runtime,error,sizeof error)) {
+        fprintf(stderr,"%s\n",error);return 1;
     }
-    int result=0;
     if(!rc_compliance_init(&runtime)) {
         fputs("invalid compliance policy\n",stderr);
-        rc_runtime_free(&runtime);curl_global_cleanup();return 1;
+        rc_runtime_free(&runtime);return 1;
     }
-    if(!strcmp(argv[1],"serve"))result=rc_router_serve(&runtime);
-    else puts("configuration valid");
-    rc_runtime_free(&runtime);curl_global_cleanup();return result;
+    fprintf(stderr,"recursant %s listening on http://%s:%ld/v1 (%zu providers, %zu aliases)\n",RECURSANT_VERSION,
+            runtime.config.listen_host,runtime.config.listen_port,runtime.config.provider_count,runtime.config.alias_count);
+    int result=rc_router_serve(&runtime);
+    rc_runtime_free(&runtime);return result;
 }
+int main(int argc,char **argv) { return rc_cli_main(argc,argv); }

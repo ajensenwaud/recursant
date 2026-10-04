@@ -46,6 +46,14 @@ size_t rc_runtime_dispatch_provider(const rc_runtime *rt, rc_endpoint trust, con
 typedef int (*rc_dispatch_gate_fn)(const rc_runtime *, json_t *, rc_endpoint *);
 extern rc_dispatch_gate_fn rc_dispatch_gate;
 bool rc_runtime_load(const char *path, bool test_mode, rc_runtime *out, char *err, size_t err_size);
+/* Structure-only loads (recursant check --no-secrets, configure): a secret
+ * whose environment variable is unset gets a placeholder instead of failing,
+ * and its NAME is listed by rc_runtime_missing_secret(0..). Never set by serve. */
+extern bool rc_runtime_secrets_optional;
+#define RC_RUNTIME_MISSING_MAX 16
+const char *rc_runtime_missing_secret(size_t index);
+/* Why the most recent rc_runtime_load failed ("" when unknown). */
+const char *rc_runtime_load_reason(void);
 void rc_runtime_free(rc_runtime *runtime);
 int rc_router_serve(rc_runtime *runtime);
 #endif
