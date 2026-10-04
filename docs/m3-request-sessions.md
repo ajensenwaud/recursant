@@ -182,7 +182,7 @@ Every candidate already declares `context_limit`. Two additions:
 
 ## Reasoning effort from signals (`context.reasoning`)
 
-`"off"` (default) | `"signals"` (requires `signals: "on"`). Modelled on vLLM Semantic
+`"off"` (default) | `"signals"` | `"steps"` (both require `signals: "on"`). Modelled on vLLM Semantic
 Router's per-decision `use_reasoning` / `reasoning_effort` (`extproc/req_filter_reason.go`),
 but driven by our signals rather than prompt classification.
 
@@ -208,6 +208,25 @@ Each candidate may declare `reasoning: {"family": ..., "low": token, "high": tok
   private-only. If the request fails over, the added field is removed first.
 - Not modelled: providers that invalidate the prompt cache when the thinking setting
   changes (Anthropic). None of the current candidates do.
+- `"steps"`: every session step gets an effort from the destination's table, whichever
+  candidate serves it: `low` on a routine step (the signals classed it `tool_followup_ok`,
+  `final_answer` or `simple_prompt`), `high` otherwise (first step, after a failure,
+  escalation). The operator hands effort to the router: for the `openai` and `openrouter`
+  families the harness's `reasoning_effort` / `reasoning` field is replaced (Hermes sends
+  `reasoning_effort: medium` on every request, which would otherwise block the rule). A
+  `vllm-thinking` destination still keeps a harness-sent `chat_template_kwargs`. Measured on
+  Claude Sonnet 5.5 agent jobs (`docs/evidence/m3-reasoning-effort-agents.md`): low on every
+  step costs 27% of xhigh at the same pass rate, so the shipped configs set `low`/`low` for
+  Claude and let the harness's own setting go.
+
+## Phase rule (`context.phase`)
+
+`"off"` (default) | `"on"` (requires `signals: "on"`). The step right after a read or search
+(`read_file`, `search_files`, `grep`, `glob`, `list_dir`, `tool_search`) is usually the one
+that writes the code it just read for. With the rule on, such a clean step stays unclassified
+(baseline) instead of `tool_followup_ok`; a clean step after a write or command is routine as
+before, and a final answer is routine whatever came before. Deterministic, from tool names in
+the request; no model. Evidence: `docs/evidence/m3-token-levers.md`.
 
 ## Harness housekeeping calls (`context.housekeeping`)
 

@@ -1,10 +1,15 @@
-# Recursant
+```text
+██▀▀▀█▄ ██▀▀▀▀▀ ▄█▀▀▀▀▀ ██   ██ ██▀▀▀█▄ ▄█▀▀▀▀▀  ▄█▀█▄  ██▄  ██ ▀▀▀██▀▀
+██▄▄▄█▀ ██▄▄▄   ██      ██   ██ ██▄▄▄█▀ ▀█▄▄▄▄  ██   ██ ██▀█▄▀█    ██
+██  ▀█▄ ██      ██      ██   ██ ██  ▀█▄      ██ ██▀▀▀██ ██  ▀██    ██
+██   ██ ██▄▄▄▄▄ ▀█▄▄▄▄▄  ▀█▄▄█▀ ██   ██ ▀█▄▄▄█▀ ██   ██ ██   ██    ██
+```
 
-**The agent-aware model router. Cheapest suitable model for every step, on-prem or public, with private data kept on your own hardware.**
+**The agent-aware model router. Lowest-cost suitable model across  on-prem or public, with private data kept on your own hardware.**
 
 Recursant sits between your AI agents and your models. It reads each request as the agent sends it, works out what kind of step it is, and sends it to the cheapest model that can do that step and is allowed to see the data. It is one small C binary with one config file, and it speaks the OpenAI API, so nothing in your agent changes.
 
-On our live agent benchmarks it cut public token spend by **25% to 66%** with no loss of quality, and sent **no** requests containing personal data to a public provider, against 31 for the same agent calling the API directly.
+On our live agent benchmarks it cut public token spend by **25% to 66%** with no loss of quality, and sent **no** requests containing personal data to a public provider, against the same set of turns for the same agent calling the API directly.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ajensenwaud/recursant/main/install.sh | bash
@@ -20,7 +25,9 @@ curl -fsSL https://raw.githubusercontent.com/ajensenwaud/recursant/main/install.
 
 **On-prem and public models live in separate worlds.** Many organisations now own GPUs and also pay for public APIs. There is no single control point that treats both as one pool and places each request by cost, capacity and permission, so teams hard-wire one or the other.
 
-**Compliance doesn't scale to agents.** Rules such as APRA CPS 230 and CPS 234, the Privacy Act and GDPR require that personal and sensitive data stays where it is allowed to be. An agent that reads a customer file and pastes it into its next prompt has just moved that data. Nobody can review every step by hand.
+**Compliance doesn't scale to agents.** Rules such as APRA CPS 234 and GDPR require that personal and sensitive data stays where it is allowed to be. An agent that reads a customer file and pastes it into its next prompt has just moved that data. Nobody can review every step by hand.
+
+Recursant fixes those problems. 
 
 ## The solution
 
@@ -28,12 +35,12 @@ Recursant is one OpenAI-compatible endpoint in front of all your models, public 
 
 - **Which model.** Routine steps (a clean tool result, a final answer) go to an economy model; steps after repeated failures go to a stronger one; the rest stay on your baseline. Decided per step, not per conversation. Plain questions (chat, single API calls) go to the cheapest model you qualify for them.
 - **Where.** On-prem and public providers sit in one pool. Requests are placed by price, measured token use, prompt-cache warmth, capacity and health.
-- **Whether it's allowed.** A deterministic compliance engine checks the exact outgoing request before it leaves. Anything containing personal data goes to your private model, and the conversation stays there. Compliance overrides every other decision.
+- **Compliance.** A deterministic compliance engine checks the exact outgoing request before it leaves. Anything containing personal data goes to your private model, and the conversation stays there. Compliance overrides every other decision.
 - **Without integration.** Sessions, tool loops and subagents are recognised from the request stream alone. No SDK, no plugin, no harness changes. Point the agent's base URL at Recursant and set the model to `auto`.
 
 ## Measured results
 
-Live benchmarks: the Hermes agent on synthetic development tasks, gpt-4.1 as the baseline and gpt-4.1-mini as the economy model on OpenRouter, with hidden tests deciding pass or fail. All costs are provider-billed.
+Live benchmarks: the Hermes agent on synthetic development tasks, with hidden tests deciding pass or fail, and 980-question MMLU-Pro runs for single questions. All costs are provider-billed. The agent runs used the September 2026 pair (gpt-4.1 baseline, gpt-4.1-mini economy, OpenRouter); the question-level runs use the current pair. Every number links to its evidence, including the limits.
 
 **Single-agent coding tasks** (10 tasks x 3 repeats, [evidence](docs/evidence/m3-final-comparison-d.md))
 
@@ -50,17 +57,37 @@ Live benchmarks: the Hermes agent on synthetic development tasks, gpt-4.1 as the
 | Agent calling gpt-4.1 directly | 2/10 | 73% | US$4.70 | 31 |
 | Recursant | 5/10 | 82% | US$1.58 (**-66%**) | **0** |
 
-**Single questions** (1,450 benchmark questions: MMLU, GSM8K, ARC, HumanEval, MBPP and others, [evidence](docs/evidence/m3-prompt-classifier.md))
+**Single questions, current model pair** (980 MMLU-Pro questions, 70 from each of 14 subjects, October 2026, [evidence](docs/evidence/m3-encoder-classifier.md))
 
-| Model answering | Correct | Spend |
+| Model answering | Correct | Spend | Median wait |
+|---|---|---|---|
+| GLM-5.3-Flash on your own GPU | 80.1% | **US$0** | 6.5 s |
+| gpt-6-luna (economy, via OpenRouter) | 84.6% | US$0.15 | 3.2 s |
+| gpt-6.1-sol (frontier, via OpenRouter) | 88.3% | US$1.53 | 3.3 s |
+
+The frontier-economy gap is real (sol alone right on 49 questions, luna alone on 13), but no question classifier predicts it: even the router's local encoder reaches AUC 0.56-0.58 on this pair, barely a coin flip. So Recursant sends every fresh question to the cheapest qualified model and leaves the trade-off to you: always the economy model costs 3.7 points for 90% less spend; always your own GPU costs 8.2 points for zero public spend. A classifier does not change those numbers.
+
+**Reasoning effort** (same 980 questions, [evidence](docs/evidence/m3-reasoning-effort.md))
+
+| Model and effort | Correct | Cost for 980 |
 |---|---|---|
-| gpt-4.1 | 89.8% | US$1.37 |
-| gpt-4.1-mini | 88.8% | US$0.32 (**-77%**) |
-| GLM-5.3-Flash on your own GPU | 90.2% | **US$0** in tokens (about 4x slower) |
+| gpt-6.1-sol, low effort | 88.7% | US$1.37 |
+| gpt-6.1-sol, high effort | 88.6% | US$2.03 |
+| gpt-6-luna, default effort | 84.6% | US$0.15 |
+| gpt-6-luna, no effort | 77.1% | US$0.04 |
 
-A question classifier, the approach other routers use, could not tell which questions the cheaper model would get wrong (AUC 0.5, a coin flip), so Recursant sends every fresh question to the cheapest qualified model. The classifier is still there for model pairs with a real capability gap.
+The frontier model gains nothing from a higher effort (low vs high is statistical noise, and low is 33% cheaper), while the economy model loses 8 points when reasoning is turned off. A per-question effort switch barely beats a random mix (AUC 0.57), so Recursant does the thing the data supports: one fixed effort per model, set by the operator — frontier at low, economy never "none". The per-question switch is not shipped.
 
-**What to expect.** On agent workloads where an economy model exists that can handle routine steps, expect public token spend to fall by roughly a quarter to two thirds at equal quality. Savings rise with longer tool loops, multi-agent work and on-prem capacity, which costs nothing per token. These are development benchmarks with one agent, one model pair and synthetic tasks; every number above links to its evidence, including the limits. We publish what didn't work too: a learned efficiency model that looked good offline [saved nothing live](docs/evidence/m3-efficiency-live.md) and ships switched off.
+**Agent jobs on current models** (32 Hermes coding jobs, short and long-horizon packs, October 2026, [evidence](docs/evidence/m3-token-levers.md))
+
+| | Jobs passed | Public spend | Change |
+|---|---|---|---|
+| Claude Sonnet 5.5 for every step (effort low, prompt cache on) | 27/32 | US$1.80 | |
+| Recursant: Sonnet + gpt-6-luna for routine steps | 28/32 | US$1.27 | **-29%** |
+
+Same Sonnet jobs at the harness's default high effort cost 3.7x more for the same pass rate ([evidence](docs/evidence/m3-reasoning-effort-agents.md)); without the prompt-cache breakpoint Recursant adds for Claude, 2.4x more. The shipped configs apply all three.
+
+**What to expect.** On agent workloads where an economy model exists that can handle routine steps, expect public token spend to fall by roughly a quarter to two thirds at equal quality. Savings rise with longer tool loops, multi-agent work and on-prem capacity, which costs nothing per token. These are development benchmarks with one agent and synthetic tasks, measured on two model pairs; every number above links to its evidence, including the limits. We publish what didn't work too: a learned efficiency model that looked good offline [saved nothing live](docs/evidence/m3-efficiency-live.md) and ships switched off.
 
 ## How it works
 

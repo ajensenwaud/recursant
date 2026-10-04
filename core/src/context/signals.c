@@ -182,6 +182,23 @@ static bool stalled(json_t *messages, size_t n) {
     for (unsigned i=0; i<k; ++i) free(keys[i]);
     return ok && same>=RC_SIGNALS_REPEAT_MIN;
 }
+/* Name of the newest tool call in the history ("" when none). */
+static const char *newest_call(json_t *messages, size_t n) {
+    for (size_t i=n; i-- > 0;) {
+        json_t *m=json_array_get(messages,i);
+        if (!role_is(m,"assistant")) continue;
+        json_t *calls=json_object_get(m,"tool_calls"); size_t k=json_array_size(calls);
+        if (!k) continue;
+        const char *name=json_string_value(json_object_get(json_object_get(json_array_get(calls,k-1),"function"),"name"));
+        return name?name:"";
+    }
+    return "";
+}
+static bool reading(const char *name) {
+    static const char *reads[]={"read_file","search_files","grep","glob","list_dir","tool_search","read","search"};
+    for (size_t i=0;i<sizeof reads/sizeof *reads;++i) if (!strcmp(name,reads[i])) return true;
+    return false;
+}
 static uint64_t classify(json_t *body, const rc_signal_scope *scope, bool *executed_failure) {
     *executed_failure=false;
     if (!json_is_object(body) || !scope || !scope->completed_turns) return 0;
@@ -219,6 +236,7 @@ static uint64_t classify(json_t *body, const rc_signal_scope *scope, bool *execu
     if (run>=2) return RC_TASK_RECOVERY;
     if (scope->repeat_escalation && !rejected && stalled(messages,n)) return RC_TASK_RECOVERY;
     if (failed_any) return 0;
+    if (scope->phase && offered && reading(newest_call(messages,n))) return 0;
     return offered ? RC_TASK_TOOL_FOLLOWUP_OK : RC_TASK_FINAL_ANSWER;
 }
 uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope) {

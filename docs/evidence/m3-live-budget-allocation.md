@@ -148,3 +148,12 @@ US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10
 - F-hard final: Sonnet low US$1.6476, xhigh US$2.6046; Opus low US$2.0201, xhigh US$2.9363 (216
   maths questions); probes US$0.51. Total US$9.72 of US$15.00. GLM unbilled.
 - Evidence: docs/evidence/m3-reasoning-effort-agents.md.
+
+## G-mix (2026-10-04): cheap current model for routine Claude agent steps, and the phase rule
+- Anders, 2026-10-04: "ok do all three" after the token-lever review quoted about US$8 for one
+  matched run. Cap US$8.00 public (`ALLOCATIONS['G-mix']`).
+- Arms (both packs, all Sonnet at effort low with the cache breakpoint): sonnet only; mix
+  (Sonnet + gpt-6-luna for tool_followup_ok / final_answer, signals as shipped); phase (mix +
+  `context.phase: "on"`). Driver `bench/evaluation/mix_agent.py`.
+- Spent: smoke US$0.069, gm-short US$1.741 (163 requests), gm-long US$3.113 (246 requests).
+  G-mix total US$4.92 of US$8.00. Evidence: docs/evidence/m3-token-levers.md.

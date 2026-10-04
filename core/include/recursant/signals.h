@@ -62,9 +62,16 @@
  * canonical copies of at most REPEAT_WINDOW call arguments. */
 #define RC_SIGNALS_REPEAT_WINDOW 6u
 #define RC_SIGNALS_REPEAT_MIN 3u
+/* Phase rule (opt-in, context.phase): a clean step whose newest tool call
+ * was a read or search (read_file, search_files, grep, glob, list_dir,
+ * tool_search) is the step that usually writes the code it just read for.
+ * It stays unclassified (baseline) instead of TOOL_FOLLOWUP_OK; a later
+ * clean step after a write or command is routine as before. Recorded pairs
+ * (bench/efficiency/phase.py): exploring steps are where models diverge most. */
 typedef struct {
     uint64_t completed_turns; /* physical turns completed in this scope */
     bool repeat_escalation;   /* apply the repeat-loop rule */
+    bool phase;               /* apply the phase rule */
 } rc_signal_scope;
 uint64_t rc_signals_classify(json_t *body, const rc_signal_scope *scope);
 /* True when an EXECUTED failed tool result is inside the inspected window

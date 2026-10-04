@@ -248,6 +248,21 @@ static void rejected_invocations(void) {
 #undef OKE
 }
 #define CALLA(id,name,args) "{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"" id "\",\"type\":\"function\",\"function\":{\"name\":\"" name "\",\"arguments\":\"" args "\"}}]}"
+static void phase_rule(void) {
+    /* context.phase: a clean step right after a read/search stays unclassified
+     * (the next move is usually the write); after a write or command it is routine. */
+    const rc_signal_scope on={.completed_turns=1,.phase=true};
+    const char *after_read="{\"messages\":[" USER("s") "," CALLA("c1","read_file","{}") "," RESULT("c1","ok") "]," TOOLS "}";
+    const char *after_write="{\"messages\":[" USER("s") "," CALLA("c1","read_file","{}") "," RESULT("c1","ok") "," CALLA("c2","write_file","{}") "," RESULT("c2","ok") "]," TOOLS "}";
+    CHECK(classify(after_read,&ONE)==RC_TASK_TOOL_FOLLOWUP_OK);   /* off: unchanged */
+    CHECK(classify(after_read,&on)==0);
+    CHECK(classify(after_write,&on)==RC_TASK_TOOL_FOLLOWUP_OK);
+    const char *search="{\"messages\":[" USER("s") "," CALLA("c1","search_files","{}") "," RESULT("c1","ok") "]," TOOLS "}";
+    CHECK(classify(search,&on)==0);
+    /* No tools offered: the final answer is routine whatever came before. */
+    const char *final="{\"messages\":[" USER("s") "," CALLA("c1","read_file","{}") "," RESULT("c1","ok") "]}";
+    CHECK(classify(final,&on)==RC_TASK_FINAL_ANSWER);
+}
 static void repeat_loop(void) {
     /* context.repeat_escalation: the newest call (name + canonical arguments)
      * made >= RC_SIGNALS_REPEAT_MIN times among the last RC_SIGNALS_REPEAT_WINDOW
@@ -299,7 +314,7 @@ static void repeat_loop(void) {
 }
 #undef CALLA
 int main(void) {
-    repeat_loop();
+    repeat_loop();phase_rule();
     rejected_invocations();
     structured_envelopes();
     structured_payloads();

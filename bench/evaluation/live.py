@@ -22,6 +22,8 @@ PUBLIC_RATES={'openai/gpt-4.1':('0.000002','0.000008'),
               # Claude Sonnet 5.5 (OpenRouter list 2026-10-04: US$2/US$10 per Mtok). Input at the
               # 1.25x cache-write price, so a cache_control request is never under-reserved.
               'anthropic/claude-sonnet-5.5':('0.0000025','0.00001'),
+              # gpt-6-luna (OpenRouter list 2026-10-04: US$0.1/US$0.5 per Mtok).
+              'openai/gpt-6-luna':('0.0000001','0.0000005'),
               'openai/gpt-4.1-mini':('0.0000004','0.0000016')}
 
 
@@ -219,7 +221,10 @@ ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200),
              'E-ml-live':(Decimal('2'),800),
              # F-agent: reasoning effort per agent step on Claude Sonnet 5.5 (low / xhigh /
              # router-switched). Anders 2026-10-04: "You need to test it on agentic workflows as well".
-             'F-agent':(Decimal('15'),3000)}
+             'F-agent':(Decimal('15'),3000),
+             # G-mix: cheap current model (gpt-6-luna) for routine steps of a Claude agent, plus the
+             # phase rule. Anders 2026-10-04: "ok do all three" (US$8 quoted).
+             'G-mix':(Decimal('8'),3000)}
 
 
 def validate_allocation_limits(config):

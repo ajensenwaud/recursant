@@ -218,6 +218,8 @@ class GatewaySignalsTests(unittest.TestCase):
         bad = [lambda c: c['context'].update(repeat_escalation=True),
                lambda c: c['context'].update(repeat_escalation='yes'),
                lambda c: c['context'].update(repeat_escalation='on', signals='off'),
+               lambda c: c['context'].update(phase='on', signals='off'),
+               lambda c: c['context'].update(phase=True),
                lambda c: c['context'].update(signals='auto'),
                lambda c: c['context'].update(signals=True),
                lambda c: c['context'].update(signals='ON'),

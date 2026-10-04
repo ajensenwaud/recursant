@@ -29,17 +29,17 @@
     {
       "from": "baseline",
       "provider": "openrouter",
-      "model": "openai/gpt-4.1"
+      "model": "anthropic/claude-sonnet-5.5"
     },
     {
       "from": "economy",
       "provider": "openrouter",
-      "model": "openai/gpt-4.1-mini"
+      "model": "openai/gpt-6-luna"
     },
     {
       "from": "strong",
       "provider": "openrouter",
-      "model": "openai/o4-mini"
+      "model": "anthropic/claude-opus-5.5"
     },
     {
       "from": "local",
@@ -85,7 +85,7 @@
       "min_requests": 5,
       "max_retries": 2
     },
-    "reasoning": "signals",
+    "reasoning": "steps",
     "repeat_escalation": "off",
     "housekeeping": {
       "alias": "economy"
@@ -112,8 +112,13 @@
         "context_limit": 1000000,
         "price": {
           "input_per_mtok": 2.0,
-          "output_per_mtok": 8.0,
-          "cached_input_per_mtok": 0.5
+          "output_per_mtok": 10.0,
+          "cached_input_per_mtok": 0.2
+        },
+        "reasoning": {
+          "family": "openrouter",
+          "low": "low",
+          "high": "low"
         }
       },
       {
@@ -129,12 +134,19 @@
         "capabilities": {
           "tool_history": true,
           "function_tools": true,
-          "parallel_tools": true
+          "parallel_tools": true,
+          "reasoning_effort": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "stream_tools": true,
+          "nested_tool_schemas": true
         },
         "price": {
-          "input_per_mtok": 0.4,
-          "output_per_mtok": 1.6,
-          "cached_input_per_mtok": 0.1
+          "input_per_mtok": 0.1,
+          "output_per_mtok": 0.5,
+          "cached_input_per_mtok": 0.01
         }
       },
       {
@@ -142,21 +154,28 @@
         "quality_evidence": "OPERATOR-QUALIFIED-RECOVERY",
         "qualified_tasks": [],
         "escalation": true,
-        "context_limit": 200000,
+        "context_limit": 1000000,
         "capabilities": {
           "tool_history": true,
           "function_tools": true,
-          "parallel_tools": true
+          "parallel_tools": true,
+          "stream_tools": true,
+          "nested_tool_schemas": true,
+          "reasoning_effort": [
+            "low",
+            "medium",
+            "high"
+          ]
         },
         "reasoning": {
           "family": "openrouter",
           "low": "low",
-          "high": "high"
+          "high": "low"
         },
         "price": {
-          "input_per_mtok": 1.1,
-          "output_per_mtok": 4.4,
-          "cached_input_per_mtok": 0.275
+          "input_per_mtok": 4.0,
+          "output_per_mtok": 20.0,
+          "cached_input_per_mtok": 0.2
         }
       }
     ]

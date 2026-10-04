@@ -138,6 +138,7 @@ struct rc_gateway_context {
      * harness's reasoning_effort/reasoning fields are replaced. */
     int reasoning;
     bool repeat; /* context.repeat_escalation "on": signals' repeat-loop rule */
+    bool phase;  /* context.phase "on": signals' phase rule (read -> baseline) */
     /* context.budgets. Per session: spend from provider usage x the served
      * candidate's price (priced registries); from downshift_at x session_usd
      * cost routing takes the cheapest permitted candidate; at session_usd
@@ -197,7 +198,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||judge||efficiency||prompt||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||phase||judge||efficiency||prompt||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -222,6 +223,9 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(g->reasoning&&!g->signals)return false;
     if(json_object_get(o,"repeat_escalation")&&!eq(o,"repeat_escalation","on")&&!eq(o,"repeat_escalation","off"))return false;
     g->repeat=eq(o,"repeat_escalation","on");
+    if(json_object_get(o,"phase")&&!eq(o,"phase","on")&&!eq(o,"phase","off"))return false;
+    g->phase=eq(o,"phase","on");
+    if(g->phase&&!g->signals)return false;
     if(json_object_get(o,"decision_headers")&&!eq(o,"decision_headers","on")&&!eq(o,"decision_headers","off"))return false;
     g->quiet_headers=eq(o,"decision_headers","off");
     if(g->repeat&&!g->signals)return false;
@@ -1345,7 +1349,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
             if(s->context_floor&&tokens<=s->context_floor)tokens=s->context_floor+1;
             output_est=rc_estimate_output_tokens(max_tokens,g->expected_output);
             uint64_t task=usable&&!strcmp(s->interpretation.next_action,"format_result")&&!strcmp(s->interpretation.difficulty_band,"simple")&&!strcmp(s->interpretation.coverage,"partial")?1:0;
-            rc_signal_scope facts={.completed_turns=s->turns,.repeat_escalation=g->repeat};
+            rc_signal_scope facts={.completed_turns=s->turns,.repeat_escalation=g->repeat,.phase=g->phase};
             uint64_t signal=structural?rc_signals_classify(body,&facts):0;
             uint64_t escalation=signal==RC_TASK_RECOVERY?RC_TASK_RECOVERY:0;if(escalation)signal=0;
             /* Judge advice only fills an unclassified structural turn; never

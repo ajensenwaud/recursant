@@ -7,7 +7,9 @@ from collections import defaultdict
 from pathlib import Path
 
 d = Path(sys.argv[1]); rows = json.load(open(d / 'outcomes.json'))
-arms = sorted({r['arm_label'] for r in rows}, key=lambda a: ['low', 'switch', 'xhigh'].index(a) if a in ('low', 'switch', 'xhigh') else 9)
+manifest = json.load(open(d / 'manifest.json')) if (d / 'manifest.json').exists() else {}
+order = list(manifest.get('arms') or []); order = order if isinstance(order, list) else list(order)
+arms = sorted({r['arm_label'] for r in rows}, key=lambda a: order.index(a) if a in order else 9)
 by = defaultdict(dict)
 for r in rows: by[(r['task'], r['repeat'])][r['arm_label']] = r
 complete = {k: v for k, v in by.items() if all(a in v and v[a]['calls'] for a in arms)}
@@ -17,15 +19,16 @@ def wall(r):
     cs = [c for c in r['calls'] if c.get('started_at') and c.get('finished_at')]
     return max(c['finished_at'] for c in cs) - min(c['started_at'] for c in cs) if cs else 0
 print('%d task-repeats with every arm run (of %d)' % (len(complete), len(by)))
-print('%-7s %7s %9s %9s %6s %9s %9s %8s %8s' % ('arm', 'passed', 'tests', 'US$', 'calls', 'out tok', 'reason', 'cached', 'model s'))
+print('%-7s %7s %9s %9s %6s %7s %9s %9s %8s %8s' % ('arm', 'passed', 'tests', 'US$', 'calls', 'econ', 'out tok', 'reason', 'cached', 'model s'))
 for a in arms:
     rs = [v[a] for v in complete.values()]
     vt = [(r.get('verifier') or {}) for r in rs]
     tin = sum(tot(r, 'input_tokens') for r in rs)
-    print('%-7s %3d/%-3d %4s/%-4s %9.3f %6d %9d %9d %7.0f%% %8.0f' % (
+    econ = sum(c.get('provider_model') == manifest.get('economy') for r in rs for c in r['calls'])
+    print('%-7s %3d/%-3d %4s/%-4s %9.3f %6d %7d %9d %9d %7.0f%% %8.0f' % (
         a, sum(r['success'] for r in rs), len(rs),
         sum(v.get('passed') or 0 for v in vt) if any(vt) else '-', sum(v.get('total') or 0 for v in vt) if any(vt) else '-',
-        sum(usd(r) for r in rs), sum(len(r['calls']) for r in rs), sum(tot(r, 'output_tokens') for r in rs),
+        sum(usd(r) for r in rs), sum(len(r['calls']) for r in rs), econ, sum(tot(r, 'output_tokens') for r in rs),
         sum(tot(r, 'reasoning_tokens') for r in rs), 100 * sum(tot(r, 'cached_input_tokens') for r in rs) / max(1, tin),
         sum(sum((c['finished_at'] - c['started_at']) for c in r['calls'] if c.get('finished_at') and c.get('started_at')) for r in rs)))
 both = [v for v in complete.values() if all(v[a]['success'] for a in arms)]
