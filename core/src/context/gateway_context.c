@@ -99,6 +99,8 @@ struct physical {rc_attempt_headers headers;rc_attempt_id id;int scope;bool comp
 struct outcome {uint64_t window,requests,failures,until;};
 enum {EFFORT_NONE,EFFORT_OPENAI,EFFORT_OPENROUTER,EFFORT_VLLM_THINKING};
 enum {REASONING_OFF,REASONING_SIGNALS,REASONING_STEPS};
+#define TOOL_NAMES 128
+#define TOOL_REPORT_EVERY 50
 struct rc_gateway_context {
     pthread_mutex_t lock;
     bool active;
@@ -139,6 +141,14 @@ struct rc_gateway_context {
     int reasoning;
     bool repeat; /* context.repeat_escalation "on": signals' repeat-loop rule */
     bool phase;  /* context.phase "on": signals' phase rule (read -> baseline) */
+    /* context.tool_report "on": which offered tools the agents actually call.
+     * Tool schemas are 66-81% of request bytes in recorded agent traffic and
+     * most offered tools are never called (docs/evidence/m3-token-levers.md).
+     * Per gateway: offered and called counts per tool name, schema bytes;
+     * one stderr line every TOOL_REPORT_EVERY tooled requests. Names only. */
+    bool tool_report;
+    struct {char name[65];uint64_t offered,called;} tools[TOOL_NAMES];
+    size_t tool_names;uint64_t tooled_requests,tool_bytes;
     /* context.budgets. Per session: spend from provider usage x the served
      * candidate's price (priced registries); from downshift_at x session_usd
      * cost routing takes the cheapest permitted candidate; at session_usd
@@ -198,7 +208,7 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
-    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||phase||judge||efficiency||prompt||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
+    if(!keys(o,"|mode||tenant||project||auto_alias||baseline_alias||ttl_ms||attempt_ttl_ms||expected_output_tokens||signals||sessions||reasoning_text||reasoning||repeat_escalation||phase||tool_report||judge||efficiency||prompt||health||housekeeping||budgets||decision_headers||shadow||candidates||source_key_env|") ||
        (!eq(o,"mode","active")&&!eq(o,"mode","shadow")) || rt->private_key || !rt->source_key)return false;
     const char *tenant=token(o,"tenant",63),*project=token(o,"project",63),*automatic=token(o,"auto_alias",63),*baseline=token(o,"baseline_alias",128);
     if(!tenant||!project||!automatic||!baseline)return false;
@@ -226,6 +236,8 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(json_object_get(o,"phase")&&!eq(o,"phase","on")&&!eq(o,"phase","off"))return false;
     g->phase=eq(o,"phase","on");
     if(g->phase&&!g->signals)return false;
+    if(json_object_get(o,"tool_report")&&!eq(o,"tool_report","on")&&!eq(o,"tool_report","off"))return false;
+    g->tool_report=eq(o,"tool_report","on");
     if(json_object_get(o,"decision_headers")&&!eq(o,"decision_headers","on")&&!eq(o,"decision_headers","off"))return false;
     g->quiet_headers=eq(o,"decision_headers","off");
     if(g->repeat&&!g->signals)return false;
@@ -1197,6 +1209,47 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     pthread_mutex_unlock(&g->lock);return moved;
 }
 static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gateway_headers *h,rc_endpoint *endpoint,rc_gateway_ticket *ticket);
+/* Under g->lock. Offered: every tools[].function.name of this request. Called:
+ * the tool_calls of the newest assistant message, which is the previous
+ * reply and appears as newest exactly once. Unknown names beyond TOOL_NAMES
+ * are counted in the totals only. */
+static int tool_slot(struct rc_gateway_context *g,const char *name) {
+    if(!name||strlen(name)>64)return -1;
+    for(size_t i=0;i<g->tool_names;i++)if(!strcmp(g->tools[i].name,name))return (int)i;
+    if(g->tool_names==TOOL_NAMES)return -1;
+    strcpy(g->tools[g->tool_names].name,name);return (int)g->tool_names++;
+}
+static void tool_report(struct rc_gateway_context *g,json_t *body) {
+    json_t *tools=json_object_get(body,"tools");size_t n=json_array_size(tools);
+    if(!n)return;
+    char *wire=json_dumps(tools,JSON_COMPACT);if(wire){g->tool_bytes+=strlen(wire);free(wire);}
+    g->tooled_requests++;
+    for(size_t i=0;i<n;i++){
+        int k=tool_slot(g,json_string_value(json_object_get(json_object_get(json_array_get(tools,i),"function"),"name")));
+        if(k>=0)g->tools[k].offered++;
+    }
+    json_t *messages=json_object_get(body,"messages");
+    for(size_t i=json_array_size(messages);i-- >0;){
+        json_t *m=json_array_get(messages,i);const char *role=json_string_value(json_object_get(m,"role"));
+        if(!role||!strcmp(role,"tool"))continue;
+        if(!strcmp(role,"assistant")){
+            json_t *calls=json_object_get(m,"tool_calls");size_t c=json_array_size(calls);
+            for(size_t j=0;j<c;j++){
+                int k=tool_slot(g,json_string_value(json_object_get(json_object_get(json_array_get(calls,j),"function"),"name")));
+                if(k>=0)g->tools[k].called++;
+            }
+        }
+        break;
+    }
+    if(g->tooled_requests%TOOL_REPORT_EVERY)return;
+    char never[2048]="";size_t unused=0;
+    for(size_t i=0;i<g->tool_names;i++)if(g->tools[i].offered&&!g->tools[i].called){
+        unused++;size_t len=strlen(never);
+        if(len<sizeof never-80)snprintf(never+len,sizeof never-len,"%s%s",len?",":"",g->tools[i].name);
+    }
+    fprintf(stderr,"tool_report requests=%llu tools=%zu never_called=%zu schema_bytes_per_request=%llu never=%s\n",
+        (unsigned long long)g->tooled_requests,g->tool_names,unused,(unsigned long long)(g->tool_bytes/g->tooled_requests),never[0]?never:"-");
+}
 /* Probes are shallow copies (json_copy): only their top-level "model" (and the
  * gate's own "provider") ever change. The content scan runs once, here, before
  * the gateway lock; every gate inside prepare reuses it (rc_compliance_memo). */
@@ -1240,6 +1293,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
     }
     pthread_mutex_lock(&g->lock);uint64_t now=now_ms();unsigned status=0;struct scope *s=NULL;
     poll_locked(g,now);
+    if(g->tool_report&&automatic)tool_report(g,body);
     snprintf(ticket->decision,sizeof ticket->decision,"%016llx",(unsigned long long)(g->boot^(++g->decisions*UINT64_C(0x9e3779b97f4a7c15))));
     ticket->reason=automatic?"baseline":"fixed";ticket->costed=false;ticket->chosen[0]=0;ticket->shadowed=false;
     if(g->budget.rpm){

@@ -136,6 +136,24 @@ class GatewaySignalsTests(unittest.TestCase):
                 _, _, models = self.tool_loop(p, sink, ['ok', 'ok', 'ok'])
                 self.assertEqual(models, ['frontier', 'physical', 'physical', last])
 
+    def test_c_tool_report_counts_offered_and_called_tools(self):
+        # context.tool_report "on": every 50 tooled requests, one stderr line with
+        # the tools offered, the ones never called, and schema bytes per request.
+        # 25 turns, each offering f, g, h and calling only f (the fixture reply).
+        def edit(c, s):
+            self.setup(c, s); c['context']['tool_report'] = 'on'
+        three = self.tools() + [dict(self.tools()[0], function=dict(self.tools()[0]['function'], name=n)) for n in ('g', 'h')]
+        with self.router(edit) as (p, sink):
+            self.tool_loop(p, sink, ['ok'] * 49, tools=three)
+        lines = [l for l in sink.router_stderr.decode().splitlines() if l.startswith('tool_report ')]
+        self.assertEqual(len(lines), 1, sink.router_stderr)
+        self.assertIn('requests=50 tools=3 never_called=2 ', lines[0])
+        self.assertTrue(lines[0].endswith(' never=g,h'), lines[0])
+        self.assertRegex(lines[0], r'schema_bytes_per_request=[1-9][0-9]+ ')
+        with self.router(lambda c, s: self.setup(c, s)) as (p, sink):
+            self.tool_loop(p, sink, ['ok'] * 49, tools=three)
+        self.assertNotIn(b'tool_report ', sink.router_stderr)
+
     def test_d_pii_in_tool_result_final_m2_wins(self):
         def edit(c, s):
             self.setup(c, s, strong=True)
@@ -220,6 +238,8 @@ class GatewaySignalsTests(unittest.TestCase):
                lambda c: c['context'].update(repeat_escalation='on', signals='off'),
                lambda c: c['context'].update(phase='on', signals='off'),
                lambda c: c['context'].update(phase=True),
+               lambda c: c['context'].update(tool_report=True),
+               lambda c: c['context'].update(tool_report='yes'),
                lambda c: c['context'].update(signals='auto'),
                lambda c: c['context'].update(signals=True),
                lambda c: c['context'].update(signals='ON'),
@@ -235,6 +255,8 @@ class GatewaySignalsTests(unittest.TestCase):
         good = [lambda c: None,
                 lambda c: c['context'].update(repeat_escalation='on'),
                 lambda c: c['context'].update(repeat_escalation='off'),
+                lambda c: c['context'].update(tool_report='on'),
+                lambda c: c['context'].update(tool_report='off', signals='off'),
                 lambda c: c['context'].update(signals='off'),
                 lambda c: c['context'].pop('signals'),
                 lambda c: cand(c).update(qualified_tasks=['format_simple', 'tool_followup_ok', 'final_answer']),

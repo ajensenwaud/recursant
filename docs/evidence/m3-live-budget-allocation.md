@@ -157,3 +157,9 @@ US$1.50) and openai/gpt-4.1 (cap US$5.50) via `bench/prompt/ask.py`; GLM on gx10
   `context.phase: "on"`). Driver `bench/evaluation/mix_agent.py`.
 - Spent: smoke US$0.069, gm-short US$1.741 (163 requests), gm-long US$3.113 (246 requests).
   G-mix total US$4.92 of US$8.00. Evidence: docs/evidence/m3-token-levers.md.
+
+## H-sub (2026-10-04): subagent sessions on the cheap current model
+- Anders, 2026-10-04: "Do 1, 2, 3." (item 3 of the token-lever follow-up, quoted US$3-5).
+  Cap US$5.00 public (`ALLOCATIONS['H-sub']`). Pack `bench/multiagent`, three plain delegate
+  tasks x 2 repeats x 3 arms (sonnet / mix / sub = mix + `delegated_start` on luna). Driver
+  `bench/evaluation/sub_agent.py`.

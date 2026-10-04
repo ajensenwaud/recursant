@@ -224,7 +224,9 @@ ALLOCATIONS={'B':(Decimal('9.99'),188),'D':(Decimal('20'),1200),
              'F-agent':(Decimal('15'),3000),
              # G-mix: cheap current model (gpt-6-luna) for routine steps of a Claude agent, plus the
              # phase rule. Anders 2026-10-04: "ok do all three" (US$8 quoted).
-             'G-mix':(Decimal('8'),3000)}
+             'G-mix':(Decimal('8'),3000),
+             # H-sub: subagent sessions (delegated_start) on gpt-6-luna. Anders 2026-10-04 "Do 1, 2, 3."
+             'H-sub':(Decimal('5'),1200)}
 
 
 def validate_allocation_limits(config):

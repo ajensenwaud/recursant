@@ -94,7 +94,26 @@ times it was measured (September on gpt-4.1/mini, today on Sonnet/luna), is the 
 The remaining agent-aware candidates with evidence behind them: subagent sessions to the cheap
 model (class exists, never configured), and telling the operator which tools are never used.
 
-## 6. Shipped (this commit)
+## 6. Why the cheap model takes more steps (follow-up, zero spend)
+
+Scratch `~/.hermes/cache/scratch/step_tax.py` on the G-mix sonnet and mix arms, paired by
+task and repeat (32 pairs): sonnet 105 steps, mix 157.
+
+- The luna steps themselves cost almost nothing: US$0.000-0.011 per job, 54% of the mix
+  arm's calls. Every job where the mix arm was dearer than Sonnet-only was dearer because
+  **Sonnet came back for more steps**, not because luna was expensive.
+- luna's tool results fail 12% of the time (8 of 64) against 0 of 55 for Sonnet in the same
+  arm; each failure escalates the next step to Sonnet, as designed, and Sonnet's repair is a
+  fresh (uncached, long-output) call.
+- luna replies with text-only turns and re-reads more often; it finishes in smaller pieces.
+- The 3-result failure window held 7 steps on Sonnet after Sonnet had already repaired
+  cleanly: US$0.068 of the mix arm's US$1.273 (5%), luna would have cost US$0.018. Small,
+  and the window is a safety rule (one failure, one repair, one check) worth keeping.
+
+So the step tax is a property of the cheap model (more failures, smaller pieces), and the
+router already does the right thing with it (escalate on failure). Not a routing bug to fix.
+
+## 7. Shipped (this commit)
 
 - `config/recursant.quickstart.json` and `config/recursant.agent.example.json`: current models
   (Claude Sonnet 5.5 baseline, gpt-6-luna economy, Claude Opus 5.5 recovery), list prices,
@@ -102,3 +121,6 @@ model (class exists, never configured), and telling the operator which tools are
   routine steps and single questions. The GPU-first example keeps GLM for routine steps.
 - `context.phase` (off by default; measured no saving).
 - Drivers: `bench/evaluation/mix_agent.py`, `effort_report.py`.
+- `context.tool_report` (off by default): which offered tools the agents actually call,
+  one log line per 50 tooled requests. Names only. In the 32 G-mix jobs the harness
+  offered 25 tools and called 5.

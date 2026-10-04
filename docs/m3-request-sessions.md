@@ -219,6 +219,20 @@ Each candidate may declare `reasoning: {"family": ..., "low": token, "high": tok
   step costs 27% of xhigh at the same pass rate, so the shipped configs set `low`/`low` for
   Claude and let the harness's own setting go.
 
+## Tool report (`context.tool_report`)
+
+`"off"` (default) | `"on"`. Tool schemas are 66-81% of request bytes in recorded agent
+traffic and most offered tools are never called. With the report on, the gateway counts
+per tool name how often it was offered and how often the previous reply called it (the
+newest assistant message, seen as newest exactly once), plus schema bytes per request, and
+every 50 tooled requests logs one line:
+
+`tool_report requests=N tools=T never_called=U schema_bytes_per_request=B never=name,name`
+
+Names only, never arguments or results. Bounded at 128 distinct names; extra names count
+in the totals only. It changes no routing decision; it tells the operator which tools their
+harness pays for and never uses. Evidence: `docs/evidence/m3-token-levers.md`.
+
 ## Phase rule (`context.phase`)
 
 `"off"` (default) | `"on"` (requires `signals: "on"`). The step right after a read or search
