@@ -282,8 +282,6 @@ static void chunked_step(int c, chunk_state *st, long *remaining) {
         if (isxdigit(c)) {
             *remaining = (long)(c <= '9' ? c - '0' : (c | 0x20) - 'a' + 10);
             *st = CS_SIZE;
-        } else if (c == '\r' || c == '\n') {
-            *st = CS_ERROR;
         } else {
             *st = CS_ERROR;
         }
@@ -527,6 +525,18 @@ typedef struct {
     int fd;
 } conn_arg;
 
+/* Ends a connection thread: optional bare status reply (code 0 = none),
+ * close the upstream socket when open, close the client, release the slot. */
+static void *finish(int fd, int up, int code) {
+    if (code)
+        (void)send_simple(fd, code);
+    if (up >= 0)
+        (void)close(up);
+    (void)close(fd);
+    (void)atomic_fetch_sub(&g_active, 1);
+    return NULL;
+}
+
 static void *handle_connection(void *arg) {
     int fd = ((conn_arg *)arg)->fd;
     free(arg);
@@ -535,38 +545,19 @@ static void *handle_connection(void *arg) {
     char buf[HEAD_BUF];
     size_t have = 0, head_end = 0;
     int rh = read_head(fd, buf, sizeof buf, &have, &head_end);
-    if (rh == -2) {
-        (void)send_simple(fd, 400);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
-    if (rh != 0) {
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
+    if (rh == -2)
+        return finish(fd, -1, 400);
+    if (rh != 0)
+        return finish(fd, -1, 0);
     req_info ri;
     int pr = parse_request_head(buf, head_end, &ri);
-    if (pr == -2) {
-        (void)send_simple(fd, 405);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
-    if (pr != 0) {
-        (void)send_simple(fd, 400);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
+    if (pr == -2)
+        return finish(fd, -1, 405);
+    if (pr != 0)
+        return finish(fd, -1, 400);
     int route = route_status(&ri);
-    if (route != 0) {
-        (void)send_simple(fd, route);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
+    if (route != 0)
+        return finish(fd, -1, route);
 
     const bool is_post = strcmp(ri.method, "POST") == 0;
 
@@ -589,43 +580,27 @@ static void *handle_connection(void *arg) {
             }
             if (ar == RC_ADMIT_DENY_AUTH)
                 log_line("admission denied: unauthenticated (zero upstream bytes)");
-            (void)send_simple(fd, code);
-            (void)close(fd);
-            (void)atomic_fetch_sub(&g_active, 1);
-            return NULL;
+            return finish(fd, -1, code);
         }
     }
 
     if (is_post && (ri.chunked || !ri.has_cl)) {
         /* The spike requires exact-length request bodies; anything else is
          * rejected before upstream bytes. */
-        (void)send_simple(fd, 400);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
+        return finish(fd, -1, 400);
     }
-    if (is_post && ri.cl > g_max_body) {
-        (void)send_simple(fd, 413);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
+    if (is_post && ri.cl > g_max_body)
+        return finish(fd, -1, 413);
     if (!is_post && have > head_end) {
         /* A body on a GET is a protocol violation here. */
-        (void)send_simple(fd, 400);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
+        return finish(fd, -1, 400);
     }
 
     /* All validation passed; only now open the upstream connection. */
     int up = connect_upstream();
     if (up < 0) {
         log_line("upstream connect failed");
-        (void)send_simple(fd, 502);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
+        return finish(fd, -1, 502);
     }
     set_recv_timeout(up, g_idle_timeout_ms);
 
@@ -640,30 +615,18 @@ static void *handle_connection(void *arg) {
         hn = snprintf(up_head, sizeof up_head,
                       "%s %s HTTP/1.1\r\nHost: %s:%s\r\nConnection: close\r\n\r\n",
                       ri.method, ri.path, g_upstream_host, g_upstream_port);
-    if (hn < 0 || (size_t)hn >= sizeof up_head || write_all(up, up_head, (size_t)hn) != 0) {
-        (void)send_simple(fd, 502);
-        (void)close(up);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
+    if (hn < 0 || (size_t)hn >= sizeof up_head || write_all(up, up_head, (size_t)hn) != 0)
+        return finish(fd, up, 502);
 
     if (!is_post) {
         /* GET: head-only forward; read and relay the response. */
         char resp[HEAD_BUF];
         size_t rhave = 0, rend = 0;
         if (read_head(up, resp, sizeof resp, &rhave, &rend) != 0) {
-            (void)send_simple(fd, 502);
-            (void)close(up);
-            (void)close(fd);
-            (void)atomic_fetch_sub(&g_active, 1);
-            return NULL;
+            return finish(fd, up, 502);
         }
         (void)relay_response(up, fd, resp, rhave, rend);
-        (void)close(up);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
+        return finish(fd, up, 0);
     }
 
     /* Body relay with natural backpressure: at most one RELAY_CHUNK is in
@@ -674,10 +637,8 @@ static void *handle_connection(void *arg) {
     if (carry > (size_t)remaining)
         carry = (size_t)remaining;
     bool body_ok = true;
-    size_t carried = 0;
     if (carry > 0 && write_all(up, buf + head_end, carry) != 0)
         body_ok = false;
-    carried = carry;
     remaining -= (long)carry;
     set_recv_timeout(fd, g_idle_timeout_ms);
     while (body_ok && remaining > 0) {
@@ -701,33 +662,19 @@ static void *handle_connection(void *arg) {
             body_ok = false;
             break;
         }
-        carried += (size_t)n;
         remaining -= n;
     }
-    if (!body_ok) {
-        (void)close(up);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
+    if (!body_ok)
+        return finish(fd, up, 0);
 
     /* Read the upstream response head. */
     char resp[HEAD_BUF];
     size_t rhave = 0, rend = 0;
-    if (read_head(up, resp, sizeof resp, &rhave, &rend) != 0) {
-        (void)send_simple(fd, 502);
-        (void)close(up);
-        (void)close(fd);
-        (void)atomic_fetch_sub(&g_active, 1);
-        return NULL;
-    }
-    if (relay_response(up, fd, resp, rhave, rend) != 0) {
-        /* Canceled or broken: drop both sides without further ceremony. */
-    }
-    (void)close(up);
-    (void)close(fd);
-    (void)atomic_fetch_sub(&g_active, 1);
-    return NULL;
+    if (read_head(up, resp, sizeof resp, &rhave, &rend) != 0)
+        return finish(fd, up, 502);
+    /* Canceled or broken relays drop both sides without further ceremony. */
+    (void)relay_response(up, fd, resp, rhave, rend);
+    return finish(fd, up, 0);
 }
 
 int main(int argc, char **argv) {

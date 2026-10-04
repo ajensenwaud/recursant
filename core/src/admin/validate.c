@@ -22,7 +22,6 @@ static const char *env_lookup(const char *name, void *userdata) {
         if (strcmp(known->names[i], name) == 0)
             return getenv(name);
     }
-    (void)name;
     return NULL;
 }
 
@@ -45,50 +44,31 @@ int main(int argc, char **argv) {
 
     char *doc = NULL;
     size_t len = 0, cap = 0;
-    if (argc == 2) {
-        FILE *f = fopen(argv[1], "rb");
-        if (!f)
-            return fail("config file cannot be opened");
-        char chunk[4096];
-        size_t n;
-        while ((n = fread(chunk, 1, sizeof chunk, f)) > 0) {
-            if (len + n + 1 > cap) {
-                size_t new_cap = cap ? cap * 2 : 8192;
-                while (len + n + 1 > new_cap)
-                    new_cap *= 2;
-                char *grown = realloc(doc, new_cap);
-                if (!grown) {
-                    free(doc);
+    FILE *f = argc == 2 ? fopen(argv[1], "rb") : stdin;
+    if (!f)
+        return fail("config file cannot be opened");
+    char chunk[4096];
+    size_t n;
+    while ((n = fread(chunk, 1, sizeof chunk, f)) > 0) {
+        if (len + n + 1 > cap) {
+            size_t new_cap = cap ? cap * 2 : 8192;
+            while (len + n + 1 > new_cap)
+                new_cap *= 2;
+            char *grown = realloc(doc, new_cap);
+            if (!grown) {
+                free(doc);
+                if (f != stdin)
                     (void)fclose(f);
-                    return fail("out of memory");
-                }
-                doc = grown;
-                cap = new_cap;
+                return fail("out of memory");
             }
-            memcpy(doc + len, chunk, n);
-            len += n;
+            doc = grown;
+            cap = new_cap;
         }
-        (void)fclose(f);
-    } else {
-        char chunk[4096];
-        size_t n;
-        while ((n = fread(chunk, 1, sizeof chunk, stdin)) > 0) {
-            if (len + n + 1 > cap) {
-                size_t new_cap = cap ? cap * 2 : 8192;
-                while (len + n + 1 > new_cap)
-                    new_cap *= 2;
-                char *grown = realloc(doc, new_cap);
-                if (!grown) {
-                    free(doc);
-                    return fail("out of memory");
-                }
-                doc = grown;
-                cap = new_cap;
-            }
-            memcpy(doc + len, chunk, n);
-            len += n;
-        }
+        memcpy(doc + len, chunk, n);
+        len += n;
     }
+    if (f != stdin)
+        (void)fclose(f);
     if (!doc) {
         doc = malloc(1);
         if (!doc)

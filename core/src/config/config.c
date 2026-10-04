@@ -786,6 +786,8 @@ static const jval *obj_get(const jval *obj, const char *key) {
 }
 
 /* Unknown keys are rejected at binding time against a fixed allowlist. */
+#define RC_COUNT(a) (sizeof(a) / sizeof *(a))
+
 static bool obj_keys_known(const jval *obj, const char *const *known, size_t n,
                            const char *section, char *err, size_t err_len) {
     for (const jval *m = obj->child; m; m = m->next) {
@@ -825,10 +827,6 @@ static bool bind_optional_string(const jval *obj, const char *key, const char *w
     const jval *m = obj_get(obj, key);
     if (!m)
         return true;
-    if (!m->str) {
-        err_set(err, err_len, "%s must be a string", what);
-        return false;
-    }
     *present = true;
     return bind_string(m, what, out, err, err_len);
 }
@@ -873,26 +871,26 @@ static bool bind_endpoint_section(const jval *section, const char *name,
 
 static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_len) {
     static const char *const root_known[] = { "listen", "private", "public", "aliases", "projects", "limits" };
-    if (!obj_keys_known(root, root_known, 6, "config root", err, err_len))
+    if (!obj_keys_known(root, root_known, RC_COUNT(root_known), "config root", err, err_len))
         return false;
     static const char *const listen_known[] = { "host", "port" };
     static const char *const limits_known[] = { "max_body_bytes", "max_inflight" };
     const jval *limits = obj_get(root, "limits");
     if (limits && limits->child &&
-        !obj_keys_known(limits, limits_known, 2, "limits", err, err_len))
+        !obj_keys_known(limits, limits_known, RC_COUNT(limits_known), "limits", err, err_len))
         return false;
     const jval *listen = obj_get(root, "listen");
     if (!listen) {
         err_set(err, err_len, "listen section is required");
         return false;
     }
-    if (!obj_keys_known(listen, listen_known, 2, "listen", err, err_len))
+    if (!obj_keys_known(listen, listen_known, RC_COUNT(listen_known), "listen", err, err_len))
         return false;
     static const char *const alias_known[] = { "from", "endpoint", "model" };
     const jval *aliases = obj_get(root, "aliases");
     if (aliases) {
         for (const jval *a = aliases->child; a; a = a->next) {
-            if (a->child && !obj_keys_known(a, alias_known, 3, "alias entry", err, err_len))
+            if (a->child && !obj_keys_known(a, alias_known, RC_COUNT(alias_known), "alias entry", err, err_len))
                 return false;
         }
     }
@@ -900,7 +898,7 @@ static bool bind_root(const jval *root, rc_config *cfg, char *err, size_t err_le
     const jval *projects = obj_get(root, "projects");
     if (projects) {
         for (const jval *p = projects->child; p; p = p->next) {
-            if (p->child && !obj_keys_known(p, project_known, 2, "project entry", err, err_len))
+            if (p->child && !obj_keys_known(p, project_known, RC_COUNT(project_known), "project entry", err, err_len))
                 return false;
         }
     }
@@ -1060,10 +1058,6 @@ bool rc_config_load(rc_config *cfg, const char *doc, size_t len,
              .err = err, .err_len = err_len, .failed = false };
     jval *root = parse_value(&p);
     bool ok = root != NULL;
-    if (ok && root->child == NULL && root->str == NULL) {
-        /* An empty container root is still structurally valid JSON; the
-         * schema binding below names the missing required sections. */
-    }
     if (ok) {
         skip_ws(&p);
         if (p.pos != p.len) {
@@ -1188,6 +1182,18 @@ bool rc_config_validate(const rc_config *cfg, char *err, size_t err_len) {
     return rc_config_validate_providers(cfg, err, err_len);
 }
 
+static bool secret_present(const char *name, rc_secret_lookup lookup, void *userdata,
+                           char *err, size_t err_len) {
+    if (!name)
+        return true;
+    const char *value = lookup(name, userdata);
+    if (!value || !value[0]) {
+        err_set(err, err_len, "secret not available: %s", name);
+        return false;
+    }
+    return true;
+}
+
 bool rc_config_check_secrets(const rc_config *cfg, rc_secret_lookup lookup,
                              void *userdata, char *err, size_t err_len) {
     if (err && err_len)
@@ -1196,26 +1202,12 @@ bool rc_config_check_secrets(const rc_config *cfg, rc_secret_lookup lookup,
         err_set(err, err_len, "secret check misconfigured");
         return false;
     }
-    const char *names[2] = { cfg->private_key_env, cfg->public_key_env };
-    for (int i = 0; i < 2; ++i) {
-        const char *name = names[i];
-        if (!name)
-            continue;
-        const char *value = lookup(name, userdata);
-        if (!value || !value[0]) {
-            err_set(err, err_len, "secret not available: %s", name);
-            return false;
-        }
-    }
+    if (!secret_present(cfg->private_key_env, lookup, userdata, err, err_len) ||
+        !secret_present(cfg->public_key_env, lookup, userdata, err, err_len))
+        return false;
     for (size_t i = 0; i < cfg->project_count; ++i) {
-        const char *name = cfg->projects[i].token_env;
-        if (!name)
-            continue;
-        const char *value = lookup(name, userdata);
-        if (!value || !value[0]) {
-            err_set(err, err_len, "secret not available: %s", name);
+        if (!secret_present(cfg->projects[i].token_env, lookup, userdata, err, err_len))
             return false;
-        }
     }
     return true;
 }
