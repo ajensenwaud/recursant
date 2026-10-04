@@ -337,6 +337,23 @@ bool rc_cli_check(const char *config, bool secrets, bool verbose, bool test_mode
     if (saved >= 0) { fflush(stderr); dup2(saved, STDERR_FILENO); close(saved); }
     if (!policy) { snprintf(err, size, "invalid compliance policy"); rc_runtime_free(&rt); return false; }
     char unset[1200] = ""; /* RC_RUNTIME_MISSING_MAX names of < 64 bytes */
+    /* An auto session that meets personal data mid-session can only continue
+     * on a private context candidate; without one it is refused (403). */
+    if (rt.gateway && rt.compliance_enabled) {
+        json_t *root = json_load_file(config, 0, NULL), *cand;
+        size_t i;
+        bool private_candidate = false, any = false;
+        json_array_foreach(json_object_get(json_object_get(root, "context"), "candidates"), i, cand) {
+            const char *alias = json_string_value(json_object_get(cand, "alias"));
+            any = true;
+            for (size_t a = 0; alias && a < rt.config.alias_count; a++)
+                if (!strcmp(rt.config.aliases[a].from, alias) && rt.config.aliases[a].endpoint == RC_ENDPOINT_PRIVATE) private_candidate = true;
+        }
+        json_decref(root);
+        if (any && !private_candidate)
+            fprintf(stderr, "warning: no private context candidate: auto sessions that meet personal data mid-session will be refused (403). "
+                            "Add a candidate for a private alias, e.g. \"local\" in config/recursant.quickstart.json\n");
+    }
     for (size_t i = 0, n = 0; rc_runtime_missing_secret(i); i++)
         n += (size_t)snprintf(unset + n, n < sizeof unset ? sizeof unset - n : 0, "%s%s", i ? ", " : "", rc_runtime_missing_secret(i));
     if (verbose) {
@@ -708,7 +725,9 @@ static int cmd_status(const options *o) {
     rc_cli_load_env(p.env_file, true);
     const char *key = key_env ? getenv(key_env) : NULL;
     json_t *router = NULL;
-    const char *why = !root ? "config not readable" : !endpoint[0] ? "listen address not resolvable" : !key ? "client key not readable here" : NULL;
+    const char *why = !root ? (access(p.config, F_OK) ? "config not found" : access(p.config, R_OK) ? "config is readable by root only (sudo recursant status)"
+                                                                                                  : "config is not valid JSON (recursant check)")
+                    : !endpoint[0] ? "listen address not resolvable" : !key ? "client key not readable here" : NULL;
     if (!why) {
         CURL *curl = curl_easy_init();
         char url[160], auth[512];

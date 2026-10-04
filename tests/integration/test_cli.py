@@ -211,6 +211,17 @@ class CLITests(unittest.TestCase):
             self.assertIn(name, r.stdout)
         self.assertEqual(self.run_cli('configure', '--config', self.write(config()), stdin='').returncode, 2)
 
+    def test_check_warns_when_auto_sessions_have_no_private_candidate(self):
+        quick = json.loads((pathlib.Path(__file__).resolve().parents[2] / 'config/recursant.quickstart.json').read_text())
+        keys = {'RECURSANT_API_KEY': 'a', 'OPENROUTER_API_KEY': 'b', 'RECURSANT_SOURCE_KEY': 'c'}
+        ok = self.run_cli('check', self.write(quick, 'quick.json'), env=keys)
+        self.assertEqual(ok.returncode, 0, ok.stderr)
+        self.assertNotIn('no private context candidate', ok.stderr)
+        quick['context']['candidates'] = [c for c in quick['context']['candidates'] if c['alias'] != 'local']
+        warned = self.run_cli('check', self.write(quick, 'nolocal.json'), env=keys)
+        self.assertEqual(warned.returncode, 0)  # a warning, not an error: it fails closed
+        self.assertIn('no private context candidate', warned.stderr)
+
     # ---- install ----
     def test_install_dry_run_renders_units_and_writes_nothing(self):
         user_cfg = self.dir / 'home' / '.config' / 'recursant' / 'config.json'

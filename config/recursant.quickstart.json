@@ -177,6 +177,29 @@
           "output_per_mtok": 20.0,
           "cached_input_per_mtok": 0.2
         }
+      },
+      {
+        "alias": "local",
+        "quality_evidence": "PRIVATE-PLACEMENT-ONLY",
+        "qualified_tasks": [],
+        "context_limit": 131072,
+        "max_inflight": 4,
+        "capabilities": {
+          "tool_history": true,
+          "function_tools": true,
+          "parallel_tools": true,
+          "stream_tools": true,
+          "nested_tool_schemas": true,
+          "reasoning_effort": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "price": {
+          "input_per_mtok": 0.0,
+          "output_per_mtok": 0.0
+        }
       }
     ]
   }
