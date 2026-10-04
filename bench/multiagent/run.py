@@ -15,26 +15,22 @@ placement are exercised end to end for free.
 Live mode is parent-only and needs an approved config (see bench/evaluation/README.md).
 """
 import argparse
-import base64
 import copy
 import hashlib
-import io
 import json
 import os
-import random
 import re
-import tarfile
-import tempfile
 import threading
 import time
 import uuid
 from decimal import Decimal
 from pathlib import Path
 
+from bench import taskpack
 from bench.evaluation import run as base
 from bench.evaluation.live import INTEGRATION
-from bench.evaluation.meter import Meter, serve
-from bench.longhorizon.check import grade, materialise
+from bench.evaluation.meter import Meter, completion_response, serve, tool_call_message
+from bench.evaluation.pricing import LIST_PRICES
 
 HERE = Path(__file__).resolve().parent
 TASKS_DIR = HERE / 'tasks'
@@ -68,11 +64,11 @@ def router_config(judge=None, local_cost=False, local_thinking=True):
         'candidates': [
             {'alias': 'baseline', 'quality_evidence': 'HARNESS-DEFAULT-BASELINE-multiagent-v1',
              'qualified_tasks': [], 'context_limit': 131072,
-             'price': {'input_per_mtok': 2.0, 'output_per_mtok': 8.0, 'cached_input_per_mtok': 0.5}},
+             'price': dict(LIST_PRICES[BASELINE])},
             {'alias': 'economy', 'quality_evidence': 'UNQUALIFIED-CANDIDATE-UNDER-TEST-multiagent-v1',
              'qualified_tasks': ['tool_followup_ok', 'final_answer', 'delegated_start'], 'context_limit': 131072,
              'capabilities': copy.deepcopy(CAPS),
-             'price': {'input_per_mtok': 0.4, 'output_per_mtok': 1.6, 'cached_input_per_mtok': 0.1}},
+             'price': dict(LIST_PRICES[ECONOMY])},
             # Private destination for requests compliance keeps off public providers.
             # Not qualified for any cost class: it is chosen only by compliance.
             {'alias': 'local', 'quality_evidence': 'PRIVATE-PLACEMENT-ONLY-multiagent-v1',
@@ -103,47 +99,20 @@ def router_config(judge=None, local_cost=False, local_thinking=True):
         'context': context}
 
 
+# Pack plumbing shared with bench.longhorizon (bench/taskpack.py); names kept for callers.
+seeder, verifier = taskpack.seeder, taskpack.verifier
+
+
 def load_tasks(names=None):
-    tasks = []
-    for d in sorted(p for p in TASKS_DIR.iterdir() if p.is_dir()):
-        if names and d.name not in names: continue
-        tasks.append(dict(id=d.name, dir=d, prompt=(d / 'TASK.md').read_text(), pii=d.name.endswith('-pii-delegate')))
-    return tasks
+    return [dict(t, pii=t['id'].endswith('-pii-delegate')) for t in taskpack.load_tasks(TASKS_DIR, names)]
 
 
 def fingerprint():
-    h = hashlib.sha256()
-    for p in sorted(TASKS_DIR.rglob('*')):
-        if p.is_file() and '__pycache__' not in p.parts:
-            h.update(str(p.relative_to(TASKS_DIR)).encode() + b'\0' + p.read_bytes() + b'\0')
-    return h.hexdigest()
-
-
-def seeder(task):
-    def seed(workspace: Path):
-        import shutil
-        shutil.copytree(task['dir'] / 'seed', workspace, dirs_exist_ok=True)
-        (workspace / 'TASK.md').write_text(task['prompt'])
-    return seed
-
-
-def verifier(task):
-    def verify(workspace: Path, out: Path):
-        v = grade(task['dir'], workspace)
-        (out / 'grader-output.private').write_text(v.pop('tail', '') or '')
-        return v
-    return verify
+    return taskpack.fingerprint(TASKS_DIR)
 
 
 def reference_blob(task):
-    with tempfile.TemporaryDirectory() as tmp:
-        ref = materialise(task['dir'], Path(tmp) / 'r', True)
-        buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode='w:gz') as tf:
-            for p in sorted(ref.rglob('*')):
-                if p.is_file() and '__pycache__' not in p.parts and p.name != 'TASK.md':
-                    tf.add(p, arcname=str(p.relative_to(ref)))
-        return base64.b64encode(buf.getvalue()).decode()
+    return taskpack.reference_tarball(task, exclude_names=('TASK.md',))[0]
 
 
 class ScriptedTeam(Meter):
@@ -192,26 +161,16 @@ class ScriptedTeam(Meter):
         finish = 'stop'
         if step < len(script):
             name, args = script[step]
-            message['tool_calls'] = [dict(index=0, id='s%d_%s' % (step, uuid.uuid4().hex[:6]), type='function',
-                                          function=dict(name=name, arguments=json.dumps(args)))]
+            message = tool_call_message('s%d_%s' % (step, uuid.uuid4().hex[:6]), name, args, content=message['content'])
             finish = 'tool_calls'
         else:
             message['content'] = 'Module written.' if who == 'child' else 'Done: integrated and tested.'
         # Usage lets the router's cost model and the report work as in a live run.
         prompt = len(json.dumps(body)) // 4
         usage = {'prompt_tokens': prompt, 'completion_tokens': 40, 'total_tokens': prompt + 40}
-        if body.get('stream'):
-            chunk = dict(id=call['dispatch_id'], object='chat.completion.chunk', created=1, model=body.get('model'))
-            chunks = [dict(chunk, choices=[dict(index=0, delta=message, finish_reason=None)]),
-                      dict(chunk, choices=[dict(index=0, delta={}, finish_reason=finish)])]
-            if (body.get('stream_options') or {}).get('include_usage'):
-                chunks.append(dict(chunk, choices=[], usage=usage))
-            raw = (''.join('data: ' + json.dumps(c) + '\n\n' for c in chunks) + 'data: [DONE]\n\n').encode()
-            mime = 'text/event-stream'
-        else:
-            raw = json.dumps(dict(id=call['dispatch_id'], object='chat.completion', created=1, model=body.get('model'),
-                                  choices=[dict(index=0, message=message, finish_reason=finish)], usage=usage)).encode()
-            mime = 'application/json'
+        raw, mime = completion_response(call['dispatch_id'], message, finish, stream=bool(body.get('stream')),
+                                        model=body.get('model'), usage=usage,
+                                        include_usage=bool((body.get('stream_options') or {}).get('include_usage')))
         call['finished_at'] = time.time(); call['status'] = 200
         return 200, raw, mime
 
@@ -263,13 +222,7 @@ def episode_facts(row, out, task):
 
 
 def plan(tasks, arms, repeats, seed):
-    rng = random.Random(seed); out = []
-    for r in range(repeats):
-        for t in tasks:
-            order = list(arms); rng.shuffle(order)
-            for a in order:
-                out.append(dict(episode_id=f"{t['id']}-r{r}-{a}", pair_id=f"{t['id']}-r{r}", task_id=t['id'], arm=a, repeat=r))
-    return out
+    return taskpack.plan(tasks, arms, repeats, seed, with_repeat=True)
 
 
 def run(tasks, arms, repeats, seed, out, *, config=None, router=None, settings=None):

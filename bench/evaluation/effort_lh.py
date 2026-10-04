@@ -24,6 +24,7 @@ from bench.evaluation.run import run_episode, write
 from bench.longhorizon.run import load_tasks, seeder, verifier, fingerprint, SETTINGS
 TASKS = load_tasks()
 from bench.evaluation.live import validate_live, create_allocation
+from bench.evaluation.pricing import LIST_PRICES  # one source for list prices
 
 args = [a for a in sys.argv[1:] if not a.startswith('--arms')]
 arms_flag = [a for a in sys.argv[1:] if a.startswith('--arms')]
@@ -51,7 +52,7 @@ rc['context']['reasoning'] = 'steps'
 rc['context']['reasoning_text'] = 'drop'   # Claude streams reasoning_details; Hermes does not replay them
 rc['context']['candidates'] = [{
     'alias': 'baseline', 'quality_evidence': 'HARNESS-DEFAULT-BASELINE-F-agent', 'qualified_tasks': [],
-    'context_limit': 131072, 'price': {'input_per_mtok': 2.0, 'output_per_mtok': 10.0, 'cached_input_per_mtok': 0.2},
+    'context_limit': 131072, 'price': dict(LIST_PRICES[MODEL]),
     'reasoning': None}]
 TABLE = {'low': ('low', 'low'), 'xhigh': ('xhigh', 'xhigh'), 'switch': ('low', 'xhigh')}
 configs = {}

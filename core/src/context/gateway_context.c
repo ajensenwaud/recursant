@@ -205,6 +205,12 @@ static bool alias(rc_runtime *rt,const char *s,size_t *out) {
     for(size_t i=0;i<rt->config.alias_count;i++)if(!strcmp(s,rt->config.aliases[i].from)){*out=i;return true;}
     return false;
 }
+/* Compact serialized size without materializing the text (the same encoder
+ * as json_dumps, so the same byte count); SIZE_MAX when it cannot be encoded. */
+static int count_bytes(const char *buffer,size_t size,void *data){(void)buffer;*(size_t *)data+=size;return 0;}
+static size_t json_bytes(json_t *v) {
+    size_t n=0;return v&&!json_dump_callback(v,count_bytes,&n,JSON_COMPACT)?n:SIZE_MAX;
+}
 bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
     if(!o)return true;
     if(eq(o,"mode","disabled"))return keys(o,"|mode|");
@@ -739,7 +745,7 @@ static bool tool_definitions(json_t *body,uint32_t *requirements) {
     json_t *tools=json_object_get(body,"tools"),*choice=json_object_get(body,"tool_choice"),*parallel=json_object_get(body,"parallel_tool_calls");
     if(!tools)return !choice&&!parallel;
     if(!json_is_array(tools)||!json_array_size(tools)||json_array_size(tools)>RC_TOOLS_MAX)return false;
-    char *wire=json_dumps(tools,JSON_COMPACT);size_t bytes=wire?strlen(wire):SIZE_MAX;free(wire);
+    size_t bytes=json_bytes(tools);
     if(bytes>RC_TOOLS_MAX_BYTES)return false;
     /* Beyond the legacy narrow profile (32 tools, 16 KiB, flat schemas) the
      * destination must declare nested_tool_schemas. */
@@ -816,6 +822,23 @@ static bool candidate_effort(const struct rc_gateway_context *g,size_t i,const c
     for(size_t e=0;e<g->effort_count[i];e++)if(!strcmp(g->efforts[i][e],effort))return true;
     return false;
 }
+/* Candidate i declares every requirement bit and the exact effort token. */
+static bool declares(const struct rc_gateway_context *g,size_t i,uint32_t required,const char *effort) {
+    return (g->cap_known[i]&required)==required&&(g->cap_supported[i]&required)==required&&candidate_effort(g,i,effort);
+}
+/* Ordering key for "cheapest" among placements that bypass the selector. */
+static double rank_cost(const struct rc_gateway_context *g,size_t i) {
+    return g->costs[i].priced?g->costs[i].price.input_per_mtok:g->costs[i].fixed;
+}
+/* Final M2 on a shallow probe (json_copy) of body addressed to alias a: 1 when
+ * the gate permits it unchanged (same trust class, same model), 0 when it
+ * vetoes or redirects, -1 when the probe could not be built (OOM). */
+static int permits(rc_runtime *rt,json_t *body,const rc_alias *a) {
+    json_t *probe=json_copy(body);rc_endpoint ep=a->endpoint;
+    if(!probe||json_object_set_new(probe,"model",json_string(a->model))){json_decref(probe);return -1;}
+    bool ok=(!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
+    json_decref(probe);return ok;
+}
 static bool replayable(struct scope *s,json_t *body) {
     json_t *messages=json_object_get(body,"messages");size_t n=json_array_size(messages),prior=json_array_size(s->history);
     if(!json_is_array(messages)||!n||n>RC_TOOL_MAX_MESSAGES||n<=prior)return false;
@@ -832,8 +855,7 @@ static bool replayable(struct scope *s,json_t *body) {
         }
         else if(!eq(m,"role","user") && !(i==0&&!s->owner&&eq(m,"role","system")))return false;
     }
-    char *serialized=json_dumps(messages,JSON_COMPACT);if(!serialized)return false;
-    bool bounded=strlen(serialized)<=RC_TOOL_MAX_BYTES;free(serialized);return bounded;
+    return json_bytes(messages)<=RC_TOOL_MAX_BYTES;
 }
 /* Conversation opening: every message up to and including the first user
  * message, hashed (FNV-1a) over its compact sorted serialization. start = no
@@ -898,6 +920,11 @@ static bool labelled(struct rc_gateway_context *g,const rc_gateway_headers *h) {
     for(size_t i=0;i<LABELS;i++)if(g->labels[i].set&&!strcmp(g->labels[i].session,h->invocation.values[1]))return true;
     return false;
 }
+/* Never public: the session's own authority, or a harness label on a request
+ * that could not be given a session (busy, table full). */
+static bool must_be_private(struct rc_gateway_context *g,const struct scope *s,const rc_gateway_headers *h) {
+    return s?s->private_only:g->implicit&&labelled(g,h);
+}
 /* Session for an unregistered automatic request. -1 = leave it unscoped (the
  * baseline, as before): nothing usable, the matching session is busy, or the
  * table is full of live sessions. Never rejects a request. */
@@ -946,15 +973,10 @@ static int implicit_scope(struct rc_gateway_context *g,json_t *body,const rc_gat
 static size_t compliant_candidate(rc_runtime *rt,struct rc_gateway_context *g,const struct scope *s,json_t *body,uint32_t required,const char *effort,uint64_t tokens) {
     size_t best=g->count;double best_cost=0;
     for(size_t i=0;i<g->count;i++){
-        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];rc_endpoint ep=a->endpoint;
-        if((g->cap_known[i]&required)!=required||(g->cap_supported[i]&required)!=required||!candidate_effort(g,i,effort)||
-           g->candidates[i].context_limit<tokens||(s->private_only&&ep!=RC_ENDPOINT_PRIVATE))continue;
-        json_t *probe=json_copy(body);
-        bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
-            (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
-        json_decref(probe);
-        double cost=g->costs[i].priced?g->costs[i].price.input_per_mtok:g->costs[i].fixed;
-        if(ok&&(best==g->count||cost<best_cost)){best=i;best_cost=cost;}
+        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];
+        if(!declares(g,i,required,effort)||g->candidates[i].context_limit<tokens||(s->private_only&&a->endpoint!=RC_ENDPOINT_PRIVATE))continue;
+        double cost=rank_cost(g,i);
+        if(permits(rt,body,a)>0&&(best==g->count||cost<best_cost)){best=i;best_cost=cost;}
     }
     return best;
 }
@@ -1086,12 +1108,8 @@ static int housekeeping_marker(const struct rc_gateway_context *g,json_t *body) 
 /* Housekeeping placement when final M2 permits the housekeeping candidate for
  * this exact request on its own trust class; otherwise the ordinary path. */
 static bool housekeeping_place(rc_runtime *rt,struct rc_gateway_context *g,json_t *body,rc_endpoint *endpoint) {
-    rc_alias *a=&rt->config.aliases[g->candidates[g->housekeeping_candidate].alias_index];rc_endpoint ep=a->endpoint;
-    json_t *probe=json_copy(body);
-    bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
-        (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
-    json_decref(probe);
-    if(!ok||json_object_set_new(body,"model",json_string(a->model)))return false;
+    rc_alias *a=&rt->config.aliases[g->candidates[g->housekeeping_candidate].alias_index];
+    if(permits(rt,body,a)<=0||json_object_set_new(body,"model",json_string(a->model)))return false;
     *endpoint=a->endpoint;return true;
 }
 /* Adds candidate i's low/high reasoning effort in its family's field unless the
@@ -1131,16 +1149,11 @@ static size_t failover_target(rc_runtime *rt,struct rc_gateway_context *g,const 
         if(i==from||cooling(g,i,now)||(g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i]))continue;
         bool base=g->candidates[i].alias_index==g->baseline,recovery=(g->candidates[i].qualified_tasks&RC_TASK_RECOVERY)!=0;
         if(larger_than?(g->candidates[i].context_limit<=larger_than||!(base||recovery)):(from_baseline?!recovery:!base))continue;
-        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];rc_endpoint ep=a->endpoint;
-        if(restricted&&ep!=RC_ENDPOINT_PRIVATE)continue;
-        if(s&&g->candidates[i].alias_index!=g->baseline&&((g->cap_known[i]&s->requirements)!=s->requirements||
-           (g->cap_supported[i]&s->requirements)!=s->requirements||!candidate_effort(g,i,s->effort)))continue;
-        json_t *probe=json_copy(body);
-        bool ok=probe&&!json_object_set_new(probe,"model",json_string(a->model))&&
-            (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
-        json_decref(probe);
-        double cost=g->costs[i].priced?g->costs[i].price.input_per_mtok:g->costs[i].fixed;
-        if(ok&&(best==g->count||cost<best_cost)){best=i;best_cost=cost;}
+        rc_alias *a=&rt->config.aliases[g->candidates[i].alias_index];
+        if(restricted&&a->endpoint!=RC_ENDPOINT_PRIVATE)continue;
+        if(s&&g->candidates[i].alias_index!=g->baseline&&!declares(g,i,s->requirements,s->effort))continue;
+        double cost=rank_cost(g,i);
+        if(permits(rt,body,a)>0&&(best==g->count||cost<best_cost)){best=i;best_cost=cost;}
     }
     return best;
 }
@@ -1191,10 +1204,10 @@ bool rc_gateway_failover(rc_runtime *rt,json_t *body,bool automatic,const rc_gat
     if(from>=0){
         /* The failed destination's reasoning field is not the target's. */
         if(s&&s->reasoning_added){remove_effort(body,s->reasoning_added);s->reasoning_added=EFFORT_NONE;}
-        bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
+        bool private=must_be_private(g,s,h);
         char cause[32];if(context)strcpy(cause,"context");else if(status)snprintf(cause,sizeof cause,"status:%ld",status);else strcpy(cause,"transport");
         uint64_t limit=context?g->candidates[from].context_limit:0;
-        moved=fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,limit,cause,now);
+        moved=fail_over(rt,g,s,ticket->scope,private,body,endpoint,(size_t)from,limit,cause,now);
         if(moved&&s&&limit>s->context_floor)s->context_floor=limit;
     }
     if(moved){
@@ -1222,7 +1235,7 @@ static int tool_slot(struct rc_gateway_context *g,const char *name) {
 static void tool_report(struct rc_gateway_context *g,json_t *body) {
     json_t *tools=json_object_get(body,"tools");size_t n=json_array_size(tools);
     if(!n)return;
-    char *wire=json_dumps(tools,JSON_COMPACT);if(wire){g->tool_bytes+=strlen(wire);free(wire);}
+    size_t wire=json_bytes(tools);if(wire!=SIZE_MAX)g->tool_bytes+=wire;
     g->tooled_requests++;
     for(size_t i=0;i<n;i++){
         int k=tool_slot(g,json_string_value(json_object_get(json_object_get(json_array_get(tools,i),"function"),"name")));
@@ -1358,7 +1371,10 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
         }
         required|=own;
         if(!s->pinned&&s->boundary){
-            rc_tool_status replay=rc_tool_boundary_replay_json(s->boundary,json_object_get(body,"messages"));
+            /* A request-stream session was found by this very replay
+             * (continues() in implicit_scope, same messages object, unchanged
+             * since), so only a registered scope needs the check again. */
+            rc_tool_status replay=s->implicit?RC_TOOL_COMPLETE:rc_tool_boundary_replay_json(s->boundary,json_object_get(body,"messages"));
             if(replay==RC_TOOL_INCOMPLETE&&!s->implicit){status=409;goto done;}
             if(replay!=RC_TOOL_COMPLETE)s->pinned=true;
             required|=rc_tool_boundary_requirements(s->boundary);
@@ -1384,7 +1400,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
              * serialized again (agent requests are hundreds of KiB). */
             bool continuing=g->priced&&s->usage.known&&json_array_size(json_object_get(body,"messages"))>=s->usage_messages;
             uint64_t tokens=0;
-            if(!continuing){char *wire=json_dumps(body,JSON_COMPACT);tokens=wire?strlen(wire):0;free(wire);}
+            if(!continuing){size_t wire=json_bytes(body);tokens=wire==SIZE_MAX?0:wire;}
             /* Priced registries: ESTIMATED tokens (observed usage + appended
              * bytes/4, else request bytes/4). Legacy registries keep raw bytes. */
             uint64_t prompt_est=0,output_est=0,max_tokens=0;
@@ -1393,10 +1409,10 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
                 rc_usage_observation last=s->usage;uint64_t appended=0;
                 if(!last.known||n<s->usage_messages)last.known=false;
                 for(size_t i=last.known?s->usage_messages:n;i<n;i++){
-                    char *m=json_dumps(json_array_get(messages,i),JSON_COMPACT);
-                    if(!m){last.known=false;break;}appended+=strlen(m);free(m);
+                    size_t m=json_bytes(json_array_get(messages,i));
+                    if(m==SIZE_MAX){last.known=false;break;}appended+=m;
                 }
-                if(!last.known&&continuing){char *wire=json_dumps(body,JSON_COMPACT);tokens=wire?strlen(wire):0;free(wire);}
+                if(!last.known&&continuing){size_t wire=json_bytes(body);tokens=wire==SIZE_MAX?0:wire;}
                 prompt_est=rc_estimate_prompt_tokens(&last,appended,tokens);tokens=prompt_est;
             }
             if(output_bound(body,&max_tokens)){tokens=tokens>UINT64_MAX-max_tokens?UINT64_MAX:tokens+max_tokens;}else usable=structural=false;
@@ -1455,19 +1471,15 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
                     if(c<0){status=500;goto done;}
                     quotes[i].expected_task_cost=c;
                 }
-                json_t *probe=json_copy(body);rc_endpoint ep=a->endpoint;
-                if(!probe||json_object_set_new(probe,"model",json_string(a->model))){json_decref(probe);status=500;goto done;}
-                quotes[i].permitted=(!s->private_only||ep==RC_ENDPOINT_PRIVATE)&&
-                    (!rc_dispatch_gate||!rc_dispatch_gate(rt,probe,&ep))&&ep==a->endpoint&&eq(probe,"model",a->model);
+                int p=!s->private_only||a->endpoint==RC_ENDPOINT_PRIVATE?permits(rt,body,a):0;
+                if(p<0){status=500;goto done;}
+                quotes[i].permitted=p>0;
                 if(g->candidates[i].alias_index==g->baseline)baseline_permitted=quotes[i].permitted;
                 else if((g->max_inflight[i]&&g->inflight[i]>=g->max_inflight[i])||cooling(g,i,now))quotes[i].permitted=false;
                 /* A destination must declare every scope requirement,
                  * including the exact reasoning_effort token. The baseline
                  * stays usable as owner without declarations. */
-                else if((g->cap_known[i]&s->requirements)!=s->requirements||
-                        (g->cap_supported[i]&s->requirements)!=s->requirements||
-                        !candidate_effort(g,i,s->effort))quotes[i].permitted=false;
-                json_decref(probe);
+                else if(!declares(g,i,s->requirements,s->effort))quotes[i].permitted=false;
             }
             /* A baseline placement veto belongs to final M2, not to inferred
              * context. Do not ask the downshift selector to invent recovery. */
@@ -1502,16 +1514,18 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
                 size_t to=compliant_candidate(rt,g,s,body,s->requirements,s->effort,tokens);
                 if(to<g->count){selected.alias_index=g->candidates[to].alias_index;placed=true;}
             }
+            /* Decision reason as logged and as the response header. */
+            static const char *const reasons[]={"baseline","cheapest","pin","escalate"};
+            const char *reason=placed?placement:reasons[selected.reason];
             if(g->priced||g->signals){
                 /* Evidence only: class names, aliases, estimated tokens and
                  * USD. No content. Classes offered: interpreter [+signal]. */
-                static const char *reasons[]={"baseline","cheapest","pin","escalate"};
                 uint64_t offered=(req.context_usable?task:0)|signal|escalation;char classes[96]="";
                 for(uint64_t bit=1;bit<=RC_TASK_MAX;bit<<=1)if(offered&bit){
                     size_t n=strlen(classes);snprintf(classes+n,sizeof classes-n,"%s%s",n?"+":"",rc_task_name(bit));
                 }
                 char line[4096];int used=snprintf(line,sizeof line,"route_decision scope=%d mode=%s class=%s reason=%s chosen=%s est_prompt=%llu est_out=%llu costs=",
-                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",placed?placement:reasons[selected.reason],rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
+                    ticket->scope,g->active?"active":"shadow",classes[0]?classes:"none",reason,rt->config.aliases[selected.alias_index].from,(unsigned long long)prompt_est,(unsigned long long)output_est);
                 for(size_t i=0;i<g->count&&used>0&&(size_t)used<sizeof line;i++)
                     used+=snprintf(line+used,sizeof line-(size_t)used,"%s%s:%.9g%s",i?",":"",rt->config.aliases[g->candidates[i].alias_index].from,quotes[i].expected_task_cost,quotes[i].permitted?"":"(denied)");
                 /* The id goes on its own line: route_decision's format is
@@ -1519,8 +1533,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
                 fprintf(stderr,"%s\ndecision_id scope=%d id=%s\n",line,ticket->scope,ticket->decision);
             }
             if(g->active){
-                static const char *names[]={"baseline","cheapest","pin","escalate"};
-                ticket->reason=placed?placement:names[selected.reason];
+                ticket->reason=reason;
                 for(size_t i=0;g->priced&&i<g->count;i++)if(g->candidates[i].alias_index==selected.alias_index){ticket->cost=quotes[i].expected_task_cost;ticket->costed=true;}
             }
             if(g->active){rc_alias *a=&rt->config.aliases[selected.alias_index];*endpoint=a->endpoint;if(json_object_set_new(body,"model",json_string(a->model))){status=500;goto done;}}
@@ -1540,8 +1553,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
     bool health_moved=false;
     if(automatic&&g->active&&g->health.on){
         int from=candidate_of(rt,g,*endpoint,json_string_value(json_object_get(body,"model")));
-        bool restricted=(s&&s->private_only)||(!s&&g->implicit&&labelled(g,h));
-        if(from>=0&&cooling(g,(size_t)from,now)&&fail_over(rt,g,s,ticket->scope,restricted,body,endpoint,(size_t)from,0,"cooldown",now)){ticket->reason="cooldown";ticket->costed=false;health_moved=true;}
+        if(from>=0&&cooling(g,(size_t)from,now)&&fail_over(rt,g,s,ticket->scope,must_be_private(g,s,h),body,endpoint,(size_t)from,0,"cooldown",now)){ticket->reason="cooldown";ticket->costed=false;health_moved=true;}
     }
     /* Explicit scoped aliases are never silently retargeted by authority.
      * Run final M2, then reject a conflict instead of changing the alias. */
@@ -1553,7 +1565,7 @@ static unsigned prepare(rc_runtime *rt,json_t *body,bool automatic,const rc_gate
     }
     /* Restricted: the session's own authority, or a harness label on a request
      * that could not be given a session (busy, table full): never public. */
-    if((s&&s->private_only)||(!s&&g->implicit&&labelled(g,h))){
+    if(must_be_private(g,s,h)){
         if(!automatic){if(*endpoint!=RC_ENDPOINT_PRIVATE){status=403;goto done;}}
         else {
             *endpoint=RC_ENDPOINT_PRIVATE;
@@ -1653,47 +1665,43 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             (!fingerprint||json_is_string(fingerprint))&&json_array_size(choices)==1&&
             nullable_keys(choice,"|index||message||finish_reason||stop_reason|","|logprobs||token_ids||routed_experts|")&&
             (!stop||(json_is_integer(stop)&&json_integer_value(stop)>=0));
-        if(s->requirements)safe=safe&&tool_envelope(root,choice);
-        /* Cost evidence only (never continuity authority). Nonstream: root
-         * usage. Stream: the observer's validated usage tail. */
+        bool envelope=tool_envelope(root,choice);
+        if(s->requirements)safe=safe&&envelope;
+        /* Provider usage of this exchange. Nonstream: root usage. Stream: the
+         * observer's validated usage tail. Cost evidence for the next estimate
+         * (never continuity authority) needs a bounded cached count and an
+         * unpinned session; budget spend takes whatever was reported. */
         json_t *usage=json_object_get(root,"usage"),*details=json_object_get(usage,"prompt_tokens_details");
         json_t *pt=json_object_get(usage,"prompt_tokens"),*ct=json_object_get(usage,"completion_tokens"),*cached=json_object_get(details,"cached_tokens");
-        memset(&s->usage,0,sizeof s->usage);s->usage_messages=0;s->usage_model[0]=0;
-        if(sse&&complete&&observer&&observer->usage_known&&!observer->failed&&observer->done&&s->request_messages&&!s->pinned){
-            s->usage=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)observer->usage_prompt,
-                .completion_tokens=(uint64_t)observer->usage_completion,.cached_tokens=(uint64_t)observer->usage_cached};
-            s->usage_messages=s->request_messages+1;strcpy(s->usage_model,s->model);
-        }else if(json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0&&
-           (!cached||(json_is_integer(cached)&&json_integer_value(cached)>=0&&json_integer_value(cached)<=json_integer_value(pt)))&&
-           s->request_messages&&!s->pinned){
-            s->usage=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),
-                .completion_tokens=(uint64_t)json_integer_value(ct),.cached_tokens=cached?(uint64_t)json_integer_value(cached):0};
-            s->usage_messages=s->request_messages+1;strcpy(s->usage_model,s->model);
+        rc_usage_observation seen={0};bool cached_bounded=true;
+        if(sse){
+            if(complete&&observer&&observer->usage_known&&!observer->failed&&observer->done)
+                seen=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)observer->usage_prompt,.completion_tokens=(uint64_t)observer->usage_completion,.cached_tokens=(uint64_t)observer->usage_cached};
+        }else if(json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0){
+            seen=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),.completion_tokens=(uint64_t)json_integer_value(ct)};
+            if(json_is_integer(cached)&&json_integer_value(cached)>=0)seen.cached_tokens=(uint64_t)json_integer_value(cached);
+            cached_bounded=!cached||(json_is_integer(cached)&&json_integer_value(cached)>=0&&json_integer_value(cached)<=json_integer_value(pt));
         }
+        memset(&s->usage,0,sizeof s->usage);s->usage_messages=0;s->usage_model[0]=0;
+        if(seen.known&&cached_bounded&&s->request_messages&&!s->pinned){s->usage=seen;s->usage_messages=s->request_messages+1;strcpy(s->usage_model,s->model);}
+        int served=candidate_of(rt,g,s->endpoint,s->model);
         /* Budget spend of this exchange (pinned or not), at the served price. */
-        if(g->budget.session_usd>0&&complete){
-            rc_usage_observation u={0};
-            if(sse&&observer&&observer->usage_known&&!observer->failed&&observer->done)
-                u=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)observer->usage_prompt,.completion_tokens=(uint64_t)observer->usage_completion,.cached_tokens=(uint64_t)observer->usage_cached};
-            else if(!sse&&json_is_integer(pt)&&json_integer_value(pt)>=0&&json_is_integer(ct)&&json_integer_value(ct)>=0)
-                u=(rc_usage_observation){.known=true,.prompt_tokens=(uint64_t)json_integer_value(pt),.completion_tokens=(uint64_t)json_integer_value(ct),
-                    .cached_tokens=json_is_integer(cached)&&json_integer_value(cached)>=0?(uint64_t)json_integer_value(cached):0};
-            int i=candidate_of(rt,g,s->endpoint,s->model);
-            double c=u.known&&i>=0?rc_turn_cost(&g->costs[i].price,u.prompt_tokens,u.cached_tokens,u.completion_tokens):0;
+        if(g->budget.session_usd>0&&seen.known&&served>=0){
+            double c=rc_turn_cost(&g->costs[served].price,seen.prompt_tokens,seen.cached_tokens,seen.completion_tokens);
             if(c>0)s->spent+=c;
         }
         json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
-        bool tool_response=safe&&eq(choice,"finish_reason","tool_calls")&&tool_envelope(root,choice);
+        bool tool_response=safe&&eq(choice,"finish_reason","tool_calls")&&envelope;
         if(sse){
             message=stream_message;
             safe=message!=NULL;
             tool_response=safe&&json_object_get(message,"tool_calls")!=NULL;
         }
         if(ticket->shadowed){
-            char name[65];uint64_t hash;first_call(message,name,&hash);int i=candidate_of(rt,g,s->endpoint,s->model);
+            char name[65];uint64_t hash;first_call(message,name,&hash);
             const char *fr=sse?(json_object_get(message,"tool_calls")?"tool_calls":"stop"):token(choice,"finish_reason",32);
             fprintf(stderr,"shadow_primary id=%s alias=%s finish=%s tool=%s args=%016llx\n",ticket->decision,
-                i>=0?rt->config.aliases[g->candidates[i].alias_index].from:"other",complete&&fr?fr:"none",name,(unsigned long long)hash);
+                served>=0?rt->config.aliases[g->candidates[served].alias_index].from:"other",complete&&fr?fr:"none",name,(unsigned long long)hash);
         }
         bool tool=tool_response&&!s->pinned&&s->pending&&s->pending_tools;
         if(tool){

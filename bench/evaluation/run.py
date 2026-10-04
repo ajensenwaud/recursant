@@ -6,13 +6,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import random
 import socketserver
 import subprocess
 import tempfile
 import threading
 import time
 import uuid
+from bench import taskpack
 from .meter import Meter, handler
 from .tasks import TASKS, CASES, fingerprint
 
@@ -149,14 +149,20 @@ def run_episode(task, arm, out, settings, *, live_config=None, protocol_fixture=
 
 def plan(repeats, seed):
     if type(repeats) is not int or not 1<=repeats<=10: raise ValueError('repeats must be 1..10')
-    assignments=[]; rng=random.Random(seed)
-    for repeat in range(repeats):
-        for task in TASKS:
-            order=list(ARMS); rng.shuffle(order)
-            for arm in order:
-                pair=f'{task["id"]}-r{repeat}'
-                assignments.append(dict(episode_id=f'{pair}-{arm}',pair_id=pair,task_id=task['id'],arm=arm))
-    return assignments
+    return taskpack.plan(TASKS,ARMS,repeats,seed)
+
+
+def journal_calls(journal):
+    """Latest journaled record per dispatch_id from an episode's attempts.private.jsonl
+    (every admitted call is journaled before dispatch and again when it settles), or []
+    when the journal does not exist. Unparseable lines are skipped, never fabricated."""
+    if not journal.exists(): return []
+    latest={}
+    for line in journal.read_text().splitlines():
+        try:
+            call=json.loads(line); latest[call['dispatch_id']]=call
+        except (ValueError,KeyError): pass
+    return list(latest.values())
 
 
 def recover_outcomes(out, assignments, rows):
@@ -165,12 +171,7 @@ def recover_outcomes(out, assignments, rows):
         if assignment['episode_id'] in present: continue
         journal=out/assignment['episode_id']/'attempts.private.jsonl'
         if not journal.exists(): continue
-        latest={}
-        for line in journal.read_text().splitlines():
-            try:
-                call=json.loads(line); latest[call['dispatch_id']]=call
-            except (ValueError,KeyError): pass
-        rows.append(dict(assignment,success=False,calls=list(latest.values()),
+        rows.append(dict(assignment,success=False,calls=journal_calls(journal),
                          collection_complete=False,evidence_kind='unreconciled',failure='interrupted'))
     return rows
 
@@ -224,14 +225,7 @@ def main(argv=None):
             except Exception as exc:
                 # Interrupted/failed setup is still an assigned task. Preserve
                 # any already-admitted costs instead of dropping the episode.
-                latest={}
-                journal=out/'attempts.private.jsonl'
-                if journal.exists():
-                    for line in journal.read_text().splitlines():
-                        try:
-                            call=json.loads(line); latest[call['dispatch_id']]=call
-                        except ValueError: pass
-                row=dict(success=False,calls=list(latest.values()),collection_complete=False,
+                row=dict(success=False,calls=journal_calls(out/'attempts.private.jsonl'),collection_complete=False,
                          failure='orchestration_'+type(exc).__name__,evidence_kind=args.mode)
             row.update(assignment); rows.append(row)
             write(args.out/'outcomes.json',rows)

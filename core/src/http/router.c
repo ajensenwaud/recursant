@@ -146,16 +146,16 @@ static ssize_t read_response(void *ctx,uint64_t pos,char *buf,size_t max){
 }
 static void completed(void *ctx,struct MHD_Connection *c,void **con_cls,enum MHD_RequestTerminationCode code){
     (void)ctx;(void)c;request *r=*con_cls;if(!r)return;
-    pthread_mutex_lock(&r->lock);bool complete=code==MHD_REQUEST_TERMINATED_COMPLETED_OK&&r->started&&r->done&&!r->failed&&!r->cancel&&r->status>=200&&r->status<300&&r->count==0;pthread_mutex_unlock(&r->lock);
-    pthread_mutex_lock(&r->lock);r->cancel=true;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);
+    pthread_mutex_lock(&r->lock);bool complete=code==MHD_REQUEST_TERMINATED_COMPLETED_OK&&r->started&&r->done&&!r->failed&&!r->cancel&&r->status>=200&&r->status<300&&r->count==0;
+    r->cancel=true;pthread_cond_broadcast(&r->changed);pthread_mutex_unlock(&r->lock);
     if(r->started)pthread_join(r->worker,NULL);
     rc_gateway_finish(r->runtime,&r->ticket,complete,r->sse,r->observation_overflow?NULL:r->observation,r->observed,r->stream_observation);
     rc_response_observer_release(r->stream_observation);free(r->stream_observation);
     if(r->downstream_fd>=0)close(r->downstream_fd);
     pthread_mutex_destroy(&r->lock);pthread_cond_destroy(&r->changed);free(r->body);free(r->payload);free(r);*con_cls=NULL;
 }
-static bool route(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const char **physical){
-    if(rc_gateway_auto(rt,model,endpoint,physical))return true;
+static bool route(rc_runtime *rt,const char *model,rc_endpoint *endpoint,const char **physical,bool *automatic){
+    if((*automatic=rc_gateway_auto(rt,model,endpoint,physical)))return true;
     for(size_t i=0;i<rt->config.alias_count;i++){rc_alias *a=&rt->config.aliases[i];if(!strcmp(model,a->from)||!strcmp(model,a->model)){*endpoint=a->endpoint;*physical=a->model;return true;}}
     if(rt->config.private_model&&!strcmp(model,rt->config.private_model)){*endpoint=RC_ENDPOINT_PRIVATE;*physical=rt->config.private_model;return true;}
     if(rt->config.public_model&&!strcmp(model,rt->config.public_model)){*endpoint=RC_ENDPOINT_PUBLIC;*physical=rt->config.public_model;return true;}return false;
@@ -203,9 +203,8 @@ static enum MHD_Result handle(void *ctx,struct MHD_Connection *c,const char *url
     }
     if(strcmp(url,"/v1/chat/completions")||strcmp(method,"POST")){r->replied=true;return error_reply(c,404);}
     r->replied=true;json_error_t je;json_t *body=json_loadb(r->body?r->body:"",r->used,JSON_REJECT_DUPLICATES,&je);
-    json_t *m=json_object_get(body,"model");const char *model=json_string_value(m),*physical=NULL;
-    if(!json_is_object(body)||!model||strlen(model)!=json_string_length(m)||!route(rt,model,&r->endpoint,&physical)){json_decref(body);return error_reply(c,400);}
-    rc_endpoint ignored;const char *ignored_model;bool automatic=rc_gateway_auto(rt,model,&ignored,&ignored_model);
+    json_t *m=json_object_get(body,"model");const char *model=json_string_value(m),*physical=NULL;bool automatic=false;
+    if(!json_is_object(body)||!model||strlen(model)!=json_string_length(m)||!route(rt,model,&r->endpoint,&physical,&automatic)){json_decref(body);return error_reply(c,400);}
     json_t *rewritten=json_string(physical);
     if(!rewritten || json_object_set_new(body,"model",rewritten)!=0){json_decref(body);return error_reply(c,500);}
     /* M2 hard gate: final provider object, before serialization and any network. */

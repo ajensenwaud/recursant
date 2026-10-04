@@ -15,6 +15,7 @@ import copy, hashlib, json, os, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from bench.multiagent import run as ma
+from bench.evaluation.pricing import LIST_PRICES  # one source for list prices
 
 args = [a for a in sys.argv[1:] if not a.startswith('--arms')]
 arms_flag = [a for a in sys.argv[1:] if a.startswith('--arms')]
@@ -37,9 +38,9 @@ for arm in ARMS:
                      {'from': 'local', 'provider': 'gx10', 'model': ma.LOCAL}]
     ctx = rc['context']; ctx['reasoning'] = 'steps'; ctx['reasoning_text'] = 'drop'
     base_c, econ, local = ctx['candidates']
-    base_c.update(price={'input_per_mtok': 2.0, 'output_per_mtok': 10.0, 'cached_input_per_mtok': 0.2},
+    base_c.update(price=dict(LIST_PRICES[FRONTIER]),
                   reasoning={'family': 'openrouter', 'low': 'low', 'high': 'low'}, quality_evidence='HARNESS-DEFAULT-BASELINE-H-sub')
-    econ.update(price={'input_per_mtok': 0.1, 'output_per_mtok': 0.5, 'cached_input_per_mtok': 0.1},
+    econ.update(price=dict(LIST_PRICES[ECONOMY]),
                 quality_evidence='UNQUALIFIED-CANDIDATE-UNDER-TEST-H-sub',
                 qualified_tasks={'sonnet': [], 'mix': ['tool_followup_ok', 'final_answer'],
                                  'sub': ['tool_followup_ok', 'final_answer', 'delegated_start']}[arm])

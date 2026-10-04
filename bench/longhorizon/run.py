@@ -5,78 +5,37 @@ Fixture mode (default) replays a scripted agent that explores, applies the refer
 solution and runs the real test suite, so tool latencies and lifecycle telemetry are
 real while inference is scripted and free."""
 import argparse
-import base64
 import hashlib
-import io
 import json
 import os
-import random
-import shutil
-import tarfile
 import threading
 import time
 import uuid
 from decimal import Decimal
 from pathlib import Path
 
+from bench import taskpack
 from bench.evaluation import run as base
-from bench.evaluation.meter import Meter
-from bench.longhorizon.check import grade, materialise
+from bench.evaluation.meter import Meter, completion_response, tool_call_message
 
 HERE = Path(__file__).resolve().parent
 TASKS_DIR = HERE / 'tasks'
 SETTINGS = dict(base.SETTINGS, turns=80, output=4096, deadline_s=1500, context=131072, request_cap=120)
 
+# Pack plumbing shared with bench.multiagent (bench/taskpack.py); names kept for callers.
+seeder, verifier = taskpack.seeder, taskpack.verifier
+
 
 def load_tasks():
-    tasks = []
-    for d in sorted(p for p in TASKS_DIR.iterdir() if p.is_dir()):
-        tasks.append(dict(id=d.name, dir=d, prompt=(d / 'TASK.md').read_text()))
-    return tasks
+    return taskpack.load_tasks(TASKS_DIR)
 
 
 def fingerprint():
-    h = hashlib.sha256()
-    for p in sorted(TASKS_DIR.rglob('*')):
-        if p.is_file() and '__pycache__' not in p.parts:
-            h.update(str(p.relative_to(TASKS_DIR)).encode() + b'\0' + p.read_bytes() + b'\0')
-    return h.hexdigest()
-
-
-def seeder(task):
-    def seed(workspace: Path):
-        shutil.copytree(task['dir'] / 'seed', workspace, dirs_exist_ok=True)
-        (workspace / 'TASK.md').write_text(task['prompt'])
-    return seed
-
-
-def verifier(task):
-    def verify(workspace: Path, out: Path):
-        v = grade(task['dir'], workspace)
-        (out / 'grader-output.private').write_text(v.pop('tail', '') or '')
-        return v
-    return verify
+    return taskpack.fingerprint(TASKS_DIR)
 
 
 def reference_tarball(task):
-    with tempfile_dir() as tmp:
-        ref = materialise(task['dir'], Path(tmp) / 'r', True)
-        buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode='w:gz') as tf:
-            for p in sorted(ref.rglob('*')):
-                if p.is_file() and '__pycache__' not in p.parts:
-                    tf.add(p, arcname=str(p.relative_to(ref)))
-        deletes = (task['dir'] / 'reference' / 'DELETE')
-        return base64.b64encode(buf.getvalue()).decode(), (deletes.read_text().split() if deletes.exists() else [])
-
-
-class tempfile_dir:
-    def __enter__(self):
-        import tempfile
-        self.t = tempfile.TemporaryDirectory(); return self.t.name
-
-    def __exit__(self, *a):
-        self.t.cleanup()
+    return taskpack.reference_tarball(task)
 
 
 class ScriptedLongMeter(Meter):
@@ -86,7 +45,7 @@ class ScriptedLongMeter(Meter):
         super().__init__(mode='fixture', request_cap=request_cap)
         blob, deletes = reference_tarball(task)
         files = sorted(str(p.relative_to(task['dir'] / 'seed')) for p in (task['dir'] / 'seed').rglob('*')
-                       if p.is_file())
+                       if p.is_file() and '__pycache__' not in p.parts)  # a host compileall must not change the script
         self.steps = [('terminal', {'command': 'pwd && ls -R'})]
         self.steps += [('read_file', {'path': '/workspace/' + f}) for f in files]
         self.steps += [('terminal', {'command': 'python -m unittest discover -s tests 2>&1 | tail -5'})]
@@ -110,40 +69,21 @@ class ScriptedLongMeter(Meter):
         finish = 'stop'
         if index < len(self.steps):
             name, args = self.steps[index]
-            message['tool_calls'] = [dict(index=0, id='fx_%d' % index, type='function',
-                                          function=dict(name=name, arguments=json.dumps(args)))]
+            message = tool_call_message('fx_%d' % index, name, args, content=message['content'])
             finish = 'tool_calls'
         else:
             message['content'] = 'Done: reference applied and tests run.'
-        chunks = [dict(id=call['dispatch_id'], object='chat.completion.chunk', created=1, model='fixture',
-                       choices=[dict(index=0, delta=message, finish_reason=None)]),
-                  dict(id=call['dispatch_id'], object='chat.completion.chunk', created=1, model='fixture',
-                       choices=[dict(index=0, delta={}, finish_reason=finish)])]
-        if body.get('stream'):
-            raw = (''.join('data: ' + json.dumps(c) + '\n\n' for c in chunks) + 'data: [DONE]\n\n').encode()
-            mime = 'text/event-stream'
-        else:
-            raw = json.dumps(dict(id=call['dispatch_id'], object='chat.completion', created=1, model='fixture',
-                                  choices=[dict(index=0, message=message, finish_reason=finish)])).encode()
-            mime = 'application/json'
+        raw, mime = completion_response(call['dispatch_id'], message, finish, stream=bool(body.get('stream')))
         call['finished_at'] = time.time(); call['status'] = 200
         self.traces[-1]['response'] = raw.decode()
         return 200, raw, mime
 
 
 def plan(tasks, arms, repeats, seed):
-    rng = random.Random(seed); out = []
-    for r in range(repeats):
-        for t in tasks:
-            order = list(arms); rng.shuffle(order)
-            for a in order:
-                pair = f"{t['id']}-r{r}"
-                out.append(dict(episode_id=f'{pair}-{a}', pair_id=pair, task_id=t['id'], arm=a))
-    return out
+    return taskpack.plan(tasks, arms, repeats, seed)
 
 
 def main(argv=None):
-    from bench.evaluation.report import summarize
     from bench.evaluation.live import validate_live, create_allocation
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--mode', choices=['fixture', 'live'], default='fixture')

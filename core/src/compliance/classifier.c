@@ -237,7 +237,6 @@ static bool inspectable_content(json_t *body) {
 }
 /* inspectable() split: the destination-independent part (messages, tools,
  * functions) and the per-destination part (top-level keys, provider controls). */
-static bool inspectable_content(json_t *body);
 static bool inspectable_controls(json_t *body,const char *controls) {
     if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider||cache_control|"))return false;
     /* Prompt-cache breakpoint (Anthropic via OpenRouter): a fixed control,
@@ -331,18 +330,13 @@ static verdict classify(const rc_runtime *r,json_t *body,const char *controls) {
      * structural contract decides (unknown fields, non-text parts, provider
      * controls). UNSCANNED is not CLEAN: it is reported distinctly. */
     if(!r->content_scanning)return inspectable(body,controls)?UNSCANNED:UNKNOWN;
-    budget memory={.limit=PCRE_BUDGET};
-    pcre2_general_context *gc=pcre2_general_context_create(bounded_alloc,bounded_free,&memory);
-    scanner s={.policy=r->compliance_policy,.agent=r->agent_text};
-    s.md=gc?pcre2_match_data_create(1,gc):NULL;
-    s.mc=gc?pcre2_match_context_create(gc):NULL;
+    budget memory={.limit=PCRE_BUDGET};pcre2_general_context *gc;scanner s;
     verdict result=REGEX_ERROR;
-    if(s.md && s.mc) {
-        pcre2_set_match_limit(s.mc,10000);pcre2_set_depth_limit(s.mc,100);pcre2_set_heap_limit(s.mc,1024);
+    if(scanner_open(&s,r,&memory,&gc)) {
         result=scan(&s,body,0);
         if(result==CLEAN && !inspectable(body,controls))result=UNKNOWN;
     }
-    pcre2_match_data_free(s.md);pcre2_match_context_free(s.mc);pcre2_general_context_free(gc);
+    scanner_close(&s,gc);
     return result;
 }
 /* Adapter of the provider that would receive (trust, model); NULL when none
