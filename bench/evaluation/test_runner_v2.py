@@ -224,6 +224,20 @@ class FairCostTests(unittest.TestCase):
                                         reasoning_semantics='unknown', input_tokens=None)),
                          (0.0, 'private_trust_no_public_charge'))
 
+    def test_admission_rates_cover_every_list_priced_model_and_never_under_reserve(self):
+        # Two tables on purpose: live.PUBLIC_RATES is the worst-case admission bound (Decimal,
+        # may exceed list price, e.g. Anthropic cache-write 1.25x); pricing.LIST_PRICES is the
+        # reported-dollar fallback. They must name the same models and admission must be >= list.
+        from decimal import Decimal
+        from bench.evaluation.live import PUBLIC_RATES
+        from bench.evaluation.pricing import LIST_PRICES
+        self.assertEqual(set(PUBLIC_RATES), set(LIST_PRICES))
+        for model, (rate_in, rate_out) in PUBLIC_RATES.items():
+            listed = LIST_PRICES[model]
+            self.assertGreaterEqual(Decimal(rate_in) * 1_000_000, Decimal(str(listed['input_per_mtok'])), model)
+            self.assertGreaterEqual(Decimal(rate_out) * 1_000_000, Decimal(str(listed['output_per_mtok'])), model)
+            self.assertLessEqual(listed['cached_input_per_mtok'], listed['input_per_mtok'], model)
+
     def test_identical_formula_across_arms_and_interpreter_reported_separately(self):
         from bench.evaluation.report import summarize
         assignments = [{'episode_id':arm, 'task_id':'t0', 'arm':arm, 'pair_id':'p'}

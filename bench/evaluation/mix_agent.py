@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from bench.evaluation.run import run_episode, write
 from bench.evaluation.live import validate_live, create_allocation
+from bench.evaluation.pricing import LIST_PRICES  # one source for list prices
 
 args = [a for a in sys.argv[1:] if not a.startswith('--arms')]
 arms_flag = [a for a in sys.argv[1:] if a.startswith('--arms')]
@@ -55,11 +56,11 @@ rc['context']['reasoning_text'] = 'drop'
 caps = {'tool_history': True, 'function_tools': True, 'parallel_tools': True, 'stream_tools': True,
         'nested_tool_schemas': True, 'reasoning_effort': ['low', 'medium', 'high']}
 frontier = {'alias': 'baseline', 'quality_evidence': 'HARNESS-DEFAULT-BASELINE-G-mix', 'qualified_tasks': [],
-            'context_limit': 131072, 'price': {'input_per_mtok': 2.0, 'output_per_mtok': 10.0, 'cached_input_per_mtok': 0.2},
+            'context_limit': 131072, 'price': dict(LIST_PRICES[FRONTIER]),
             'reasoning': {'family': 'openrouter', 'low': 'low', 'high': 'low'}}
 economy = {'alias': 'economy', 'quality_evidence': 'UNQUALIFIED-CANDIDATE-UNDER-TEST-G-mix',
            'qualified_tasks': ['tool_followup_ok', 'final_answer'], 'context_limit': 131072, 'capabilities': caps,
-           'price': {'input_per_mtok': 0.1, 'output_per_mtok': 0.5, 'cached_input_per_mtok': 0.1}}
+           'price': dict(LIST_PRICES[ECONOMY])}
 configs = {}
 for arm in ARMS:
     c = copy.deepcopy(base)

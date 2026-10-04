@@ -4,7 +4,7 @@ import json, re, sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-DIR = Path(sys.argv[1] if sys.argv[1:] else '/home/aj/projects/recursant-v4/.hermes/runtime/m3-live/final-e2')
+DIR = Path(sys.argv[1]) if sys.argv[1:] else Path(__file__).resolve().parents[2] / '.hermes/runtime/m3-live/final-e2'
 
 
 def main():

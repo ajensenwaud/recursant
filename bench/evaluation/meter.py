@@ -9,6 +9,30 @@ import uuid
 from .tasks import FIXTURE_SOLUTIONS
 
 
+def completion_response(dispatch_id, message, finish, *, stream, model='fixture', usage=None,
+                        include_usage=False):
+    """(raw bytes, MIME) of one scripted assistant step, OpenAI-shaped: an SSE chunk stream
+    when the request streamed, else a chat.completion object. usage (optional) is attached
+    to the JSON object always and to the stream only when include_usage was requested."""
+    head = dict(id=dispatch_id, object='chat.completion.chunk' if stream else 'chat.completion',
+                created=1, model=model)
+    if stream:
+        chunks = [dict(head, choices=[dict(index=0, delta=message, finish_reason=None)]),
+                  dict(head, choices=[dict(index=0, delta={}, finish_reason=finish)])]
+        if usage is not None and include_usage: chunks.append(dict(head, choices=[], usage=usage))
+        return (''.join('data: ' + json.dumps(c) + '\n\n' for c in chunks) + 'data: [DONE]\n\n').encode(), 'text/event-stream'
+    body = dict(head, choices=[dict(index=0, message=message, finish_reason=finish)])
+    if usage is not None: body['usage'] = usage
+    return json.dumps(body).encode(), 'application/json'
+
+
+def tool_call_message(call_id, name, arguments, *, content):
+    """Assistant message carrying one function tool call (the scripted agents' only shape)."""
+    return {'role': 'assistant', 'content': content,
+            'tool_calls': [dict(index=0, id=call_id, type='function',
+                                function=dict(name=name, arguments=json.dumps(arguments)))]}
+
+
 class Meter:
     def __init__(self, *, mode, request_cap):
         if mode != 'fixture':
@@ -50,22 +74,12 @@ class Meter:
         message = {'role':'assistant','content':'Scripted fixture step; no inference.'}
         finish = 'stop'
         if index < len(commands):
-            message['tool_calls'] = [dict(index=0, id='fixture_'+str(index), type='function',
-                function=dict(name='terminal',arguments=json.dumps({'command':commands[index]})))]
+            message = tool_call_message('fixture_'+str(index),'terminal',{'command':commands[index]},
+                                        content=message['content'])
             finish='tool_calls'
         else:
             message['content']='Fixture artifact written and local test executed.'
-        if body.get('stream'):
-            chunks=[dict(id=call['dispatch_id'],object='chat.completion.chunk',created=1,model='fixture',
-                         choices=[dict(index=0,delta=message,finish_reason=None)]),
-                    dict(id=call['dispatch_id'],object='chat.completion.chunk',created=1,model='fixture',
-                         choices=[dict(index=0,delta={},finish_reason=finish)])]
-            raw=(''.join('data: '+json.dumps(c)+'\n\n' for c in chunks)+'data: [DONE]\n\n').encode()
-            mime='text/event-stream'
-        else:
-            raw=json.dumps(dict(id=call['dispatch_id'],object='chat.completion',created=1,model='fixture',
-                choices=[dict(index=0,message=message,finish_reason=finish)])).encode()
-            mime='application/json'
+        raw,mime=completion_response(call['dispatch_id'],message,finish,stream=bool(body.get('stream')))
         call['finished_at']=time.time()
         call['status']=200
         self.traces[-1]['response']=raw.decode()

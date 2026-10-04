@@ -1,11 +1,14 @@
 """Check a long-horizon task pack offline: seed must FAIL hidden tests, seed+reference
 must PASS them, and the task's own visible tests must pass on the reference.
 Runs in the pinned Hermes image (network none), same as the live grader."""
-import json, shutil, subprocess, sys, tempfile, uuid
+import os, re, shutil, subprocess, sys, tempfile, uuid
 from pathlib import Path
 
+if __package__ in (None, ''):  # bare-script invocation: make `bench` importable
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from bench.evaluation.run import IMAGE  # the pinned Hermes image, same as the task sandbox
+
 HERE = Path(__file__).resolve().parent
-IMAGE = 'sha256:7c6c6417032db7457460dd9d9bdf128ff004f4fec6bb66bc9f5eab5f48fead53'
 
 
 def grade(task_dir: Path, workspace: Path, timeout=300):
@@ -18,7 +21,7 @@ def grade(task_dir: Path, workspace: Path, timeout=300):
         name = 'lh-grade-' + uuid.uuid4().hex[:10]
         cmd = ['docker', 'run', '--rm', '--pull=never', '--name', name, '--network=none', '--cap-drop=ALL',
                '--security-opt=no-new-privileges', '--memory=2g', '--cpus=2', '--pids-limit=256',
-               '--user', '%d:%d' % (__import__('os').getuid(), __import__('os').getgid()),
+               '--user', '%d:%d' % (os.getuid(), os.getgid()),
                '--mount', f'type=bind,src={tmp / "w"},dst=/w', '-w', '/w', '-e', 'PYTHONDONTWRITEBYTECODE=1',
                '--entrypoint', 'python', IMAGE, '-m', 'unittest', 'discover', '-s', '_hidden', '-t', '.', '-v']
         try:
@@ -27,7 +30,6 @@ def grade(task_dir: Path, workspace: Path, timeout=300):
             subprocess.run(['docker', 'rm', '-f', name], capture_output=True)
             return dict(success=False, passed=0, total=None, failure='timeout')
         out = p.stderr
-        import re
         ran = re.search(r'Ran (\d+) test', out)
         total = int(ran.group(1)) if ran else 0
         bad = len(re.findall(r'\.\.\. (FAIL|ERROR)', out)) + len(re.findall(r'^(FAIL|ERROR): ', out, re.M))
@@ -47,11 +49,13 @@ def materialise(task_dir: Path, dest: Path, with_reference: bool):
     return dest
 
 
-if __name__ == '__main__':
-    names = sys.argv[1:] or sorted(p.name for p in (HERE / 'tasks').iterdir() if p.is_dir())
+def check_pack(tasks_dir, names=()):
+    """Print one line per task (seed must fail, reference must pass); True when every task is sound."""
+    tasks_dir = Path(tasks_dir)
+    names = list(names) or sorted(p.name for p in tasks_dir.iterdir() if p.is_dir())
     ok = True
     for n in names:
-        t = HERE / 'tasks' / n
+        t = tasks_dir / n
         with tempfile.TemporaryDirectory() as tmp:
             seed = grade(t, materialise(t, Path(tmp) / 's', False))
             ref = grade(t, materialise(t, Path(tmp) / 'r', True))
@@ -60,4 +64,8 @@ if __name__ == '__main__':
         print(f"{n:22} seed {seed['passed']}/{seed['total']} {'FAIL' if not seed['success'] else 'PASS(!)'}  "
               f"reference {ref['passed']}/{ref['total']} {'PASS' if ref['success'] else 'FAIL(!)'}  {'OK' if good else 'BROKEN'}")
         if not ref['success']: print(ref.get('tail'))
-    sys.exit(0 if ok else 1)
+    return ok
+
+
+if __name__ == '__main__':
+    sys.exit(0 if check_pack(HERE / 'tasks', sys.argv[1:]) else 1)
