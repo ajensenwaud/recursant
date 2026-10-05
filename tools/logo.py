@@ -46,9 +46,9 @@ BG = (13, 17, 23)    # GitHub dark
 # model, GPT-6 luna for routine steps; hidden tests decide pass/fail.
 STATS = [
     ("-29%", "model spend, coding agents",
-     "US$1.80 -> US$1.27  ·  jobs passed: 28/32 (27/32 without)", "m3-token-levers.md s3"),
+     "US$1.80 -> US$1.27", "m3-token-levers.md s3"),
     ("-39%", "model spend, multi-agent jobs",
-     "US$1.18 -> US$0.72  ·  jobs passed: 5/5 (5/5 without)", "m3-token-levers.md s7"),
+     "US$1.18 -> US$0.72", "m3-token-levers.md s7"),
     ("38/38", "personal-data requests",
      "all kept on your own model  ·  0 sent to a public model", "cli-systemd-live.md"),
 ]
