@@ -548,6 +548,7 @@ static int wizard(json_t *root, const rc_cli_paths *p, bool created) {
     pending_key keys[16];
     size_t key_count = 0;
     char choice[64], err[512];
+    rc_cli_logo(stdout, NULL);
     say("Recursant configure: %s%s\n", p->config, created ? " (new: starting from a local-only setup)" : "");
     for (;;) {
         say("\n  1) Endpoints   2) Models   3) PII patterns   4) Network   5) Keys\n  s) save and exit   q) quit without saving\n");

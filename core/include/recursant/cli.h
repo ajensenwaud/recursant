@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 /* Where one installation lives. System: /etc/recursant + the system manager;
  * user: ~/.config/recursant + `systemctl --user`. Secrets are kept out of the
@@ -17,6 +18,8 @@ typedef struct {
 } rc_cli_paths;
 
 int rc_cli_main(int argc, char **argv);
+/* The logo, only when f is an interactive terminal (cli/logo.c). */
+void rc_cli_logo(FILE *f, const char *version);
 int rc_cli_configure(int argc, char **argv, rc_cli_paths *paths);
 int rc_serve_main(const char *config, bool test_mode); /* http/router.c */
 

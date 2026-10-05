@@ -1,254 +1,212 @@
-```text
-██▀▀▀█▄ ██▀▀▀▀▀ ▄█▀▀▀▀▀ ██   ██ ██▀▀▀█▄ ▄█▀▀▀▀▀  ▄█▀█▄  ██▄  ██ ▀▀▀██▀▀
-██▄▄▄█▀ ██▄▄▄   ██      ██   ██ ██▄▄▄█▀ ▀█▄▄▄▄  ██   ██ ██▀█▄▀█    ██
-██  ▀█▄ ██      ██      ██   ██ ██  ▀█▄      ██ ██▀▀▀██ ██  ▀██    ██
-██   ██ ██▄▄▄▄▄ ▀█▄▄▄▄▄  ▀█▄▄█▀ ██   ██ ▀█▄▄▄█▀ ██   ██ ██   ██    ██
-```
+<p align="center">
+  <img src="docs/assets/recursant-logo.png" alt="Recursant: the agent-aware model router" width="820">
+</p>
 
-**The agent-aware model router. Lowest-cost suitable model across  on-prem or public, with private data kept on your own hardware.**
+<p align="center"><b>Cut your AI agent bill by a third or more, and keep personal data on your own machines.</b></p>
 
-Recursant sits between your AI agents and your models. It reads each request as the agent sends it, works out what kind of step it is, and sends it to the cheapest model that can do that step and is allowed to see the data. It is one small C binary with one config file, and it speaks the OpenAI API, so nothing in your agent changes.
+Recursant sits between your AI agents and the AI models they use. Every time an agent asks for its next step, Recursant picks who answers: a top model for the hard steps, a cheaper model for the routine ones, and your own private model whenever personal data is involved. Your agent doesn't change. You point it at Recursant instead of at the model provider, and Recursant does the rest.
 
-On our live agent benchmarks it cut public token spend by **25% to 66%** with no loss of quality, and sent **no** requests containing personal data to a public provider, against the same set of turns for the same agent calling the API directly.
+## Measured savings
+
+Real agent jobs on today's models: Claude Sonnet 5.5 as the main model and GPT-6 luna as the cheaper one. Hidden tests decide whether each job was done properly.
+
+| Workload | Without Recursant | With Recursant | Saving |
+|---|---|---|---|
+| Coding jobs | 27 of 32 done, US$1.80 | 28 of 32 done, US$1.27 | **29% cheaper** |
+| Jobs that hand work to helper agents | 5 of 5 done, US$1.18 | 5 of 5 done, US$0.72 | **39% cheaper** |
+| Jobs that read customer files with personal data | personal data sent to a public model **31 times** | sent **0 times**, and 66% cheaper | **no leaks** |
+
+Recursant passed at least as many jobs as the agent did on its own in every test. The personal-data test ran on last month's models (GPT-4.1). In a fresh install tested on 5 October 2026, all 38 requests that contained personal data stayed on the private model.
+
+These are our own tests: one agent (Hermes), made-up tasks and small samples. Your saving depends on your work. Longer jobs, helper agents and spare capacity on your own GPUs all save more. Each number links to its full write-up, including what didn't work:
+
+- [coding jobs](docs/evidence/m3-token-levers.md)
+- [helper agents](docs/evidence/m3-token-levers.md#7-subagents-on-the-cheap-model-h-sub-us346)
+- [personal data](docs/evidence/m3-multiagent.md)
+- [fresh install](docs/evidence/cli-systemd-live.md)
+
+## What it does
+
+- **Picks a model for every step.** An agent doesn't make one request per job; it makes dozens: read a file, run the tests, read the error, fix it, try again. Most of those steps are routine. Recursant sends routine steps to the cheaper model and keeps the thinking-heavy ones on the main model. If the agent keeps failing, it brings in a stronger model.
+- **Doesn't trip the agent up mid-task.** Switching models carelessly can confuse an agent or lose the discount providers give for repeated text. Recursant follows each conversation and only switches where it is safe.
+- **Keeps personal data private.** Every request is checked before it leaves your machine. The check covers tax file numbers, Medicare numbers, card numbers, phone numbers, email addresses and any patterns you add. Anything that matches goes to your private model instead, and that conversation stays private from then on. This check always has the final say.
+- **Uses your own hardware too.** Models on your own GPUs and paid services such as OpenRouter sit in one pool. Your own GPU always handles the private work, and you can let it take routine work as well, which costs nothing per request.
+- **Works with the agent you have.** It speaks the same language as OpenAI's API, which almost every agent and tool supports. No plugins and no code changes. It is tested with Hermes and pi.
+
+## Install
+
+On Linux or macOS, run:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ajensenwaud/recursant/main/install.sh | bash
 ```
 
----
+This downloads the source code, installs anything needed to build it (through your package manager, so it may ask for your password), builds Recursant, and writes a starter setup. It doesn't start anything and doesn't send anything anywhere. The script is short if you want to [read it first](install.sh).
 
-## The problem
+You end up with:
 
-**Agent bills are growing faster than anyone planned.** An agent doesn't make one model call per task. It makes dozens or hundreds: read a file, run the tests, read the error, patch, run again, hand work to a subagent. Each call resends the whole conversation, and most teams send every one of them to a frontier model. Most of those steps are routine. You are paying frontier prices to run `ls`.
+- the program at `~/.local/bin/recursant`
+- your settings in `~/.config/recursant/config.json`
+- your keys in `~/.config/recursant/recursant.env`, readable only by you. This includes a key for your agents to use, created for you.
 
-**Today's routers can't see the workflow.** They classify the latest user message and pick a model for the conversation. Inside an agent's tool loop that fails one of two ways: either the router locks the model for the whole loop and saves nothing, or it switches blindly mid-task and breaks the agent's context and prompt cache. Neither knows that a step just failed, that a subagent was started, or that the agent is stuck in a loop.
+If your shell says `recursant: command not found`, add `~/.local/bin` to your path: `export PATH="$HOME/.local/bin:$PATH"`.
 
-**On-prem and public models live in separate worlds.** Many organisations now own GPUs and also pay for public APIs. There is no single control point that treats both as one pool and places each request by cost, capacity and permission, so teams hard-wire one or the other.
+## Set it up
 
-**Compliance doesn't scale to agents.** Rules such as APRA CPS 234 and GDPR require that personal and sensitive data stays where it is allowed to be. An agent that reads a customer file and pastes it into its next prompt has just moved that data. Nobody can review every step by hand.
+The starter setup uses:
 
-Recursant fixes those problems. 
-
-## The solution
-
-Recursant is one OpenAI-compatible endpoint in front of all your models, public and on-prem, that decides every step:
-
-- **Which model.** Routine steps (a clean tool result, a final answer) go to an economy model; steps after repeated failures go to a stronger one; the rest stay on your baseline. Decided per step, not per conversation. Plain questions (chat, single API calls) go to the cheapest model you qualify for them.
-- **Where.** On-prem and public providers sit in one pool. Requests are placed by price, measured token use, prompt-cache warmth, capacity and health.
-- **Compliance.** A deterministic compliance engine checks the exact outgoing request before it leaves. Anything containing personal data goes to your private model, and the conversation stays there. Compliance overrides every other decision.
-- **Without integration.** Sessions, tool loops and subagents are recognised from the request stream alone. No SDK, no plugin, no harness changes. Point the agent's base URL at Recursant and set the model to `auto`.
-
-## Measured results
-
-Live benchmarks: the Hermes agent on synthetic development tasks, with hidden tests deciding pass or fail, and 980-question MMLU-Pro runs for single questions. All costs are provider-billed. The agent runs used the September 2026 pair (gpt-4.1 baseline, gpt-4.1-mini economy, OpenRouter); the question-level runs use the current pair. Every number links to its evidence, including the limits.
-
-**Single-agent coding tasks** (10 tasks x 3 repeats, [evidence](docs/evidence/m3-final-comparison-d.md))
-
-| | Jobs passed | Public spend | Change |
-|---|---|---|---|
-| Agent calling gpt-4.1 directly | 20/30 | US$1.80 | |
-| Recursant (request signals) | 25/30 | US$1.34 | **-25%** |
-| Recursant (signals + low-cost decision model) | 21/30 | US$1.06 | **-41%** |
-
-**Multi-agent tasks with subagents and personal data** (5 tasks x 2 repeats, compliance on, an on-prem model as the private destination, [evidence](docs/evidence/m3-multiagent.md))
-
-| | Jobs passed | Hidden tests passed | Public spend | Personal-data requests sent to a public provider |
-|---|---|---|---|---|
-| Agent calling gpt-4.1 directly | 2/10 | 73% | US$4.70 | 31 |
-| Recursant | 5/10 | 82% | US$1.58 (**-66%**) | **0** |
-
-**Single questions, current model pair** (980 MMLU-Pro questions, 70 from each of 14 subjects, October 2026, [evidence](docs/evidence/m3-encoder-classifier.md))
-
-| Model answering | Correct | Spend | Median wait |
-|---|---|---|---|
-| GLM-5.3-Flash on your own GPU | 80.1% | **US$0** | 6.5 s |
-| gpt-6-luna (economy, via OpenRouter) | 84.6% | US$0.15 | 3.2 s |
-| gpt-6.1-sol (frontier, via OpenRouter) | 88.3% | US$1.53 | 3.3 s |
-
-The frontier-economy gap is real (sol alone right on 49 questions, luna alone on 13), but no question classifier predicts it: even the router's local encoder reaches AUC 0.56-0.58 on this pair, barely a coin flip. So Recursant sends every fresh question to the cheapest qualified model and leaves the trade-off to you: always the economy model costs 3.7 points for 90% less spend; always your own GPU costs 8.2 points for zero public spend. A classifier does not change those numbers.
-
-**Reasoning effort** (same 980 questions, [evidence](docs/evidence/m3-reasoning-effort.md))
-
-| Model and effort | Correct | Cost for 980 |
+| Name | Model | Used for |
 |---|---|---|
-| gpt-6.1-sol, low effort | 88.7% | US$1.37 |
-| gpt-6.1-sol, high effort | 88.6% | US$2.03 |
-| gpt-6-luna, default effort | 84.6% | US$0.15 |
-| gpt-6-luna, no effort | 77.1% | US$0.04 |
+| `baseline` | Claude Sonnet 5.5 (via OpenRouter) | the main model for anything not routine |
+| `economy` | GPT-6 luna (via OpenRouter) | routine steps and simple questions |
+| `strong` | Claude Opus 5.5 (via OpenRouter) | when the agent keeps getting stuck |
+| `local` | qwen3:8b on Ollama, on this machine | anything containing personal data |
 
-The frontier model gains nothing from a higher effort (low vs high is statistical noise, and low is 33% cheaper), while the economy model loses 8 points when reasoning is turned off. A per-question effort switch barely beats a random mix (AUC 0.57), so Recursant does the thing the data supports: one fixed effort per model, set by the operator — frontier at low, economy never "none". The per-question switch is not shipped.
-
-**Agent jobs on current models** (32 Hermes coding jobs, short and long-horizon packs, October 2026, [evidence](docs/evidence/m3-token-levers.md))
-
-| | Jobs passed | Public spend | Change |
-|---|---|---|---|
-| Claude Sonnet 5.5 for every step (effort low, prompt cache on) | 27/32 | US$1.80 | |
-| Recursant: Sonnet + gpt-6-luna for routine steps | 28/32 | US$1.27 | **-29%** |
-
-Same Sonnet jobs at the harness's default high effort cost 3.7x more for the same pass rate ([evidence](docs/evidence/m3-reasoning-effort-agents.md)); without the prompt-cache breakpoint Recursant adds for Claude, 2.4x more. The shipped configs apply all three.
-
-**What to expect.** On agent workloads where an economy model exists that can handle routine steps, expect public token spend to fall by roughly a quarter to two thirds at equal quality. Savings rise with longer tool loops, multi-agent work and on-prem capacity, which costs nothing per token. These are development benchmarks with one agent and synthetic tasks, measured on two model pairs; every number above links to its evidence, including the limits. We publish what didn't work too: a learned efficiency model that looked good offline [saved nothing live](docs/evidence/m3-efficiency-live.md) and ships switched off.
-
-## How it works
-
-```
- agents (any OpenAI-compatible client, model "auto")
-    |
-    v
-+--------------------------------- recursant -----------------------------------+
-|  1. Compliance   deterministic and final: identifiers with check digits      |
-|                  (TFN, Medicare, ABN, cards), emails, phones, your patterns, |
-|                  structural checks. Personal data -> private model, pinned.  |
-|  2. Continuity   session recognised from the request stream; tool-call       |
-|                  replay checked; a session that can't move safely is pinned; |
-|                  switching cost includes losing a warm prompt cache.         |
-|  3. Signals      the tool results in this request: clean step -> economy,    |
-|                  two failures in a row -> stronger model, harness            |
-|                  rejections -> neutral, orchestrator reviewing subagent      |
-|                  work -> baseline.                                           |
-|  4. Judge        optional low-cost decision model for steps the signals      |
-|                  leave open (only when compliance already allows public).    |
-|     Questions    a fresh question (chat, single call) -> the cheapest model  |
-|                  qualified for questions; tool results are never read here.  |
-|  5. Selection    cheapest permitted candidate: price x estimated tokens,     |
-|                  cached-token discounts, capacity, health, budgets.          |
-+-------------------------------------------------------------------------------+
-    |                                   |
-    v                                   v
- on-prem models (vLLM, Ollama, ...)   public providers (OpenRouter, OpenAI-compatible)
-```
-
-Each layer can only narrow what the next one may do. Compliance always wins; continuity beats cost; optional advisers only fill gaps.
-
-Also built in, each off until you switch it on:
-
-- **Budgets.** Per-session spend caps that move work to cheaper models before refusing anything.
-- **Health and failover.** Cooldowns for failing providers, and failover before the first byte reaches the client.
-- **Context-window fit.** A larger model instead of an error when a conversation outgrows the cheap one.
-- **Reasoning effort.** Low effort on routine steps and high on recovery, set in each provider's own field.
-- **Housekeeping.** Session titles and compaction summaries go to a cheap model of your choice.
-- **Shadow dispatch.** Sends a sample of steps to a second model so you can collect your own evaluation data.
-- **Decision headers.** Every response says which model served it and why: `X-Recursant-Model`, `X-Recursant-Decision`, `X-Recursant-Cost-USD`, `X-Recursant-Decision-Id`.
-
-Details: [request sessions and routing](docs/m3-request-sessions.md), [architecture](AGENTS.md).
-
-## Get started
-
-**1. Install** (Linux or macOS). This builds from source, installing the compiler and libraries with your package manager if they're missing, then writes a starter config:
+**1. Add your OpenRouter key.** Recursant asks for it and doesn't show it as you type:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ajensenwaud/recursant/main/install.sh | bash
+recursant configure --set-key OPENROUTER_API_KEY
 ```
 
-Options: `RECURSANT_PREFIX` (default `~/.local`), `RECURSANT_REF` (branch or tag), `RECURSANT_NO_DEPS=1` (print the package command instead of running it). Read [the script](install.sh) first if you prefer; it is short.
-
-**2. Configure it.** `recursant configure` walks you through endpoints, models, PII patterns, network and keys. Secrets never go in the config: they are stored in `recursant.env` next to it (mode 0600), and a client key for your agents is generated on first run.
+**2. Point it at your private model.** The starter setup expects Ollama on this machine. If your private model runs somewhere else, add it and make it the place personal data goes. For example, for a GPU server called `gpu-box`:
 
 ```sh
-recursant configure                    # interactive
-recursant check                        # validate before (re)starting
+recursant configure --add-provider gpu --url http://gpu-box:8000/v1 --trust private --private-default gpu:my-model-name
 ```
 
-The same edits as switches, for scripts and agents (every change is validated first, and the previous config is kept as `config.json.YYYY-MM-DD-HHMMSS.bak`):
+**3. Check everything.**
 
 ```sh
-recursant configure --add-provider openrouter --alias economy=openrouter:openai/gpt-6-luna
-recursant configure --add-provider lab --url http://gx10:8888/v1 --trust private --private-default lab:GLM-5.3-Flash-EXL3
-printf %s "$OPENROUTER_API_KEY" | recursant configure --set-key OPENROUTER_API_KEY
-recursant configure --list-providers   # 28 known public gateways (OpenAI, Anthropic, Gemini, Groq, Mistral, ...)
+recursant check
 ```
 
-Live-tested so far: OpenRouter and local OpenAI-compatible servers. The other catalogue entries use the generic OpenAI-compatible adapter and have not yet been exercised against their real APIs.
+It tells you in plain words what's missing or wrong.
 
-**3. Run it as a service** (systemd; `--user` for a per-user service, or as root for the system one), or in the foreground with `recursant serve`:
+Prefer menus? Run `recursant configure` on its own for step-by-step setup of model services, models, privacy patterns, network and keys. Every change is checked before it's saved, and your previous settings are kept as a dated backup next to the file.
+
+Other things you can change:
 
 ```sh
-recursant install --user && recursant start
-recursant status                       # state, endpoint, request counters (--json for agents)
+recursant configure --alias economy=openrouter:openai/gpt-6-luna   # use a different cheap model
+recursant configure --add-pattern 'CUST-[0-9]{6}'                  # treat your own IDs as private
+recursant configure --listen tailnet                               # reachable from your Tailscale network
+recursant configure --list-providers                               # 28 known model services
 ```
 
-**4. Point your agent at it.** Use base URL `http://127.0.0.1:8080/v1`, the client key from `recursant.env` and model `auto`:
+So far Recursant has been tested live with OpenRouter and with models on your own servers (vLLM, Ollama and similar). The other services in the list should work the same way, but haven't been tested against their real systems yet.
+
+## Start it
+
+Run it as a background service that starts with your computer:
 
 ```sh
+recursant install --user
+recursant start
+recursant status
+```
+
+`status` shows whether it's running, its address, how many requests it has handled, and where they went.
+
+- **For the whole machine:** use `sudo recursant install --system` and `sudo recursant start` instead.
+- **To try it first without a service:** run `recursant serve`, and press Ctrl-C to stop it.
+
+## Connect your agent
+
+Your agent needs three settings:
+
+| Setting | Value |
+|---|---|
+| Address (base URL) | `http://127.0.0.1:8080/v1` |
+| Key | `RECURSANT_API_KEY` from `~/.config/recursant/recursant.env` |
+| Model | `auto` (let Recursant choose) |
+
+**Hermes:** run `hermes model`, choose *Custom endpoint (enter URL manually)*, and enter the three values above.
+
+**pi:** add Recursant to `~/.pi/agent/models.json`:
+
+```json
+{
+  "providers": {
+    "recursant": {
+      "baseUrl": "http://127.0.0.1:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "${RECURSANT_API_KEY}",
+      "models": [{ "id": "auto", "contextWindow": 131072, "maxTokens": 8192 }]
+    }
+  }
+}
+```
+
+Then export your key (`export RECURSANT_API_KEY=...`) and run `pi --provider recursant --model auto`.
+
+**Anything else:** wherever the tool asks for an OpenAI address, key and model, enter the values above. To see it working from the command line:
+
+```sh
+source ~/.config/recursant/recursant.env
 curl -s http://127.0.0.1:8080/v1/chat/completions \
   -H "Authorization: Bearer $RECURSANT_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"model":"auto","max_tokens":256,"messages":[{"role":"user","content":"Say hello"}]}' \
+  -d '{"model":"auto","messages":[{"role":"user","content":"Say hello"}]}' \
   -D - -o /dev/null | grep -i '^x-recursant'
 ```
 
-It is tested end to end with the Hermes agent; any client that speaks the OpenAI chat-completions API can point at it the same way. Named aliases (`baseline`, `economy`, `strong`, `local`) are still there when you want to choose a model yourself.
+Every answer says which model handled it and why (in the `X-Recursant-Model` and `X-Recursant-Decision` headers), so you can always see what happened. To choose a model yourself, ask for `baseline`, `economy`, `strong` or `local` instead of `auto`.
 
-**Docker.**
-
-```sh
-docker build -f deploy/Dockerfile.dev -t recursant-v4-dev:local deploy   # build image
-docker build -f deploy/Dockerfile -t recursant:local .                    # runtime image, no compiler
-docker run --rm --user "$(id -u):$(id -g)" --read-only --cap-drop ALL --security-opt no-new-privileges \
-  -p 127.0.0.1:8080:8080 -v "$HOME/.config/recursant/config.json:/etc/recursant/config.json:ro" \
-  -e RECURSANT_API_KEY -e OPENROUTER_API_KEY -e RECURSANT_SOURCE_KEY recursant:local
-```
-
-## Command line
-
-`recursant <command> [--switches]`. Every command takes `--config PATH`; the default is `$RECURSANT_CONFIG`, then `~/.config/recursant/config.json`, then `/etc/recursant/config.json`.
+## Everyday commands
 
 | Command | What it does |
 |---|---|
-| `install` | Installs the binary and a hardened systemd unit (system: `DynamicUser`, config as a credential; `--user`: user manager), enables it. Refuses an invalid config. `--dry-run` prints the unit. |
-| `uninstall` | Stops, disables and removes the unit and binary. Config and keys are kept unless `--purge`. |
-| `start` / `stop` | Start or stop the daemon. Logs go to the journal: `journalctl [--user] -u recursant`. |
-| `restart` | Checks the config first; an invalid config never replaces the running one. |
-| `check` | Validates the config and names the problem (`--no-secrets` for structure only). |
-| `status` | Service state, endpoint, tailnet address, uptime and request counters (`--json`). Exit 3 when not running. |
-| `configure` | Interactive setup, or switches: `--add-provider`, `--remove-provider`, `--alias`, `--private-default`, `--add-pattern`, `--compliance`, `--listen localhost\|tailnet\|any\|IP`, `--port`, `--set-key`. |
-| `serve` | Runs the router in the foreground (what the service runs). |
+| `recursant status` | Is it running, where, and what has it done |
+| `recursant check` | Check your settings before restarting |
+| `recursant restart` | Load new settings. If they're broken, the running copy carries on untouched |
+| `recursant start` / `stop` | Start or stop the service |
+| `recursant configure` | Change settings, with menus or the switches above |
+| `recursant install` / `uninstall` | Add or remove the background service. `uninstall --purge` also deletes your settings and keys |
+| `recursant serve` | Run in this window instead of in the background |
 
-**Tailscale.** `listen.host` may be `tailnet`: Recursant binds to this machine's Tailscale address at start (and orders itself after `tailscaled`). `check`, `status` and `configure` show the detected tailnet address and mark tailnet endpoints, so a private model on another tailnet machine (`http://gx10:8888/v1`) is one `--add-provider` away.
+Logs go to the system journal: `journalctl --user -u recursant`, or `sudo journalctl -u recursant` for the whole-machine service. Logs record decisions only, never what your agents wrote.
 
-## One config file
+## How it decides
 
-Everything lives in one strict JSON file. Unknown keys are rejected, and `recursant check` names the problem before you deploy.
+For every request, Recursant asks four questions in this order:
 
-| Section | What it controls |
-|---|---|
-| `providers` | Any number of model endpoints (up to 256), each `private` or `public`, with an adapter (`openai-compatible`, `openrouter`) |
-| `listen` | Address (`localhost`, `tailnet`, `any` or an IPv4 address) and port |
-| `aliases` | Names your agents can use (`baseline`, `economy`, `strong`, `local`) |
-| `compliance` | Identifier recognisers, your own patterns, agent text mode, whether public placement is allowed at all |
-| `context` | Routing: candidates with prices and qualifications, signals, sessions, budgets, health, judge, headers |
-| `limits` | Body size, connections, timeouts |
+1. **Is there private data?** If the request contains personal data, or something Recursant can't read and check, it goes to your private model. Nothing later can override this.
+2. **Is it safe to switch?** If switching models now could confuse the agent, the request stays where it is.
+3. **What just happened?** If the agent's last action worked, the next step is routine and goes to the cheaper model. If it has failed twice in a row, a stronger model takes over. Helper agents start on the cheaper model.
+4. **Which allowed model is cheapest?** It weighs prices, how busy each model is, and whether it's working.
 
-Starter: [config/recursant.quickstart.json](config/recursant.quickstart.json). Every option: [config/recursant.agent.example.json](config/recursant.agent.example.json).
+Recursant decides all this itself, in a few milliseconds, from the request the agent already sent. There's no second AI model making the call, and no extra service to run.
 
-## Design principles
+## Safety
 
-- **Fast.** Written in C on libmicrohttpd, libcurl, Jansson and PCRE2. There's no runtime, no garbage collector and no extra network hop on the hot path. Responses stream straight through; routing decisions are local arithmetic over the request you already sent.
-- **Efficient.** The default decision-maker is the request itself: tool results, failures and turn structure. No second model call, no telemetry pipeline, no waiting.
-- **Self-contained.** One binary of about 240 KB with no database, no sidecar and no phone-home. It runs on a laptop, a GPU box or in a container.
-- **One config file.** Strict JSON with secrets by reference. If it validates, it runs. If it doesn't, Recursant refuses to start rather than guess.
-- **Unix philosophy.** It does one thing, routing model calls, and does it well. It speaks the protocol everything already speaks, writes one plain log line per decision to stderr, and composes with your proxy, secret manager and observability tools.
-- **Safe by default.** Compliance is deterministic and final, a private failure never falls back to public, and every optional feature is off until you switch it on.
-- **Evidence over claims.** Every feature is built test-first (normal and AddressSanitizer/UBSan builds) and every saving is measured live, with the losses published next to the wins.
+- Keys never go in the settings file. They stay in `recursant.env`, readable only by you.
+- If your private model fails, Recursant never falls back to a public one.
+- By default it only listens on this machine. Opening it to your network is your choice (`--listen`). If other people will reach it, put it behind a secure proxy.
+- The privacy check catches the formats it knows plus your own patterns. It is a strong safety net, not a guarantee that no personal data of any kind can ever leave.
 
-## Security model
+## More results
 
-- Credentials are environment references, never config values. Logs carry fixed decision categories, never payloads, matches or keys.
-- The compliance gate scans decoded strings, object keys, nested JSON and scalars of the exact outgoing request, after every other layer has acted. Matches, uninspectable content and exhausted scan budgets stay private. Invalid policy prevents startup; policy is immutable until restart.
-- TLS verification on, no redirects, no automatic retries after an uncertain dispatch, bounded body size, concurrency, deadlines and streaming queue.
-- Recursant listens on plain HTTP; keep it on loopback or put authenticated TLS in front of it. `--test-mode` (plain HTTP to providers) is for tests only.
-- Regex and identifier rules are a request-egress boundary, not universal PII detection, output DLP or a certification.
+Answering 980 general-knowledge exam questions (MMLU-Pro), one request each:
 
-## Status
+| Model | Correct | Cost |
+|---|---|---|
+| GLM-5.3-Flash on your own GPU | 80.1% | **US$0** |
+| GPT-6 luna (cheaper, via OpenRouter) | 84.6% | US$0.15 |
+| GPT-6.1 sol (top, via OpenRouter) | 88.3% | US$1.53 |
 
-| Milestone | State |
-|---|---|
-| M1 Hybrid router: on-prem and public behind one endpoint | Done, live-tested |
-| M2 Compliance engine: deterministic rules, personal data stays private | Done; Australian identifiers with check digits added |
-| M3 Context engine: per-step, agent-aware routing | Done; 25-66% lower spend at equal quality on our benchmarks |
-| Privacy model for names and addresses | Evaluated offline: 0.6% of held-out agent conversations wrongly kept private, 11 ms p99 ([evidence](docs/evidence/m2-privacy-pipeline.md)); not yet in the router |
-| Management console, Postgres audit trail, OpenTelemetry | Planned |
+The top model does better on hard questions, but nothing we tried could tell in advance which questions those are. So for single questions Recursant uses the cheapest model you allow, and the trade-off is your choice ([details](docs/evidence/m3-encoder-classifier.md)). We also tested small "decision models" (Jev, Strands Decider) as advisers. They didn't save money reliably, so they're switched off ([details](docs/m3-decision-model.md)).
 
-## Development
+## Docker
+
+```sh
+docker build -f deploy/Dockerfile -t recursant:local .
+docker run --rm --user "$(id -u):$(id -g)" --read-only --cap-drop ALL --security-opt no-new-privileges \
+  -p 127.0.0.1:8080:8080 -v "$HOME/.config/recursant/config.json:/etc/recursant/config.json:ro" \
+  --env-file "$HOME/.config/recursant/recursant.env" recursant:local
+```
+
+## For developers
+
+Recursant is a single program of about 340 KB, written in C, with one settings file. To build it and run the tests in the development container:
 
 ```sh
 docker build -f deploy/Dockerfile.dev -t recursant-v4-dev:local deploy
@@ -256,4 +214,20 @@ docker run --rm -v "$PWD:/work" -w /work recursant-v4-dev:local sh -c \
   'cmake -S . -B /tmp/b && cmake --build /tmp/b -j && cd /tmp/b && ctest --output-on-failure'
 ```
 
-Add `-DRECURSANT_SANITIZERS=ON` for AddressSanitizer and UBSan. Tests use local scripted providers and make no model calls. Benchmarks are under [bench/](bench) and every result under [docs/evidence/](docs/evidence), starting with the [benchmark contract](docs/benchmark-contract.md).
+The tests use pretend model services and make no real model calls. Where to find the rest:
+
+- every setting: [config/recursant.agent.example.json](config/recursant.agent.example.json)
+- the design: [AGENTS.md](AGENTS.md)
+- benchmarks: [bench/](bench)
+- every measurement: [docs/evidence/](docs/evidence)
+
+To redraw the logo, run `python3 tools/logo.py`.
+
+## Status
+
+| Part | State |
+|---|---|
+| One address for your own models and paid services | Done, tested live |
+| Privacy rules: personal data stays on your machines | Done, including Australian ID numbers with check digits |
+| Step-by-step model choice for agents | Done: 29–39% cheaper at the same quality in our tests |
+| Web console, audit history, tracing | Planned |

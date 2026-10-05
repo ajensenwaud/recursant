@@ -788,11 +788,12 @@ static int cmd_status(const options *o) {
 
 int rc_cli_main(int argc, char **argv) {
     if (argc < 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "help")) {
+        rc_cli_logo(argc < 2 ? stderr : stdout, RECURSANT_VERSION);
         fputs(USAGE, argc < 2 ? stderr : stdout);
         return argc < 2 ? 2 : 0;
     }
     const char *cmd = argv[1];
-    if (!strcmp(cmd, "version") || !strcmp(cmd, "--version")) { puts("recursant " RECURSANT_VERSION); return 0; }
+    if (!strcmp(cmd, "version") || !strcmp(cmd, "--version")) { rc_cli_logo(stdout, NULL); puts("recursant " RECURSANT_VERSION); return 0; }
     bool positional = !strcmp(cmd, "serve") || !strcmp(cmd, "check") || !strcmp(cmd, "validate");
     if (!strcmp(cmd, "configure")) {
         /* configure parses its own switches; --config/--user/--system pick the file. */
