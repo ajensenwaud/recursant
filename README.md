@@ -2,7 +2,7 @@
   <img src="docs/assets/recursant-logo.png" alt="Recursant: the agent-aware model router built for hybrid inference" width="820">
 </p>
 
-<p align="center"><b>Cut your AI bill by a 30%+, keep personal data private, and seamlessly run agents across private and public inference.</b></p>
+<p align="center"><b>Cut your AI bill by 30%+, keep personal data private, and seamlessly run agents across private and public inference.</b></p>
 
 Recursant sits between your AI agents and the AI models they use. Every time an agent asks for its next step, Recursant picks who answers: a top model for the hard steps, a cheaper model for the routine ones, and your own private model whenever personal data is involved. Your agent doesn't change. You point it at Recursant instead of at the model provider, and Recursant does the rest.
 
