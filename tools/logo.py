@@ -277,25 +277,23 @@ def write_social(path):
             g.point((x, y), fill=(255, 255, 255, 9))
 
     logo = render_logo(cw=8, tagline=False)
-    img.alpha_composite(logo, ((W - logo.width) // 2, 44))
+    img.alpha_composite(logo, ((W - logo.width) // 2, 52))
 
     lato = "/usr/share/fonts/truetype/lato/Lato-{}.ttf"
     mono = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
     head = ImageFont.truetype(lato.format("Bold"), 38)
-    sub = ImageFont.truetype(lato.format("Regular"), 23)
     big = ImageFont.truetype(lato.format("Black"), 76)
     label = ImageFont.truetype(lato.format("Bold"), 22)
     detail = ImageFont.truetype(lato.format("Regular"), 17)
     small = ImageFont.truetype(lato.format("Regular"), 16)
 
-    y = 44 + logo.height + 22
-    g.text((W // 2, y), "The agent-aware model router", font=head, fill=(230, 237, 243), anchor="mt")
-    g.text((W // 2, y + 50), "Routine agent steps on cheaper models. Personal data on your own hardware.",
-           font=sub, fill=(139, 148, 158), anchor="mt")
+    y = 52 + logo.height + 34
+    g.text((W // 2, y), "The hybrid inference, agent-aware model router", font=head,
+           fill=(230, 237, 243), anchor="mt")
 
     tw, th, gap = 376, 196, 22
     x = (W - 3 * tw - 2 * gap) // 2
-    ty = 352
+    ty = 346
     for i, (num, what, how, _src) in enumerate(STATS):
         tx = x + i * (tw + gap)
         g.rounded_rectangle((tx, ty, tx + tw, ty + th), radius=16, fill=(22, 27, 34, 235),
