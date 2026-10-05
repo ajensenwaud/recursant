@@ -128,6 +128,21 @@ outcomes" is a design with a published recipe and our labelled data, not yet a m
    questions: did the last call fail (label: structured result); is the next step mechanical
    (label: what the agent did next); is this a repeat loop (label: identical call seen). Report
    AUC and calibration against the zero-shot Jev baselines (0.64 / 0.50).
+
+   **Result (2026-10-05, Decider v19 bf16 on gx11, 751 Hermes steps from ma2, 0 errors):**
+
+   | Question (label) | Decider zero-shot | Notes |
+   |---|---|---|
+   | Last call failed (structured envelope) | AUC 0.88 all steps; 0.77 where the text marker fired | p<0.3 frees 10 of 136 false failures, 0 of 168 real lost; p<0.5 frees 91 but loses 53 real |
+   | Next step routine vs code | AUC 0.47 (Jev v2 0.60 on the same steps) | never reaches P(routine) >= 0.8: selects nothing |
+   | Repeat loop | AUC 0.43 | no signal; almost all p in [0.2, 0.4) |
+
+   Latency median 22.0 s, p90 30.0 s per state (median 1,415 tokens) on our serving setup: two
+   orders of magnitude off the published 115 ms, so a serving problem to fix before any live use
+   (the judge slot has ~10 ms before the harness sends its next request). Reading: zero-shot it
+   reads tool outcomes well (near the 0.9 bar) and has no usable signal on the two routing
+   questions; Jev is better zero-shot on "routine". Step 2 (fine-tune on our labels) is the
+   actual test of the thesis; zero-shot Decider does not go in the judge slot.
 2. **Fine-tune on our labels (GPU day, free).** LoRA on the recorded steps, held out by task.
    Bar, fixed in advance: "did the last call fail" AUC >= 0.9 (it is an easy question);
    "mechanical next step" >= 0.75; calibration ECE <= 0.1.
