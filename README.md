@@ -13,11 +13,11 @@ Recursant sits between your AI agents and the AI models they use. Every time an 
 - **Keeps personal data private.** Every request is checked before it leaves your machine. The check covers tax file numbers, Medicare numbers, card numbers, phone numbers, email addresses and any patterns you add. Anything that matches goes to your private model instead, and that conversation stays private from then on. This check is fully deterministic using regexes. We have plans for SLM/ML-driven recognition as well.
 - **Works seamlessly across private and public inference** Models on your own GPUs and paid services such as OpenRouter sit in one pool. Your own GPU always handles the private work, and you can let it take routine work as well, which costs nothing per request.
 - **Works with the agent you have.** It speaks the same language as OpenAI's API, which almost every agent and tool supports. No plugins and no code changes. It is tested with Hermes and pi, testing with other harnesses are underway, so please bear with us as we optimise.
-- **Scale fast** Recursant is written in C and has minimal dependencies. It is designed to be fast. 
+- **Scales fast.** Recursant is written in C and has minimal dependencies. It is designed to be fast. 
 
 ## Support
 
-You need to run Recursant. macOS support is underway, Windows is tricky.
+You need Linux to run Recursant. macOS support is underway, Windows is tricky.
 
 ## Install
 
