@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/recursant-logo.png" alt="Recursant: the agent-aware model router" width="820">
+  <img src="docs/assets/recursant-logo.png" alt="Recursant: the agent-aware model router built for hybrid inference" width="820">
 </p>
 
 <p align="center"><b>Cut your AI agent bill by a third or more, and keep personal data on your own infrastructure.</b></p>
