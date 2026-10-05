@@ -54,9 +54,22 @@ typedef struct {
      * accounting chunk). Cost evidence only, never continuity authority. */
     bool usage_known;
     json_int_t usage_prompt, usage_completion, usage_cached;
+    /* drop_reasoning only: OpenRouter reasoning_details elements, merged as
+     * OpenRouter documents (and pi does): consecutive reasoning.text /
+     * reasoning.summary deltas concatenate, every other element is kept whole.
+     * Owned (freed by release). reasoning_failed is sticky: an unknown element
+     * shape or a bound overflow drops the record (never the message). */
+    json_t *reasoning;
+    size_t reasoning_bytes;
+    bool reasoning_failed;
 } rc_response_observer;
+#define RC_REASONING_MAX_ELEMENTS 64u
+#define RC_REASONING_MAX_BYTES (256u * 1024u)
 void rc_response_observer_feed(rc_response_observer *, const char *, size_t);
 json_t *rc_response_observer_message(const rc_response_observer *);
+/* The merged reasoning_details of a complete response (new reference), or NULL
+ * when there were none, the record failed, or the message is unavailable. */
+json_t *rc_response_observer_reasoning(const rc_response_observer *);
 /* Frees the owned assembler. Idempotent; the observer stays zeroable. */
 void rc_response_observer_release(rc_response_observer *);
 #endif

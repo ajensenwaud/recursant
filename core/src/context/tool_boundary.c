@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct rc_tool_boundary { json_t *history, *assistant; uint32_t requirements; };
+struct rc_tool_boundary { json_t *history, *assistant, *reasoning; uint32_t requirements; };
 static bool text(json_t *v, const char *expected) {
     const char *s=json_string_value(v);
     return s && strcmp(s,expected)==0;
@@ -22,15 +22,28 @@ bool rc_tool_text_content(json_t *content) {
     }
     return true;
 }
+/* Replayed reasoning_details (OpenRouter): a non-empty array of objects, on an
+ * assistant message only. Structure here; provenance is checked against the
+ * boundary's observed elements (replay) and by M2 (egress). */
+static bool reasoning_shape(json_t *v) {
+    json_t *r=json_object_get(v,"reasoning_details");
+    if (!r) return true;
+    if (!text(json_object_get(v,"role"),"assistant") || !json_is_array(r) ||
+        !json_array_size(r) || json_array_size(r)>RC_TOOL_MAX_REASONING) return false;
+    size_t i; json_t *e;
+    json_array_foreach(r,i,e) if (!json_is_object(e)) return false;
+    return true;
+}
+static size_t reasoning_member(json_t *v) { return json_object_get(v,"reasoning_details") ? 1u : 0u; }
 static bool plain(json_t *v) {
     json_t *role=json_object_get(v,"role");
-    return json_is_object(v) && json_object_size(v)==2 &&
+    return json_is_object(v) && json_object_size(v)==2+reasoning_member(v) && reasoning_shape(v) &&
         (text(role,"user") || text(role,"system") || text(role,"assistant")) &&
         rc_tool_text_content(json_object_get(v,"content"));
 }
 static bool calls_valid(json_t *v) {
     json_t *cs=json_object_get(v,"tool_calls"), *content=json_object_get(v,"content");
-    if (!json_is_object(v) || json_object_size(v)!=(content?3u:2u) ||
+    if (!json_is_object(v) || json_object_size(v)!=(content?3u:2u)+reasoning_member(v) || !reasoning_shape(v) ||
         !text(json_object_get(v,"role"),"assistant") ||
         (content && !json_is_null(content) && !json_is_string(content)) ||
         !json_is_array(cs) || !json_array_size(cs) || json_array_size(cs)>RC_TOOL_MAX_CALLS)
@@ -88,7 +101,7 @@ bool rc_tool_boundary_candidate(const rc_tool_boundary *b, uint32_t known, uint3
         (supported & b->requirements)==b->requirements;
 }
 void rc_tool_boundary_free(rc_tool_boundary *b) {
-    if (b) { json_decref(b->history); json_decref(b->assistant); free(b); }
+    if (b) { json_decref(b->history); json_decref(b->assistant); json_decref(b->reasoning); free(b); }
 }
 rc_tool_status rc_tool_boundary_capture(const char *h, size_t hn,
     const char *a, size_t an, rc_tool_boundary **out) {
@@ -132,10 +145,25 @@ static bool no_text(json_t *v) {
     return !v || json_is_null(v) || (json_is_string(v) && !json_string_length(v));
 }
 static size_t members(json_t *o) {
-    return json_object_size(o) - (json_object_get(o, "content") ? 1u : 0u);
+    return json_object_size(o) - (json_object_get(o, "content") ? 1u : 0u) - reasoning_member(o);
 }
-static bool assistant_equal(json_t *replayed, json_t *observed) {
-    if (!json_is_object(replayed) || members(replayed) != members(observed)) return false;
+/* A replayed reasoning_details is optional; when present, every element must
+ * equal an element the gateway observed with this very turn. */
+static bool reasoning_replayed(json_t *replayed, json_t *observed_reasoning) {
+    json_t *r = json_object_get(replayed, "reasoning_details");
+    if (!r) return true;
+    if (!reasoning_shape(replayed) || !observed_reasoning) return false;
+    size_t i, j; json_t *e, *o;
+    json_array_foreach(r, i, e) {
+        bool found = false;
+        json_array_foreach(observed_reasoning, j, o) if (json_equal(e, o)) { found = true; break; }
+        if (!found) return false;
+    }
+    return true;
+}
+static bool assistant_equal(json_t *replayed, json_t *observed, json_t *observed_reasoning) {
+    if (!json_is_object(replayed) || members(replayed) != members(observed) ||
+        json_object_get(observed, "reasoning_details") || !reasoning_replayed(replayed, observed_reasoning)) return false;
     json_t *rt = json_object_get(replayed, "content"), *ot = json_object_get(observed, "content");
     if (!(no_text(rt) && no_text(ot)) && !(rt && ot && json_equal(rt, ot))) return false;
     const char *k; json_t *v;
@@ -183,7 +211,7 @@ static rc_tool_status replay_tree(const rc_tool_boundary *b, json_t *v) {
         total >= count + 1 && total <= count + 1 + nc;
     for (size_t i=0; ok && i<count; ++i)
         ok = json_equal(json_array_get(v,i),json_array_get(b->history,i));
-    if (ok) ok = assistant_equal(json_array_get(v,count), b->assistant);
+    if (ok) ok = assistant_equal(json_array_get(v,count), b->assistant, b->reasoning);
     for (size_t i=count+1; ok && i<total; ++i) {
         json_t *r = json_array_get(v,i);
         const char *role = json_string_value(json_object_get(r,"role"));
@@ -198,4 +226,14 @@ static rc_tool_status replay_tree(const rc_tool_boundary *b, json_t *v) {
         seen[j]=true;
     }
     return !ok ? RC_TOOL_INVALID : total==count+1+nc ? RC_TOOL_COMPLETE : RC_TOOL_INCOMPLETE;
+}
+bool rc_tool_boundary_set_reasoning(rc_tool_boundary *b, json_t *elements) {
+    if (!b) return false;
+    json_decref(b->reasoning); b->reasoning = NULL;
+    if (!elements) return true;
+    size_t i; json_t *e;
+    if (!json_is_array(elements) || !json_array_size(elements) || json_array_size(elements)>RC_TOOL_MAX_REASONING) return false;
+    json_array_foreach(elements, i, e) if (!json_is_object(e)) return false;
+    b->reasoning = json_deep_copy(elements);
+    return b->reasoning != NULL;
 }

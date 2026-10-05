@@ -326,6 +326,68 @@ class GatewaySessionTests(unittest.TestCase):
             sink.stream_wire = None; sink.envelope = {'message': {'tool_calls': [call(2)]}}
             self.assertEqual(self.step(p, sink, history), 'frontier')
 
+    def test_j2_replayed_public_reasoning_continues_and_stays_public(self):
+        """OpenRouter reasoning model (gpt-6-luna shape): readable summary deltas and
+        one encrypted element beside the tool call. pi replays them. Values the router
+        saw leave a public model continue the session and may go back to a public
+        model; an edited value, or reasoning a private model produced, is ciphertext
+        M2 cannot read: private, never public."""
+        fmt = 'openai-responses-v1'
+        # Real OpenAI response ids can contain a run like 0468635200 that the AU phone
+        # check reads as a mobile number (live, 2026-10-05). Verified provider output is
+        # not customer data: it is exempt from the scan, unverified values are not.
+        cipher = {'type': 'reasoning.encrypted', 'data': 'gAAAAB' + 'q' * 64, 'format': fmt,
+                  'id': 'rs_0468635200d8fb2055016ac2e813a3', 'index': 1}
+        merged = [{'type': 'reasoning.summary', 'summary': 'Plan the edit.', 'format': fmt, 'index': 0}, cipher]
+        events = [{'choices': [{'index': 0, 'delta': {'role': 'assistant', 'reasoning': t, 'reasoning_details': [
+                      {'type': 'reasoning.summary', 'summary': t, 'format': fmt, 'index': 0}]}, 'finish_reason': None}]}
+                  for t in ('Plan', ' the', ' edit.')] + [
+                  {'choices': [{'index': 0, 'delta': {'role': 'assistant', 'reasoning_details': [cipher]}, 'finish_reason': None}]},
+                  {'choices': [{'index': 0, 'delta': {'tool_calls': [{'index': 0, 'id': 'call-1', 'type': 'function',
+                                'function': {'name': 'f', 'arguments': '{}'}}]}, 'finish_reason': None}]},
+                  {'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'tool_calls'}]}]
+        wire = b''.join(b'data: ' + json.dumps(e).encode() + b'\n\n' for e in events) + b'data: [DONE]\n\n'
+        def edit(c, s):
+            self.compliant(c, s)
+            c['compliance']['identifiers'] = ['au_phone']
+            for cand in c['context']['candidates']:
+                if 'capabilities' in cand: cand['capabilities']['stream_tools'] = True
+            c['context']['reasoning_text'] = 'drop'
+        def public_bodies(sink):
+            return [json.dumps(x[2]) for x in sink.seen if x[0] == PUBLIC_PATH]
+        tampered = [dict(cipher, data='gAAAAC' + 'q' * 64)]
+        for replay, expect in ((merged, 'cheap-physical'), ([cipher], 'cheap-physical'), (None, 'cheap-physical'), (tampered, 'physical')):
+            with self.subTest(replay=replay), self.router(edit) as (p, sink):
+                sink.stream_wire = wire
+                history = [{'role': 'user', 'content': 'plan and make the edit'}]
+                self.assertEqual(self.request(p, body=self.body(history, stream=True))[0], 200)
+                self.assertEqual(sink.seen[-1][:1] + (sink.seen[-1][2]['model'],), (PUBLIC_PATH, 'frontier'))
+                assistant = {'role': 'assistant', 'content': None, 'tool_calls': [call(1)]}
+                if replay: assistant['reasoning_details'] = replay
+                history += [assistant, {'role': 'tool', 'tool_call_id': 'call-1', 'content': 'wrote 1 file'}]
+                sink.stream_wire = None; sink.envelope = {'message': {'tool_calls': [call(2)]}}
+                self.assertEqual(self.step(p, sink, history), expect)
+                if expect == 'cheap-physical':
+                    self.assertEqual(sink.seen[-1][0], PUBLIC_PATH)
+                    self.assertEqual(sink.seen[-1][2]['messages'][1], assistant)   # replayed verbatim, never stripped
+                else:
+                    self.assertNotEqual(sink.seen[-1][0], PUBLIC_PATH)
+                    self.assertFalse([b for b in public_bodies(sink) if 'gAAAAC' in b])
+        # Reasoning a PRIVATE model produced is never recorded: replaying it in another
+        # (clean) conversation cannot reach a public model.
+        with self.router(edit) as (p, sink):
+            sink.stream_wire = wire
+            pii = [{'role': 'user', 'content': 'email alice@example.com the plan'}]
+            self.assertEqual(self.request(p, body=self.body(pii, stream=True))[0], 200)
+            self.assertNotEqual(sink.seen[-1][0], PUBLIC_PATH)
+            sink.stream_wire = None; sink.envelope = {'message': {'tool_calls': [call(2)]}}
+            other = [{'role': 'user', 'content': 'an unrelated clean task'},
+                     {'role': 'assistant', 'content': None, 'reasoning_details': merged, 'tool_calls': [call(1)]},
+                     {'role': 'tool', 'tool_call_id': 'call-1', 'content': 'ok'}]
+            code, _, _ = self.request(p, body=self.body(other))
+            self.assertIn(code, (200, 403))
+            self.assertFalse([b for b in public_bodies(sink) if 'gAAAAB' in b])
+
     def test_k_harness_label_keeps_a_session_private(self):
         """A harness data label only ever restricts: once a session is labelled
         restricted, every later request in it goes to private inference."""

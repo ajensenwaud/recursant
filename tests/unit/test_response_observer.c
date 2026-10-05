@@ -401,6 +401,84 @@ static void claude_openrouter_streams(void) {
         free(wire);
     }
 }
+/* OpenRouter gpt-6-luna (live, 2026-10-05): readable reasoning.summary deltas
+ * plus one reasoning.encrypted element beside a tool call. The merged record
+ * equals an independent (Python) implementation of pi's/OpenRouter's merge,
+ * at every split; the replayable message itself never carries reasoning. */
+static char *slurp(const char *path,size_t *n) {
+    FILE *f=fopen(path,"rb");assert(f);
+    char *wire=malloc(RC_RESPONSE_LIMIT+1);assert(wire);
+    *n=fread(wire,1,RC_RESPONSE_LIMIT,f);assert(*n&&*n<RC_RESPONSE_LIMIT);fclose(f);wire[*n]=0;
+    return wire;
+}
+static json_t *reasoning_event(json_t *details,const char *finish) {
+    json_t *v=json_pack("{s:[{s:i,s:{s:s,s:o},s:o}]}","choices","index",0,"delta","role","assistant","reasoning_details",details,
+                        "finish_reason",finish?json_string(finish):json_null());
+    assert(v);return v;
+}
+static json_t *observe_reasoning(json_t *const *details,size_t count,json_t **message) {
+    rc_response_observer *o=calloc(1,sizeof *o);assert(o);o->drop_reasoning=true;
+    for(size_t i=0;i<count;i++){json_t *v=reasoning_event(details[i],NULL);feed_json(o,v);json_decref(v);}
+    feed(o,last);
+    *message=rc_response_observer_message(o);
+    json_t *r=rc_response_observer_reasoning(o);
+    rc_response_observer_release(o);free(o);
+    return r;
+}
+static void reasoning_is_recorded(void) {
+    size_t n;char *wire=slurp(RC_FIXTURE_DIR "/openrouter-luna-reasoning-tool.sse",&n);
+    json_t *expected=json_load_file(RC_FIXTURE_DIR "/openrouter-luna-reasoning-tool.expected.json",0,NULL);assert(expected);
+    for(int drop=0;drop<2;drop++)for(size_t split=0;split<=n;split+=drop?997:n+1){
+        rc_response_observer *o=calloc(1,sizeof *o);assert(o);
+        o->drop_reasoning=drop;
+        rc_response_observer_feed(o,wire,split);rc_response_observer_feed(o,wire+split,n-split);
+        json_t *m=rc_response_observer_message(o),*r=rc_response_observer_reasoning(o);
+        if(!drop)assert(!m&&!r);
+        else{
+            assert(m&&!json_object_get(m,"reasoning_details")&&json_array_size(json_object_get(m,"tool_calls"))==1);
+            assert(r&&json_equal(r,expected));
+        }
+        json_decref(m);json_decref(r);rc_response_observer_release(o);free(o);
+    }
+    free(wire);json_decref(expected);
+    /* Claude on OpenRouter (signed reasoning.text) is recorded too. */
+    wire=slurp(RC_FIXTURE_DIR "/openrouter-claude-tool-use.sse",&n);
+    rc_response_observer *o=calloc(1,sizeof *o);assert(o);o->drop_reasoning=true;
+    rc_response_observer_feed(o,wire,n);
+    json_t *r=rc_response_observer_reasoning(o);
+    assert(!strstr(wire,"\"reasoning_details\":[{")||json_array_size(r)>0);
+    json_decref(r);rc_response_observer_release(o);free(o);free(wire);
+
+    /* Merge: consecutive text joins; signature ||=, id ??=, format ||=, index ??=;
+     * a different type or ciphertext starts a new element. */
+    json_t *m,*steps[]={
+        json_pack("[{s:s,s:s,s:s}]","type","reasoning.text","text","Read ","format",""),
+        json_pack("[{s:s,s:s,s:s,s:s,s:i}]","type","reasoning.text","text","the file.","signature","c2ln","format","anthropic-claude-v1","index",0),
+        json_pack("[{s:s,s:s,s:s},{s:s,s:s}]","type","reasoning.text","text","","id","t1","type","reasoning.encrypted","data","AAAA"),
+        json_pack("[{s:s,s:s},{s:s,s:s}]","type","reasoning.encrypted","data","BBBB","type","reasoning.summary","summary","Done.")};
+    r=observe_reasoning(steps,4,&m);
+    json_t *want=json_pack("[{s:s,s:s,s:s,s:s,s:i,s:s},{s:s,s:s},{s:s,s:s},{s:s,s:s}]",
+        "type","reasoning.text","text","Read the file.","signature","c2ln","format","anthropic-claude-v1","index",0,"id","t1",
+        "type","reasoning.encrypted","data","AAAA","type","reasoning.encrypted","data","BBBB","type","reasoning.summary","summary","Done.");
+    assert(m&&r&&json_equal(r,want));
+    json_decref(m);json_decref(r);json_decref(want);
+
+    /* Any unknown shape, too many elements or too many bytes: no record, message kept. */
+    for(int mode=0;mode<5;mode++){
+        json_t *batch[8]={0};size_t count=1;
+        if(mode==0)batch[0]=json_pack("[{s:s,s:s,s:i}]","type","reasoning.encrypted","data","AAAA","extra",1);
+        else if(mode==1)batch[0]=json_pack("[{s:s,s:s}]","type","reasoning.unknown","data","AAAA");
+        else if(mode==2)batch[0]=json_pack("[{s:s,s:i}]","type","reasoning.text","text",7);
+        else if(mode==3){batch[0]=json_array();for(unsigned i=0;i<=RC_REASONING_MAX_ELEMENTS;i++)json_array_append_new(batch[0],json_pack("{s:s,s:s}","type","reasoning.encrypted","data","A"));}
+        else{
+            char *big=malloc(60001);assert(big);memset(big,'x',60000);big[60000]=0;
+            count=5;for(size_t i=0;i<count;i++)batch[i]=json_pack("[{s:s,s:s}]","type","reasoning.summary","summary",big);
+            free(big);
+        }
+        r=observe_reasoning(batch,count,&m);
+        assert(m&&!r);json_decref(m);
+    }
+}
 static void tool_guards(void) {
     for(int mode=0;mode<24;mode++){
         rc_response_observer *o=calloc(1,sizeof *o);assert(o);
@@ -578,4 +656,4 @@ static void usage_capture(void) {
         json_decref(m);rc_response_observer_release(o);free(o);
     }
 }
-int main(int argc,char **argv){line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();readable_reasoning_is_dropped();claude_openrouter_streams();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}
+int main(int argc,char **argv){reasoning_is_recorded();line_bound();openrouter_real_tool_finish();usage_capture();adapter_dialects();tool_guards();readable_reasoning_is_dropped();claude_openrouter_streams();tool_message_and_wire_bounds();tool_terminal_contract();streamed_tools();assert(argc==1||argc>=3);for(int i=2;i<argc;i++)replay(argv[i],argv[1]);terminal_guards();optional_metadata();reject_openrouter_metadata();openrouter_usage_tail();openrouter_metadata();every_split();reject_metadata();mixed_identity();framing_and_bounds();invalid_comment_utf8();puts("response observer tests passed");return 0;}

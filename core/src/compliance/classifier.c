@@ -3,6 +3,7 @@
 #include "recursant/classifier.h"
 #include "recursant/provider_adapter.h"
 #include "recursant/identifiers.h"
+#include "recursant/provenance.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,8 @@
 #define MAX_SCAN_BYTES (2U*1024U*1024U)
 #define MAX_MATCHES 32768
 #define PCRE_BUDGET (2U*1024U*1024U)
+#define PROVENANCE_ENTRIES 4096u
+#define PROVENANCE_BYTES (32U*1024U*1024U)
 
 typedef struct { size_t used,limit; } budget;
 typedef union { max_align_t alignment; size_t size; } allocation;
@@ -33,6 +36,9 @@ struct rc_compliance_policy {
     pcre2_code *rules[MAX_RULES+1+16];
     size_t count;
     unsigned identifiers; /* check-digit kinds scanned after the pattern rules */
+    /* Public-provider reasoning output the router observed (see provenance.h).
+     * The only mutable part of the policy; internally locked. */
+    rc_provenance *provenance;
 };
 typedef enum { CLEAN, PATTERN, UNKNOWN, REGEX_ERROR, UNSCANNED } verdict;
 typedef struct {
@@ -57,6 +63,7 @@ bool rc_compliance_init(rc_runtime *r) {
     struct rc_compliance_policy *p=calloc(1,sizeof *p);
     if(!p)return false;
     r->compliance_policy=p;p->memory.limit=8U*1024U*1024U;p->identifiers=r->identifiers&RC_ID_CHECKED;
+    if(!(p->provenance=rc_provenance_new(PROVENANCE_ENTRIES,PROVENANCE_BYTES)))return false;
     pcre2_general_context *gc=pcre2_general_context_create(bounded_alloc,bounded_free,&p->memory);
     pcre2_compile_context *cc=gc?pcre2_compile_context_create(gc):NULL;
     if(!cc){pcre2_general_context_free(gc);return false;}
@@ -77,12 +84,13 @@ void rc_compliance_free(rc_runtime *r) {
     struct rc_compliance_policy *p=r->compliance_policy;
     if(!p)return;
     for(size_t i=0;i<p->count;i++)pcre2_code_free(p->rules[i]);
+    rc_provenance_free(p->provenance);
     free(p);r->compliance_policy=NULL;
 }
 
 static verdict scan(scanner *,json_t *,unsigned);
 static bool inspectable_controls(json_t *body,const char *controls);
-static bool inspectable_content(json_t *body);
+static bool inspectable_content(const rc_runtime *r,json_t *body);
 static verdict rules(scanner *s,const char *text,size_t n) {
     for(size_t i=0;i<s->policy->count;i++) {
         if(++s->matches>MAX_MATCHES)return UNKNOWN;
@@ -156,6 +164,12 @@ static verdict scan(scanner *s,json_t *v,unsigned depth) {
     if(json_is_object(v)) {
         const char *key;json_t *child;json_object_foreach(v,key,child) {
             verdict r=text_scan(s,key,strlen(key),depth+1);if(r!=CLEAN)return r;
+            /* reasoning_details whose every element is recorded public-provider
+             * output (provenance.h) is not customer data: re-sending it to a
+             * public model discloses nothing new, and its opaque ids/ciphertext
+             * only produce false matches (an OpenAI id holding "0468635200" read
+             * as an AU mobile). Any other value is scanned as usual. */
+            if(!strcmp(key,"reasoning_details")&&rc_provenance_known(s->policy->provenance,child))continue;
             r=scan(s,child,depth+1);if(r!=CLEAN)return r;
         }
     }
@@ -191,15 +205,26 @@ static bool function_definition(json_t *f) {
 }
 /* controls: the destination adapter's provider-control allowlist, or NULL
  * when a "provider" object is an unknown (uninspectable) field there. */
-static bool inspectable(json_t *body,const char *controls) {
-    return inspectable_controls(body,controls)&&inspectable_content(body);
+static bool inspectable(const rc_runtime *r,json_t *body,const char *controls) {
+    return inspectable_controls(body,controls)&&inspectable_content(r,body);
 }
-static bool inspectable_content(json_t *body) {
+/* OpenRouter reasoning_details replayed by a harness (pi): ciphertext M2 cannot
+ * read. Inspectable only on an assistant message and only when every element
+ * is a value the router itself observed leaving a public provider; its strings
+ * are still scanned like all content. */
+static bool replayed_public_reasoning(const rc_runtime *r,json_t *message) {
+    json_t *details=json_object_get(message,"reasoning_details");
+    const char *role=json_string_value(json_object_get(message,"role"));
+    return !details||(role&&!strcmp(role,"assistant")&&r->compliance_policy&&
+                      rc_provenance_known(r->compliance_policy->provenance,details));
+}
+static bool inspectable_content(const rc_runtime *r,json_t *body) {
     json_t *messages=json_object_get(body,"messages");
     if(!json_is_array(messages))return false;
     size_t i;json_t *message;
     json_array_foreach(messages,i,message) {
-        if(!known_keys(message,"|role||content||name||tool_calls||tool_call_id||function_call||refusal|"))return false;
+        if(!known_keys(message,"|role||content||name||tool_calls||tool_call_id||function_call||refusal||reasoning_details|")||
+           !replayed_public_reasoning(r,message))return false;
         json_t *legacy=json_object_get(message,"function_call");
         if(legacy && !function_call(legacy))return false;
         json_t *calls=json_object_get(message,"tool_calls");
@@ -310,7 +335,7 @@ void rc_compliance_memo_begin(const rc_runtime *r,json_t *body) {
     memo.content=scan_keys(&s,body,false);
     memo.nodes=s.nodes;memo.bytes=s.bytes;memo.matches=s.matches;
     scanner_close(&s,gc);
-    memo.structure=inspectable_content(body);
+    memo.structure=inspectable_content(r,body);
     memo.n=n;memo.active=true;
 }
 void rc_compliance_memo_end(void){memo.active=false;}
@@ -333,12 +358,12 @@ static verdict classify(const rc_runtime *r,json_t *body,const char *controls) {
     /* Temporary operator switch: content text scanning off means only the
      * structural contract decides (unknown fields, non-text parts, provider
      * controls). UNSCANNED is not CLEAN: it is reported distinctly. */
-    if(!r->content_scanning)return inspectable(body,controls)?UNSCANNED:UNKNOWN;
+    if(!r->content_scanning)return inspectable(r,body,controls)?UNSCANNED:UNKNOWN;
     budget memory={.limit=PCRE_BUDGET};pcre2_general_context *gc;scanner s;
     verdict result=REGEX_ERROR;
     if(scanner_open(&s,r,&memory,&gc)) {
         result=scan(&s,body,0);
-        if(result==CLEAN && !inspectable(body,controls))result=UNKNOWN;
+        if(result==CLEAN && !inspectable(r,body,controls))result=UNKNOWN;
     }
     scanner_close(&s,gc);
     return result;
@@ -380,4 +405,7 @@ int rc_compliance_gate(const rc_runtime *r,json_t *body,rc_endpoint *endpoint) {
     }
     fprintf(stderr,"compliance_reason=%s endpoint=%s\n",reason,*endpoint==RC_ENDPOINT_PUBLIC?"public":"private");
     return 0;
+}
+void rc_compliance_record_public_output(const rc_runtime *r,json_t *reasoning_details) {
+    if(r&&r->compliance_policy)rc_provenance_add(r->compliance_policy->provenance,reasoning_details);
 }

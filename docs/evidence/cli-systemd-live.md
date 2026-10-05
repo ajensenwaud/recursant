@@ -67,9 +67,23 @@ or pinned at baseline), none a crash:
 After the fixes, both pi sessions step down after the first clean tool result
 (`class=tool_followup_ok reason=cheapest chosen=economy`).
 
-Open (not fixed, needs a decision): when the economy model is an OpenRouter reasoning model
-(gpt-6-luna), its reply carries `reasoning_details` (`reasoning.encrypted`) and pi replays it, as
-OpenRouter recommends. The observer drops reasoning from the replayable message by design
-(`response_observer.c`), so the replay differs and the session restarts; the classifier cannot
-inspect ciphertext, so that session goes private (`compliance_reason=unknown`). Correct fail-safe
-behaviour, but it ends the saving after the first economy step for pi.
+Reasoning replay (decided by Anders: option 1, "record and verify"), implemented the same day:
+- `response_observer`: with `reasoning_text: "drop"`, OpenRouter `reasoning_details` deltas are
+  merged as OpenRouter documents and pi implements (consecutive text/summary concatenated,
+  ciphertext kept whole; bounded 64 elements / 256 KiB; any unknown shape drops the record,
+  never the message). Fixture: a live gpt-6-luna stream; the expected merge comes from an
+  independent Python implementation of pi's rule.
+- `provenance` (owned by M2): a bounded FIFO record (4096 elements / 32 MiB) of exact element
+  values the router saw leave a PUBLIC candidate. Private output is never recorded.
+- M2: `reasoning_details` on an assistant message is inspectable only when every element is a
+  recorded value; such values are also exempt from the PII scan (they are provider output, and
+  an OpenAI id `rs_0468635200...` was read as an AU mobile). Anything else stays `unknown`
+  (private), and is still scanned.
+- Continuity: a replayed turn may carry `reasoning_details` whose every element is one observed
+  with that turn (pi may drop some); omitting it stays allowed (Hermes).
+
+Live (pi, inventory task, luna reasoning on): one session throughout; pi replayed summary +
+ciphertext on every later request; 4 of 6 steps on the economy model (`reason=cheapest`, was
+1); compliance `clean` on all public checks, none `unknown` or `pattern`; task passes.
+Limit: Claude's signature-only reasoning delta is merged per OpenRouter; pi drops it, so a
+Claude reasoning turn replayed by pi would not match (fails safe: new session, private).

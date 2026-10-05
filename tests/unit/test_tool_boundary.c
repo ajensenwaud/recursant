@@ -247,7 +247,55 @@ static void empty_content_tests(void) {
     }
     rc_tool_boundary_free(b);
 }
+/* OpenRouter reasoning_details: optional on replay; every replayed element must
+ * be one the gateway observed with this turn. History may carry it (exact). */
+static void reasoning_tests(void) {
+    const char *as="{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]}";
+    const char *summary="{\"type\":\"reasoning.summary\",\"summary\":\"Plan.\",\"format\":\"openai-responses-v1\",\"index\":0}";
+    const char *cipher="{\"type\":\"reasoning.encrypted\",\"data\":\"gAAAA\",\"format\":\"openai-responses-v1\",\"id\":\"rs_1\",\"index\":1}";
+    char observed[512], rs[2048];
+    snprintf(observed,sizeof observed,"[%s,%s]",summary,cipher);
+    json_t *seen=json_loads(observed,0,NULL);assert(seen);
+    const char *variants[]={"", "\"reasoning_details\":[%s,%s],", "\"reasoning_details\":[%s],"};
+    for (int with=0; with<2; with++) {
+        rc_tool_boundary *b=NULL;
+        assert(rc_tool_boundary_capture(history,strlen(history),as,strlen(as),&b)==RC_TOOL_COMPLETE);
+        if (with) assert(rc_tool_boundary_set_reasoning(b,seen));
+        for (int v=0; v<3; v++) {
+            char rd[1024]; snprintf(rd,sizeof rd,variants[v],v==2?cipher:summary,cipher);
+            snprintf(rs,sizeof rs,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",%s\"content\":null,\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"ok\"}]",rd);
+            /* Omitted: always fine. Replayed: only with the observed record. */
+            assert(rc_tool_boundary_replay(b,rs,strlen(rs))==(v==0||with?RC_TOOL_COMPLETE:RC_TOOL_INVALID));
+        }
+        /* A changed byte, an empty or non-array value, or a foreign element is invalid. */
+        const char *bad[]={"\"reasoning_details\":[{\"type\":\"reasoning.encrypted\",\"data\":\"gAAAB\",\"format\":\"openai-responses-v1\",\"id\":\"rs_1\",\"index\":1}],",
+                           "\"reasoning_details\":[],", "\"reasoning_details\":{},", "\"reasoning_details\":null,"};
+        for (size_t k=0; k<sizeof bad/sizeof *bad; k++) {
+            snprintf(rs,sizeof rs,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",%s\"content\":null,\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"ok\"}]",bad[k]);
+            assert(rc_tool_boundary_replay(b,rs,strlen(rs))==RC_TOOL_INVALID);
+        }
+        rc_tool_boundary_free(b);
+    }
+    /* Earlier assistant turns in history may carry reasoning_details (exact compare later). */
+    char hist[2048];
+    snprintf(hist,sizeof hist,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",\"content\":null,\"reasoning_details\":[%s],\"tool_calls\":[{\"id\":\"c0\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c0\",\"content\":\"ok\"},{\"role\":\"assistant\",\"content\":\"noted\",\"reasoning_details\":[%s]},{\"role\":\"user\",\"content\":\"next\"}]",cipher,summary);
+    rc_tool_boundary *b=NULL;
+    assert(rc_tool_boundary_capture(hist,strlen(hist),as,strlen(as),&b)==RC_TOOL_COMPLETE);
+    rc_tool_boundary_free(b);
+    /* ...but never on a user message, and never as a non-array. */
+    snprintf(hist,sizeof hist,"[{\"role\":\"user\",\"content\":\"run\",\"reasoning_details\":[%s]}]",cipher);
+    assert(rc_tool_boundary_capture(hist,strlen(hist),as,strlen(as),&b)==RC_TOOL_INVALID);
+    snprintf(hist,sizeof hist,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",\"content\":\"x\",\"reasoning_details\":\"%s\"}]","gAAAA");
+    assert(rc_tool_boundary_capture(hist,strlen(hist),as,strlen(as),&b)==RC_TOOL_INVALID);
+    /* set_reasoning: non-array, empty or non-object elements are refused; NULL clears. */
+    assert(rc_tool_boundary_capture(history,strlen(history),as,strlen(as),&b)==RC_TOOL_COMPLETE);
+    json_t *empty=json_array(),*strs=json_pack("[s]","x");
+    assert(!rc_tool_boundary_set_reasoning(b,empty)&&!rc_tool_boundary_set_reasoning(b,strs)&&rc_tool_boundary_set_reasoning(b,NULL));
+    assert(!rc_tool_boundary_set_reasoning(NULL,seen));
+    json_decref(empty);json_decref(strs);rc_tool_boundary_free(b);json_decref(seen);
+}
 int main(void) {
+    reasoning_tests();
     empty_content_tests();
     argument_spelling_tests();
     edge_tests();

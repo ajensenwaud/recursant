@@ -1695,6 +1695,12 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             if(c>0)s->spent+=c;
         }
         json_t *stream_message=complete&&sse?rc_response_observer_message(observer):NULL;
+        /* Reasoning a PUBLIC candidate streamed (OpenRouter reasoning_details):
+         * recorded for M2 so a harness may replay exactly these values to a
+         * public destination. Private output is never recorded. */
+        json_t *reasoning=stream_message?rc_response_observer_reasoning(observer):NULL;
+        if(reasoning&&s->endpoint==RC_ENDPOINT_PUBLIC&&candidate_of(rt,g,RC_ENDPOINT_PUBLIC,s->model)>=0)
+            rc_compliance_record_public_output(rt,reasoning);
         bool tool_response=safe&&eq(choice,"finish_reason","tool_calls")&&envelope;
         if(sse){
             message=stream_message;
@@ -1725,7 +1731,10 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
             if(tool){
                 s->requirements|=rc_tool_boundary_requirements(s->boundary);
                 s->observed_calls=json_deep_copy(calls);
-                if(!s->observed_calls){tool=false;rc_tool_boundary_free(s->boundary);s->boundary=NULL;}
+                /* The turn's reasoning: what a harness may replay with it. */
+                if(!s->observed_calls||(reasoning&&!rc_tool_boundary_set_reasoning(s->boundary,reasoning))){
+                    tool=false;rc_tool_boundary_free(s->boundary);s->boundary=NULL;
+                }
             }
         }
         /* A failed tool capture must never fall through as plain history. */
@@ -1735,7 +1744,7 @@ void rc_gateway_finish(rc_runtime *rt,rc_gateway_ticket *ticket,bool complete,bo
         if(!s->pinned&&!tool){json_decref(s->history);s->history=s->pending;s->pending=NULL;}
         json_decref(s->pending_choice);s->pending_choice=NULL;
         json_decref(s->pending_tools);s->pending_tools=NULL;
-        json_decref(s->pending);s->pending=NULL;json_decref(root);json_decref(stream_message);
+        json_decref(s->pending);s->pending=NULL;json_decref(root);json_decref(stream_message);json_decref(reasoning);
     }
     ticket->begun=false;pthread_mutex_unlock(&g->lock);
 }

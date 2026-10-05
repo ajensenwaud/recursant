@@ -80,6 +80,16 @@ bool rc_tool_text_content(struct json_t *content);
 rc_tool_status rc_tool_boundary_replay_json(const rc_tool_boundary *boundary,
     struct json_t *messages);
 uint32_t rc_tool_boundary_requirements(const rc_tool_boundary *boundary);
+/* OpenRouter reasoning_details the gateway observed with the captured
+ * assistant turn (merged form; NULL clears). A replayed assistant may then
+ * carry reasoning_details whose every element equals one of these (a harness
+ * may drop some, e.g. keep only the ciphertext); without a record, or with any
+ * other element, the replay is INVALID. Omitting reasoning_details is always
+ * allowed (Hermes does not replay it). Earlier assistant messages in history
+ * may carry it structurally: history is compared exactly, and M2 checks
+ * provenance before any public egress. Deep-copied; false = invalid/OOM. */
+#define RC_TOOL_MAX_REASONING 64
+bool rc_tool_boundary_set_reasoning(rc_tool_boundary *boundary, struct json_t *elements);
 /* Explicit known + supported bits from qualified registry, not inference or
  * defaults. Necessary protocol gate only; M2, quality, cost, context and scoped
  * continuity must still authorize dispatch. NULL boundary always denies. */

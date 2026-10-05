@@ -57,6 +57,67 @@ static bool identity(char stored[129],json_t *v) {
     if(strlen(s)!=json_string_length(v)||(stored[0]&&strcmp(stored,s)))return false;
     strcpy(stored,s);return true;
 }
+/* One OpenRouter reasoning_details element: a known type with its string
+ * payload; id null|string, format string, index integer, signature null|string. */
+static const char *reasoning_payload(json_t *e) {
+    const char *type=json_string_value(json_object_get(e,"type"));
+    const char *field=!type?NULL:!strcmp(type,"reasoning.text")?"text":!strcmp(type,"reasoning.summary")?"summary":
+        !strcmp(type,"reasoning.encrypted")?"data":NULL;
+    json_t *id=json_object_get(e,"id"),*format=json_object_get(e,"format"),*index=json_object_get(e,"index"),*sig=json_object_get(e,"signature");
+    json_t *payload=field?json_object_get(e,field):NULL;
+    /* Claude (OpenRouter) closes its reasoning with a signature-only text delta. */
+    bool signature_only=field&&!strcmp(field,"text")&&!payload&&json_is_string(sig);
+    if(!field||!keys(e,"|type||text||summary||data||id||format||index||signature|","")||
+       (!signature_only&&(!json_is_string(payload)||json_string_length(payload)!=strlen(json_string_value(payload))))||
+       (strcmp(field,"text")&&json_object_get(e,"text"))||(strcmp(field,"summary")&&json_object_get(e,"summary"))||
+       (strcmp(field,"data")&&json_object_get(e,"data"))||
+       (id&&!json_is_null(id)&&!json_is_string(id))||(format&&!json_is_string(format))||
+       (index&&!json_is_integer(index))||(sig&&!json_is_null(sig)&&!json_is_string(sig)))return NULL;
+    return field;
+}
+static bool truthy_string(json_t *v){return json_is_string(v)&&json_string_length(v);}
+/* JS `target.k ||= source.k` (k holds null|string): a falsy target takes the
+ * source value; a missing source value leaves the key undefined (dropped). */
+static bool falsy_fill(json_t *t,json_t *s,const char *k) {
+    if(truthy_string(json_object_get(t,k)))return true;
+    json_t *sv=json_object_get(s,k);
+    return sv?!json_object_set(t,k,sv):(!json_object_get(t,k)||!json_object_del(t,k));
+}
+/* JS `target.k ??= source.k`: a missing or null target takes the source value;
+ * a missing source value leaves the key undefined (dropped by JSON). */
+static bool nullish_fill(json_t *t,json_t *s,const char *k) {
+    json_t *tv=json_object_get(t,k);
+    if(tv&&!json_is_null(tv))return true;
+    json_t *sv=json_object_get(s,k);
+    return sv?!json_object_set(t,k,sv):(!tv||!json_object_del(t,k));
+}
+static void reasoning_add(rc_response_observer *o,json_t *e) {
+    const char *field=reasoning_payload(e);
+    if(!field){o->reasoning_failed=true;return;}
+    size_t n=json_string_length(json_object_get(e,field));
+    if(n>RC_REASONING_MAX_BYTES-o->reasoning_bytes){o->reasoning_failed=true;return;}
+    if(!o->reasoning&&!(o->reasoning=json_array())){o->reasoning_failed=true;return;}
+    json_t *last=json_array_get(o->reasoning,json_array_size(o->reasoning)-1);
+    const char *type=json_string_value(json_object_get(e,"type"));
+    bool mergeable=strcmp(field,"data")&&last&&!strcmp(json_string_value(json_object_get(last,"type")),type);
+    if(mergeable){
+        /* Consecutive text/summary: append; signature ||=, id ??=, format ||=, index ??=. */
+        json_t *prev=json_object_get(last,field),*more=json_object_get(e,field);
+        size_t m=json_string_length(prev);
+        char *joined=malloc(m+n+1);
+        if(!joined){o->reasoning_failed=true;return;}
+        if(m)memcpy(joined,json_string_value(prev),m);
+        if(n)memcpy(joined+m,json_string_value(more),n);
+        bool ok=(!prev&&!more)||!json_object_set_new(last,field,json_stringn(joined,m+n));free(joined);
+        if(ok&&!strcmp(field,"text"))ok=falsy_fill(last,e,"signature");
+        ok=ok&&nullish_fill(last,e,"id")&&falsy_fill(last,e,"format")&&nullish_fill(last,e,"index");
+        if(!ok){o->reasoning_failed=true;return;}
+    }else{
+        json_t *copy=json_array_size(o->reasoning)<RC_REASONING_MAX_ELEMENTS?json_deep_copy(e):NULL;
+        if(!copy||json_array_append_new(o->reasoning,copy)){o->reasoning_failed=true;return;}
+    }
+    o->reasoning_bytes+=n;
+}
 static bool chunk(rc_response_observer *o,json_t *root) {
     const bool strict=o->strict_openai;
     if(!keys(root,strict?"|id||object||created||model||choices||usage||system_fingerprint||service_tier|":
@@ -124,6 +185,12 @@ static bool chunk(rc_response_observer *o,json_t *root) {
     for(size_t k=0;k<2;k++)if(thinking[k]&&!json_is_null(thinking[k])&&!json_is_string(thinking[k]))return false;
     json_t *details=json_object_get(delta,"reasoning_details");
     if(details&&!json_is_null(details)&&!json_is_array(details))return false;
+    if(json_array_size(details)){
+        /* Reasoning after the finish is not part of this completion's record. */
+        if(o->finished)o->reasoning_failed=true;
+        size_t i;json_t *e;
+        json_array_foreach(details,i,e)if(!o->reasoning_failed)reasoning_add(o,e);
+    }
     json_t *role=json_object_get(delta,"role"),*text=json_object_get(delta,"content");
     /* OpenRouter repeats the empty terminal choice with accounting. This is
      * not a second completion or permission to append state after finish. */
@@ -234,7 +301,13 @@ json_t *rc_response_observer_message(const rc_response_observer *o) {
     if(!valid){json_decref(m);return NULL;}
     return m;
 }
+json_t *rc_response_observer_reasoning(const rc_response_observer *o) {
+    if(!o||o->failed||!o->done||!o->finished||!o->role||o->line_used||o->event_used||
+       o->reasoning_failed||!json_array_size(o->reasoning))return NULL;
+    return json_incref(o->reasoning);
+}
 void rc_response_observer_release(rc_response_observer *o) {
     if(!o)return;
     rc_stream_tools_free(o->tools);o->tools=NULL;
+    json_decref(o->reasoning);o->reasoning=NULL;
 }
