@@ -2,36 +2,22 @@
   <img src="docs/assets/recursant-logo.png" alt="Recursant: the agent-aware model router" width="820">
 </p>
 
-<p align="center"><b>Cut your AI agent bill by a third or more, and keep personal data on your own machines.</b></p>
+<p align="center"><b>Cut your AI agent bill by a third or more, and keep personal data on your own infrastructure.</b></p>
 
 Recursant sits between your AI agents and the AI models they use. Every time an agent asks for its next step, Recursant picks who answers: a top model for the hard steps, a cheaper model for the routine ones, and your own private model whenever personal data is involved. Your agent doesn't change. You point it at Recursant instead of at the model provider, and Recursant does the rest.
-
-## Measured savings
-
-Real agent jobs on today's models: Claude Sonnet 5.5 as the main model and GPT-6 luna as the cheaper one. Hidden tests decide whether each job was done properly.
-
-| Workload | Without Recursant | With Recursant | Saving |
-|---|---|---|---|
-| Coding jobs | 27 of 32 done, US$1.80 | 28 of 32 done, US$1.27 | **29% cheaper** |
-| Jobs that hand work to helper agents | 5 of 5 done, US$1.18 | 5 of 5 done, US$0.72 | **39% cheaper** |
-| Jobs that read customer files with personal data | personal data sent to a public model **31 times** | sent **0 times**, and 66% cheaper | **no leaks** |
-
-Recursant passed at least as many jobs as the agent did on its own in every test. The personal-data test ran on last month's models (GPT-4.1). In a fresh install tested on 5 October 2026, all 38 requests that contained personal data stayed on the private model.
-
-These are our own tests: one agent (Hermes), made-up tasks and small samples. Your saving depends on your work. Longer jobs, helper agents and spare capacity on your own GPUs all save more. Each number links to its full write-up, including what didn't work:
-
-- [coding jobs](docs/evidence/m3-token-levers.md)
-- [helper agents](docs/evidence/m3-token-levers.md#7-subagents-on-the-cheap-model-h-sub-us346)
-- [personal data](docs/evidence/m3-multiagent.md)
-- [fresh install](docs/evidence/cli-systemd-live.md)
 
 ## What it does
 
 - **Picks a model for every step.** An agent doesn't make one request per job; it makes dozens: read a file, run the tests, read the error, fix it, try again. Most of those steps are routine. Recursant sends routine steps to the cheaper model and keeps the thinking-heavy ones on the main model. If the agent keeps failing, it brings in a stronger model.
 - **Doesn't trip the agent up mid-task.** Switching models carelessly can confuse an agent or lose the discount providers give for repeated text. Recursant follows each conversation and only switches where it is safe.
-- **Keeps personal data private.** Every request is checked before it leaves your machine. The check covers tax file numbers, Medicare numbers, card numbers, phone numbers, email addresses and any patterns you add. Anything that matches goes to your private model instead, and that conversation stays private from then on. This check always has the final say.
-- **Uses your own hardware too.** Models on your own GPUs and paid services such as OpenRouter sit in one pool. Your own GPU always handles the private work, and you can let it take routine work as well, which costs nothing per request.
-- **Works with the agent you have.** It speaks the same language as OpenAI's API, which almost every agent and tool supports. No plugins and no code changes. It is tested with Hermes and pi.
+- **Keeps personal data private.** Every request is checked before it leaves your machine. The check covers tax file numbers, Medicare numbers, card numbers, phone numbers, email addresses and any patterns you add. Anything that matches goes to your private model instead, and that conversation stays private from then on. This check is fully deterministic using regexes. We have plans for SLM/ML-driven recognition as well.
+- **Works seamlessly across private and public inference** Models on your own GPUs and paid services such as OpenRouter sit in one pool. Your own GPU always handles the private work, and you can let it take routine work as well, which costs nothing per request.
+- **Works with the agent you have.** It speaks the same language as OpenAI's API, which almost every agent and tool supports. No plugins and no code changes. It is tested with Hermes and pi, testing with other harnesses are underway, so please bear with us as we optimise.
+- **Scale fast** Recursant is written in C and has minimal dependencies. It is designed to be fast. 
+
+## Support
+
+You need to run Recursant. macOS support is underway, Windows is tricky.
 
 ## Install
 
@@ -97,7 +83,7 @@ So far Recursant has been tested live with OpenRouter and with models on your ow
 
 ## Start it
 
-Run it as a background service that starts with your computer:
+Run it as a background service in `systemd` that starts with your computer:
 
 ```sh
 recursant install --user
@@ -151,7 +137,7 @@ curl -s http://127.0.0.1:8080/v1/chat/completions \
 
 Every answer says which model handled it and why (in the `X-Recursant-Model` and `X-Recursant-Decision` headers), so you can always see what happened. To choose a model yourself, ask for `baseline`, `economy`, `strong` or `local` instead of `auto`.
 
-## Everyday commands
+## Commands
 
 | Command | What it does |
 |---|---|
@@ -183,7 +169,7 @@ Recursant decides all this itself, in a few milliseconds, from the request the a
 - By default it only listens on this machine. Opening it to your network is your choice (`--listen`). If other people will reach it, put it behind a secure proxy.
 - The privacy check catches the formats it knows plus your own patterns. It is a strong safety net, not a guarantee that no personal data of any kind can ever leave.
 
-## More results
+## Results
 
 Answering 980 general-knowledge exam questions (MMLU-Pro), one request each:
 
@@ -195,7 +181,7 @@ Answering 980 general-knowledge exam questions (MMLU-Pro), one request each:
 
 The top model does better on hard questions, but nothing we tried could tell in advance which questions those are. So for single questions Recursant uses the cheapest model you allow, and the trade-off is your choice ([details](docs/evidence/m3-encoder-classifier.md)). We also tested small "decision models" (Jev, Strands Decider) as advisers. They didn't save money reliably, so they're switched off ([details](docs/m3-decision-model.md)).
 
-## Docker
+## Running it in Docker
 
 ```sh
 docker build -f deploy/Dockerfile -t recursant:local .
@@ -203,25 +189,6 @@ docker run --rm --user "$(id -u):$(id -g)" --read-only --cap-drop ALL --security
   -p 127.0.0.1:8080:8080 -v "$HOME/.config/recursant/config.json:/etc/recursant/config.json:ro" \
   --env-file "$HOME/.config/recursant/recursant.env" recursant:local
 ```
-
-## For developers
-
-Recursant is a single program of about 340 KB, written in C, with one settings file. To build it and run the tests in the development container:
-
-```sh
-docker build -f deploy/Dockerfile.dev -t recursant-v4-dev:local deploy
-docker run --rm -v "$PWD:/work" -w /work recursant-v4-dev:local sh -c \
-  'cmake -S . -B /tmp/b && cmake --build /tmp/b -j && cd /tmp/b && ctest --output-on-failure'
-```
-
-The tests use pretend model services and make no real model calls. Where to find the rest:
-
-- every setting: [config/recursant.agent.example.json](config/recursant.agent.example.json)
-- the design: [AGENTS.md](AGENTS.md)
-- benchmarks: [bench/](bench)
-- every measurement: [docs/evidence/](docs/evidence)
-
-To redraw the logo, run `python3 tools/logo.py`.
 
 ## Status
 
