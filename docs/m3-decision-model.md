@@ -137,8 +137,9 @@ outcomes" is a design with a published recipe and our labelled data, not yet a m
    | Next step routine vs code | AUC 0.47 (Jev v2 0.60 on the same steps) | never reaches P(routine) >= 0.8: selects nothing |
    | Repeat loop | AUC 0.43 | no signal; almost all p in [0.2, 0.4) |
 
-   Latency median 22.0 s, p90 30.0 s per state (median 1,415 tokens) on our serving setup: two
-   orders of magnitude off the published 115 ms, so a serving problem to fix before any live use
+   Latency median 22.0 s, p90 30.0 s per state (median 1,415 tokens): the replay ran on gx11's
+   CPU (image `recursant-decider:cpu`), not a GPU, so this is our setup, not the model's
+   published 115 ms; GPU serving is needed before any live use
    (the judge slot has ~10 ms before the harness sends its next request). Reading: zero-shot it
    reads tool outcomes well (near the 0.9 bar) and has no usable signal on the two routing
    questions; Jev is better zero-shot on "routine". Step 2 (fine-tune on our labels) is the
