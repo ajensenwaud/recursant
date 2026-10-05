@@ -211,6 +211,17 @@ class CLITests(unittest.TestCase):
             self.assertIn(name, r.stdout)
         self.assertEqual(self.run_cli('configure', '--config', self.write(config()), stdin='').returncode, 2)
 
+    def test_check_refuses_the_disabled_judge(self):
+        # The decision-model judge (Jev/Decider) is off in default builds: a config
+        # that asks for it is refused with the reason, not silently ignored.
+        quick = json.loads((pathlib.Path(__file__).resolve().parents[2] / 'config/recursant.quickstart.json').read_text())
+        quick['context']['judge'] = {'provider': 'openrouter', 'model': 'jev', 'url': 'https://example.test/v1/decisions',
+                                     'timeout_ms': 500, 'routine_min': 0.9, 'difficulty_max': 0.5}
+        keys = {'RECURSANT_API_KEY': 'a', 'OPENROUTER_API_KEY': 'b', 'RECURSANT_SOURCE_KEY': 'c'}
+        refused = self.run_cli('check', self.write(quick, 'judge.json'), env=keys)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn('judge is disabled in this build', refused.stderr)
+
     def test_check_warns_when_auto_sessions_have_no_private_candidate(self):
         quick = json.loads((pathlib.Path(__file__).resolve().parents[2] / 'config/recursant.quickstart.json').read_text())
         keys = {'RECURSANT_API_KEY': 'a', 'OPENROUTER_API_KEY': 'b', 'RECURSANT_SOURCE_KEY': 'c'}

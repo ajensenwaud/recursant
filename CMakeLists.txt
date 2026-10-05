@@ -4,6 +4,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 option(RECURSANT_SANITIZERS "Enable address and undefined-behaviour checks" OFF)
+option(RECURSANT_JUDGE "Research only: the decision-model judge (context.judge; Jev/Decider). Off: configs that set it are refused" OFF)
 option(RECURSANT_ENCODER "Local question encoder for context.prompt (needs ONNX Runtime headers; the library is loaded at run time)" OFF)
 
 add_library(recursant_selector STATIC core/src/context/selector.c)
@@ -111,8 +112,11 @@ if(ROUTER_DEPS_FOUND)
     target_compile_options(recursant_tools PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(recursant_tools PUBLIC -fsanitize=address,undefined)
   endif()
-  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/compliance/identifiers.c core/src/compliance/provenance.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c core/src/providers/catalog.c core/src/net/netinfo.c core/src/cli/cli.c core/src/cli/configure.c)
+  add_executable(recursant core/src/http/router.c core/src/runtime.c core/src/compliance/classifier.c core/src/compliance/identifiers.c core/src/compliance/provenance.c core/src/context/gateway_context.c core/src/context/response_observer.c core/src/context/judge.c core/src/providers/adapters.c core/src/providers/catalog.c core/src/net/netinfo.c core/src/cli/cli.c core/src/cli/configure.c core/src/cli/logo.c)
   target_compile_definitions(recursant PRIVATE RECURSANT_VERSION="${PROJECT_VERSION}")
+  if(RECURSANT_JUDGE)
+    target_compile_definitions(recursant PRIVATE RC_WITH_JUDGE)
+  endif()
   target_link_libraries(recursant PRIVATE recursant_signals recursant_efficiency recursant_prompt recursant_cost recursant_stream_tools recursant_tools recursant_config recursant_selector recursant_context recursant_attempts recursant_interpreter Threads::Threads PkgConfig::ROUTER_DEPS)
   target_compile_options(recursant PRIVATE -Wall -Wextra -Wpedantic -Werror)
 else()
@@ -298,10 +302,12 @@ if(BUILD_TESTING)
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_sessions.py -v)
       set_tests_properties(gateway_sessions_integration PROPERTIES TIMEOUT 180
         ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
-      add_test(NAME gateway_judge_integration COMMAND ${Python3_EXECUTABLE}
-        -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_judge.py -v)
-      set_tests_properties(gateway_judge_integration PROPERTIES TIMEOUT 120
-        ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      if(RECURSANT_JUDGE)
+        add_test(NAME gateway_judge_integration COMMAND ${Python3_EXECUTABLE}
+          -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_judge.py -v)
+        set_tests_properties(gateway_judge_integration PROPERTIES TIMEOUT 120
+          ENVIRONMENT "RECURSANT_BIN=$<TARGET_FILE:recursant>;PYTHONDONTWRITEBYTECODE=1")
+      endif()
       add_test(NAME gateway_efficiency_integration COMMAND ${Python3_EXECUTABLE}
         -m unittest discover -s ${CMAKE_SOURCE_DIR}/tests/integration -p test_gateway_efficiency.py -v)
       set_tests_properties(gateway_efficiency_integration PROPERTIES TIMEOUT 120

@@ -31,7 +31,7 @@ Engineers want lower AI cost, predictable bills, and practical controls. Current
 3. Context engine: makes the router agent/harness-aware. Layered, in precedence order below compliance:
    a. Continuity: tool-boundary replay, sticky request contract, pins, prompt-cache switching cost.
    b. Signals (default decision-maker): deterministic C rules over the request's tool results (clean steps downshift, executed failures escalate, harness rejections are neither).
-   c. Judge (optional, off by default): synchronous low-cost decision model (e.g. Jev) for turns signals leave unclassified; public egress only when M2 already permits public placement.
+   c. Judge (disabled 2026-10-05): a synchronous low-cost decision model (Jev, Strands Decider) for turns signals leave unclassified. Measured: no reliable saving over signals (docs/m3-decision-model.md). Default builds refuse `context.judge`; the code stays for research builds (`-DRECURSANT_JUDGE=ON`).
    d. Telemetry and interpretation (advisory, to be proven on long-horizon workflows): OpenTelemetry or harness adapters and async interpretation of plans, subagents, tool durations and compaction. Never overrides a–c.
 4. Self-improvment engine (optional): SLM or Jev-like agentic layer that assesses past routing decisions and optimises the context engine
 

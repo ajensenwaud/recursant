@@ -263,6 +263,12 @@ bool rc_gateway_configure(rc_runtime *rt,json_t *o) {
      * difficulty_max}. Public-trust provider (its resolved key is borrowed);
      * requires signals on. Absent = off. */
     json_t *judge=json_object_get(o,"judge");
+#ifndef RC_WITH_JUDGE
+    /* Disabled (Anders, 2026-10-05): the decision-model judge (Jev, Decider)
+     * added no reliable saving over signals (docs/m3-decision-model.md). Code
+     * kept for research builds (-DRECURSANT_JUDGE=ON); default builds refuse it. */
+    if(judge){fprintf(stderr,"context.judge: the decision-model judge is disabled in this build; remove context.judge (research builds: -DRECURSANT_JUDGE=ON)\n");return false;}
+#endif
     if(judge){
         const char *provider=token(judge,"provider",63),*jmodel=token(judge,"model",128);
         json_t *url=json_object_get(judge,"url"),*t=json_object_get(judge,"timeout_ms"),*rm=json_object_get(judge,"routine_min"),*dm=json_object_get(judge,"difficulty_max");
