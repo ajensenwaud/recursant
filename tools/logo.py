@@ -38,7 +38,7 @@ GLYPHS = {
 # Gradient stops across the whole logo, left to right.
 STOPS = [(0x00, 0xF5, 0xD4), (0x00, 0xBB, 0xF9), (0x3A, 0x86, 0xFF), (0x83, 0x38, 0xEC)]
 SHADOW = 0.42        # shadow (box-drawing) brightness relative to the face
-TAGLINE = "the agent-aware model router"
+TAGLINE = "The agent-aware model router built for hybrid inference"
 EMBLEM_COLS, EMBLEM_ROWS, GAP = 26, 12, 3
 BG = (13, 17, 23)    # GitHub dark
 
@@ -288,7 +288,7 @@ def write_social(path):
     small = ImageFont.truetype(lato.format("Regular"), 16)
 
     y = 52 + logo.height + 34
-    g.text((W // 2, y), "The hybrid inference, agent-aware model router", font=head,
+    g.text((W // 2, y), TAGLINE, font=head,
            fill=(230, 237, 243), anchor="mt")
 
     tw, th, gap = 376, 196, 22

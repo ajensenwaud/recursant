@@ -8,7 +8,7 @@
 #define RC_LOGO_GAP 3
 #define RC_LOGO_SHADOW_PCT 42
 #define RC_LOGO_STOPS 4
-#define RC_LOGO_TAGLINE "the agent-aware model router"
+#define RC_LOGO_TAGLINE "The agent-aware model router built for hybrid inference"
 static const char *const rc_logo_rows[RC_LOGO_ROWS] = {
     "██████╗ ███████╗ ██████╗██╗   ██╗██████╗ ███████╗ █████╗ ███╗   ██╗████████╗",
     "██╔══██╗██╔════╝██╔════╝██║   ██║██╔══██╗██╔════╝██╔══██╗████╗  ██║╚══██╔══╝",
