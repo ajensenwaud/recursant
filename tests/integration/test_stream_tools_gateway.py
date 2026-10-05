@@ -260,16 +260,19 @@ class StreamToolsTests(unittest.TestCase):
                 self.assertEqual(sink.seen[-1][2]['messages'], history)
                 self.assertEqual(sink.seen[-1][2]['model'], 'physical' if parallel_cap else 'frontier')
 
-    def test_null_or_missing_replay_content_is_not_empty_string(self):
-        for content in ('null', 'missing'):
+    def test_null_or_missing_replay_content_is_no_text_like_empty_string(self):
+        # pi / the OpenAI SDK replay a text-less tool turn as content null; the stream
+        # gave "". All spell "no text" and continue. Invented text still pins.
+        for content in ('null', 'missing', 'invented'):
             with self.subTest(content=content), self.router(self.setup) as (p, sink):
                 scope, history = self.start(p, sink)
                 self.advice(p, scope)
                 if content == 'null': history[-1]['content'] = None
-                else: history[-1].pop('content')
+                elif content == 'missing': history[-1].pop('content')
+                else: history[-1]['content'] = 'never said this'
                 history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'result'})
                 self.assertEqual(self.continuation(p, scope, history)[0], 200)
-                self.assertEqual(sink.seen[-1][2]['model'], 'frontier')
+                self.assertEqual(sink.seen[-1][2]['model'], 'frontier' if content == 'invented' else 'physical')
 
     def test_named_choice_limits_authoritative_capture(self):
         for name in ('f', 'g'):

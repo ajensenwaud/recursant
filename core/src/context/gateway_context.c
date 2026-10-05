@@ -705,7 +705,7 @@ static bool nullable_keys(json_t *o,const char *ordinary,const char *nullable) {
 static bool plain_message(json_t *m) {
     json_t *v=json_object_get(m,"content");
     const char *nullable=eq(m,"role","assistant")?"|refusal||annotations||audio||function_call|":"";
-    return nullable_keys(m,"|role||content|",nullable)&&json_is_string(json_object_get(m,"role"))&&json_is_string(v)&&json_string_length(v)==strlen(json_string_value(v));
+    return nullable_keys(m,"|role||content|",nullable)&&json_is_string(json_object_get(m,"role"))&&rc_tool_text_content(v);
 }
 /* Legacy narrow subset: flat primitive object parameters. Anything else is a
  * nested schema, qualified only by requirement RC_REQ_NESTED_SCHEMAS. */
@@ -752,8 +752,10 @@ static bool tool_definitions(json_t *body,uint32_t *requirements) {
     bool nested=json_array_size(tools)>32||bytes>16384;size_t nodes=0;
     for(size_t i=0;i<json_array_size(tools);i++){
         json_t *t=json_array_get(tools,i),*f=json_object_get(t,"function"),*p=json_object_get(f,"parameters"),*d=json_object_get(f,"description");
+        json_t *strict=json_object_get(f,"strict"); /* false = OpenAI default (pi sends it); true needs schema-constrained decoding */
         const char *name=token(f,"name",64);
-        if(!keys(t,"|type||function|")||!eq(t,"type","function")||!keys(f,"|name||description||parameters|")||!name||
+        if(!keys(t,"|type||function|")||!eq(t,"type","function")||!keys(f,"|name||description||parameters||strict|")||!name||
+           (strict&&!json_is_false(strict))||
            (d&&(!json_is_string(d)||json_string_length(d)>4096))||
            !json_is_object(p)||!bounded_tree(p,0,&nodes))return false;
         if(!flat_parameters(p))nested=true;
@@ -784,7 +786,9 @@ static bool output_bound(json_t *body,uint64_t *out) {
 }
 /* effort receives the exact reasoning_effort token ("" when absent). */
 static bool request_options(json_t *body,uint32_t *requirements,char effort[RC_EFFORT_BYTES+1]) {
-    if(!keys(body,"|model||messages||max_tokens||max_completion_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls||reasoning_effort|"))return false;
+    if(!keys(body,"|model||messages||max_tokens||max_completion_tokens||temperature||top_p||stream||stream_options||tools||tool_choice||parallel_tool_calls||reasoning_effort||store|"))return false;
+    /* store:false (pi, OpenAI SDK): retention opt-out, forwarded verbatim. */
+    json_t *store=json_object_get(body,"store");if(store&&!json_is_false(store))return false;
     json_t *stream=json_object_get(body,"stream");if(stream&&!json_is_boolean(stream))return false;
     json_t *options=json_object_get(body,"stream_options");
     if(options&&(!json_is_true(stream)||!keys(options,"|include_usage|")||

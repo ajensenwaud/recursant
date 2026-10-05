@@ -148,6 +148,20 @@ class NativeProfileTests(unittest.TestCase):
         finally:
             self.hermes_body = original
 
+    # pi (OpenAI SDK) adds store:false: a retention opt-out, no content. It must not
+    # pin the session; store:true (retention) or a non-boolean still pins.
+    def test_a3_store_false_switches_store_true_pins(self):
+        tools = nested_tools()
+        with self.router(self.setup) as (p, sink):
+            s = lambda i: {'store': False}
+            _, _, models = self.loop(p, sink, tools, 'tool_3', ['wrote 3 files', 'ok'], extra_first=s, extra_next=s)
+            self.assertEqual(models, ['frontier', 'physical', 'physical'])
+        for bad in ({'store': True}, {'store': 'false'}):
+            with self.subTest(bad=bad), self.router(self.setup) as (p, sink):
+                b = lambda i, bad=bad: bad
+                _, _, models = self.loop(p, sink, tools, 'tool_3', ['ok'], extra_first=b, extra_next=b)
+                self.assertNotIn('physical', models)
+
     # (b) destination lacking any one declaration never receives it.
     def test_b_missing_declaration_stays_baseline(self):
         tools = nested_tools()

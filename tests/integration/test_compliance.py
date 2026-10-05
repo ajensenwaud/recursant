@@ -249,6 +249,18 @@ class ComplianceTests(unittest.TestCase):
             self.assertEqual(private.seen, [])
             self.assertEqual(public.seen, [{**body, 'model': 'public-model', 'provider': {'allow_fallbacks': False}}])
 
+    def test_04b_store_false_is_a_known_control_store_true_is_not(self):
+        # pi (and the OpenAI SDK) send store:false = do not retain; it carries no content.
+        # store:true asks the provider to retain the exchange: not inspectable -> private.
+        clean = {'model': 'alias', 'messages': [{'role': 'user', 'content': 'clean text'}]}
+        with self.router() as (p, private, public):
+            self.assertEqual(self.request(p, body={**clean, 'store': False})[0], 200)
+            self.assertEqual(private.bytes_seen, 0)
+            self.assertEqual(len(public.seen), 1)
+        for store in (True, 'false', None):
+            with self.subTest(store=store), self.router() as (p, private, public):
+                self.private_only(p, private, public, {**clean, 'store': store})
+
     def test_05_email_all_request_locations(self):
         email = 'synthetic@example.test'
         fields = [

@@ -222,7 +222,33 @@ static void argument_spelling_tests(void) {
     snprintf(buf,sizeof buf,"%s\"not  json\"%s",rhead,tail);assert(rc_tool_boundary_replay(b,buf,strlen(buf))==RC_TOOL_INVALID);
     rc_tool_boundary_free(b);
 }
+/* No assistant text is spelled "", null or absent: the gateway observes "" from
+ * a stream, pi replays null. All three are one value; real text stays exact. */
+static void empty_content_tests(void) {
+    const char *spell[]={"\"content\":\"\",", "\"content\":null,", ""};
+    for (int o=0;o<3;o++) for (int r=0;r<3;r++) {
+        char as[512], rs[1024]; rc_tool_boundary *b=NULL;
+        snprintf(as,sizeof as,"{\"role\":\"assistant\",%s\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]}",spell[o]);
+        assert(rc_tool_boundary_capture(history,strlen(history),as,strlen(as),&b)==RC_TOOL_COMPLETE);
+        snprintf(rs,sizeof rs,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",%s\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"ok\"}]",spell[r]);
+        assert(rc_tool_boundary_replay(b,rs,strlen(rs))==RC_TOOL_COMPLETE);
+        /* Text the model produced must be replayed verbatim, and none invented. */
+        snprintf(rs,sizeof rs,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",\"content\":\"added\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"ok\"}]");
+        assert(rc_tool_boundary_replay(b,rs,strlen(rs))==RC_TOOL_INVALID);
+        rc_tool_boundary_free(b);
+    }
+    rc_tool_boundary *b=NULL;
+    const char *said="{\"role\":\"assistant\",\"content\":\"Running it.\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]}";
+    assert(rc_tool_boundary_capture(history,strlen(history),said,strlen(said),&b)==RC_TOOL_COMPLETE);
+    for (int r=0;r<3;r++) {
+        char rs[1024];
+        snprintf(rs,sizeof rs,"[{\"role\":\"user\",\"content\":\"run\"},{\"role\":\"assistant\",%s\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"ok\"}]",spell[r]);
+        assert(rc_tool_boundary_replay(b,rs,strlen(rs))==RC_TOOL_INVALID);
+    }
+    rc_tool_boundary_free(b);
+}
 int main(void) {
+    empty_content_tests();
     argument_spelling_tests();
     edge_tests();
     parallel_tests(); malformed_tests();

@@ -46,3 +46,30 @@ closed) rather than redirect. Fixes: quickstart gains a compliance-only `local` 
 on but no candidate is private. Re-run: both PII tasks pass.
 
 Not covered: concurrency/load, long-horizon pack, other public gateways in the catalogue.
+
+## Second harness: pi 0.84.4 through the installed service (same day)
+
+pi with an isolated config (`PI_CODING_AGENT_DIR`; provider `openai-completions`, base URL
+the service, `apiKey: "${RECURSANT_API_KEY}"` (a bare name is sent literally), model `auto`).
+Tasks: Roman numerals module + tests; a small `inventory` package + tests. Both pass.
+
+pi's real requests were recorded through a pass-through proxy and the pin site found with an
+instrumented scratch build. Four request-shape gaps, each making routing fail safe (private
+or pinned at baseline), none a crash:
+
+| pi sends | Effect before | Fix |
+|---|---|---|
+| `store: false` (top level) | compliance `unknown` -> every request private | known control when `false`; `true` (retention) stays uninspectable |
+| `strict: false` on each function | `request_options` fails -> session pinned on turn 1 | accepted when `false`; `true` still pins |
+| user content as text parts `[{"type":"text",...}]` | not "plain" -> pinned | text-only parts are plain text (gateway + tool boundary); images, extra keys, empty list still pin |
+| assistant `content: null` with tool calls (stream observed `""`) | replay mismatch -> new session, baseline | `""`, `null`, absent are one "no text" value; real text stays exact |
+
+After the fixes, both pi sessions step down after the first clean tool result
+(`class=tool_followup_ok reason=cheapest chosen=economy`).
+
+Open (not fixed, needs a decision): when the economy model is an OpenRouter reasoning model
+(gpt-6-luna), its reply carries `reasoning_details` (`reasoning.encrypted`) and pi replays it, as
+OpenRouter recommends. The observer drops reasoning from the replayable message by design
+(`response_observer.c`), so the replay differs and the session restarts; the classifier cannot
+inspect ciphertext, so that session goes private (`compliance_reason=unknown`). Correct fail-safe
+behaviour, but it ends the saving after the first economy step for pi.

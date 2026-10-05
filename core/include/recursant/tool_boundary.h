@@ -71,6 +71,12 @@ rc_tool_status rc_tool_boundary_replay(const rc_tool_boundary *boundary,
  * compact serialization, without serializing and re-parsing; the byte bound is
  * the caller's request-body limit. */
 struct json_t;
+/* Plain message text: a string, or 1..RC_TOOL_MAX_TEXT_PARTS content parts that
+ * are each exactly {"type":"text","text":<string>} (the OpenAI multi-part form
+ * pi and the OpenAI SDK send). No embedded NUL. Any other part (image, file,
+ * cache_control) is not plain text. */
+#define RC_TOOL_MAX_TEXT_PARTS 64
+bool rc_tool_text_content(struct json_t *content);
 rc_tool_status rc_tool_boundary_replay_json(const rc_tool_boundary *boundary,
     struct json_t *messages);
 uint32_t rc_tool_boundary_requirements(const rc_tool_boundary *boundary);

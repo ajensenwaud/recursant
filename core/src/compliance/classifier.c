@@ -238,7 +238,11 @@ static bool inspectable_content(json_t *body) {
 /* inspectable() split: the destination-independent part (messages, tools,
  * functions) and the per-destination part (top-level keys, provider controls). */
 static bool inspectable_controls(json_t *body,const char *controls) {
-    if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider||cache_control|"))return false;
+    if(!known_keys(body,"|model||messages||tools||tool_choice||functions||function_call||temperature||top_p||max_tokens||max_completion_tokens||stream||stream_options||stop||seed||frequency_penalty||presence_penalty||logprobs||top_logprobs||logit_bias||n||user||metadata||response_format||reasoning||reasoning_effort||parallel_tool_calls||provider||cache_control||store|"))return false;
+    /* store:false (OpenAI SDK, pi) asks the provider not to retain the exchange
+     * and carries no content. store:true asks it to retain: not inspectable. */
+    json_t *store=json_object_get(body,"store");
+    if(store&&!json_is_false(store))return false;
     /* Prompt-cache breakpoint (Anthropic via OpenRouter): a fixed control,
      * {"type":"ephemeral"[,"ttl":"5m"|"1h"]}, carries no content. */
     json_t *cache=json_object_get(body,"cache_control");

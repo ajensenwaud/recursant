@@ -73,6 +73,37 @@ class GatewaySessionTests(unittest.TestCase):
         self.assertIn(' class=tool_followup_ok reason=cheapest', decisions[1])
         self.assertNotIn(b'start the first job', sink.router_stderr)
 
+    def test_a2_text_part_content_is_plain_text(self):
+        # pi (OpenAI SDK) sends the user turn as text parts, store:false and
+        # strict:false on every function. Text-only parts are plain text; any other
+        # part, an extra key, no parts, or strict:true still pins.
+        def parts(*texts):
+            return [{'type': 'text', 'text': t} for t in texts]
+        def tools(strict):
+            return [{**t, 'function': {**t['function'], 'strict': strict}} for t in self.tools()]
+        with self.router(self.setup) as (p, sink):
+            history = [{'role': 'system', 'content': 'You are a coding agent.'},
+                       {'role': 'user', 'content': parts('start the first job', 'then report')}]
+            sink.envelope = {'message': {'tool_calls': [call(1)]}}
+            models = [self.step(p, sink, history, store=False, tools=tools(False))]
+            for i, text in enumerate(['wrote 3 files', 'ok'], start=1):
+                history.append({'role': 'tool', 'tool_call_id': 'call-%d' % i, 'content': text})
+                sink.envelope = {'message': {'tool_calls': [call(i + 1)]}}
+                models.append(self.step(p, sink, history, store=False, tools=tools(False)))
+            self.assertEqual(models, ['frontier', 'physical', 'physical'])
+        with self.router(self.setup) as (p, sink):
+            history = [{'role': 'user', 'content': 'start'}]
+            sink.envelope = {'message': {'tool_calls': [call(1)]}}
+            models = [self.step(p, sink, history, tools=tools(True))]
+            history.append({'role': 'tool', 'tool_call_id': 'call-1', 'content': 'wrote 3 files'})
+            models.append(self.step(p, sink, history, tools=tools(True)))
+            self.assertNotIn('physical', models)
+        image = {'type': 'image_url', 'image_url': {'url': 'https://example.test/a.png'}}
+        for opening in (parts('start') + [image], [{'type': 'text', 'text': 'start', 'cache_control': {'type': 'ephemeral'}}], []):
+            with self.subTest(opening=opening), self.router(self.setup) as (p, sink):
+                _, models = self.loop(p, sink, opening, ['wrote 3 files', 'ok'])
+                self.assertNotIn('physical', models)
+
     def test_b_default_and_headers_mode_leave_unregistered_requests_at_baseline(self):
         for sessions in (None, 'headers'):
             with self.subTest(sessions=sessions):

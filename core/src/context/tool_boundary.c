@@ -8,11 +8,25 @@ static bool text(json_t *v, const char *expected) {
     const char *s=json_string_value(v);
     return s && strcmp(s,expected)==0;
 }
+static bool nul_free(json_t *v) {
+    return json_is_string(v) && json_string_length(v)==strlen(json_string_value(v));
+}
+bool rc_tool_text_content(json_t *content) {
+    if (nul_free(content)) return true;
+    size_t n=json_array_size(content);
+    if (!json_is_array(content) || !n || n>RC_TOOL_MAX_TEXT_PARTS) return false;
+    for (size_t i=0;i<n;++i) {
+        json_t *part=json_array_get(content,i);
+        if (!json_is_object(part) || json_object_size(part)!=2 ||
+            !text(json_object_get(part,"type"),"text") || !nul_free(json_object_get(part,"text"))) return false;
+    }
+    return true;
+}
 static bool plain(json_t *v) {
     json_t *role=json_object_get(v,"role");
     return json_is_object(v) && json_object_size(v)==2 &&
         (text(role,"user") || text(role,"system") || text(role,"assistant")) &&
-        json_is_string(json_object_get(v,"content"));
+        rc_tool_text_content(json_object_get(v,"content"));
 }
 static bool calls_valid(json_t *v) {
     json_t *cs=json_object_get(v,"tool_calls"), *content=json_object_get(v,"content");
@@ -112,10 +126,21 @@ static bool args_equal(json_t *observed, json_t *replayed) {
     bool same = b && json_equal(a, b);
     json_decref(a); json_decref(b); return same;
 }
+/* No assistant text: "", null or absent are one value (the gateway observes ""
+ * from a stream; pi and the OpenAI SDK replay null). Real text stays exact. */
+static bool no_text(json_t *v) {
+    return !v || json_is_null(v) || (json_is_string(v) && !json_string_length(v));
+}
+static size_t members(json_t *o) {
+    return json_object_size(o) - (json_object_get(o, "content") ? 1u : 0u);
+}
 static bool assistant_equal(json_t *replayed, json_t *observed) {
-    if (!json_is_object(replayed) || json_object_size(replayed) != json_object_size(observed)) return false;
+    if (!json_is_object(replayed) || members(replayed) != members(observed)) return false;
+    json_t *rt = json_object_get(replayed, "content"), *ot = json_object_get(observed, "content");
+    if (!(no_text(rt) && no_text(ot)) && !(rt && ot && json_equal(rt, ot))) return false;
     const char *k; json_t *v;
     json_object_foreach(observed, k, v) {
+        if (!strcmp(k, "content")) continue;
         json_t *r = json_object_get(replayed, k);
         if (!r) return false;
         if (strcmp(k, "tool_calls")) { if (!json_equal(r, v)) return false; continue; }
